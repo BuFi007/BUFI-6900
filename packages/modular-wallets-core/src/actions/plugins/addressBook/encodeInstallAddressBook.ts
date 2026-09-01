@@ -44,9 +44,10 @@ export interface EncodeInstallAddressBookParameters {
  * Encodes the `installPlugin` call that installs the ColdStorageAddressBookPlugin on a weighted-multisig account,
  * wired to the multisig plugin through {@link addressBookDependencies} and seeded with the initial allowlist.
  *
- * Submit it as its own user operation, after the ownership plugin has reached its final weights.
+ * Submit `data` as raw user operation calldata, in its own user operation, after the ownership plugin has reached
+ * its final weights.
  * @param parameters - Parameters to use. See {@link EncodeInstallAddressBookParameters}.
- * @returns The call to execute. See {@link EncodedCall}.
+ * @returns The call to submit. See {@link EncodedCall}.
  */
 export function encodeInstallAddressBook({
   account,

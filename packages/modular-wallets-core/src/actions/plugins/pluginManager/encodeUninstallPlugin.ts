@@ -44,9 +44,10 @@ export interface EncodeUninstallPluginParameters {
 }
 
 /**
- * Encodes an `uninstallPlugin` call as an `execute`-ready call targeting the account itself.
+ * Encodes an `uninstallPlugin` call targeting the account itself. Submit `data` as raw user operation calldata, in
+ * its own user operation (see `encodeInstallPlugin`).
  * @param parameters - Parameters to use. See {@link EncodeUninstallPluginParameters}.
- * @returns The call to execute. See {@link EncodedCall}.
+ * @returns The call to submit. See {@link EncodedCall}.
  */
 export function encodeUninstallPlugin({
   account,

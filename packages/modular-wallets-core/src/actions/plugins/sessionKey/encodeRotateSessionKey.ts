@@ -38,7 +38,8 @@ export interface EncodeRotateSessionKeyParameters {
 }
 
 /**
- * Encodes a `rotateSessionKey(oldSessionKey, predecessor, newSessionKey)` call. Send it to the account itself.
+ * Encodes a `rotateSessionKey(oldSessionKey, predecessor, newSessionKey)` call. Submit it as raw user operation
+ * calldata targeting the account.
  * @param parameters - Parameters to use. See {@link EncodeRotateSessionKeyParameters}.
  * @returns The encoded call data.
  */

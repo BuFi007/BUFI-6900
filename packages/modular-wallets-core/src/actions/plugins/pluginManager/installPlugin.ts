@@ -51,8 +51,10 @@ export interface InstallPluginParameters
 /**
  * Installs an ERC-6900 plugin on the account by sending an `installPlugin` user operation.
  *
- * Send exactly one plugin install per user operation. Installing a plugin whose manifest depends on the ownership
- * plugin in the same user operation that re-weights the owners is not supported by the Circle stack.
+ * The encoded call is submitted as the raw user operation calldata, never wrapped in `execute`/`executeBatch`: on
+ * the Circle MSCA a self-call re-enters runtime validation, which the weighted multisig plugin always rejects, so
+ * only the EntryPoint path (owner user operation validation) can reach `installPlugin`. Send exactly one plugin
+ * install per user operation, and never in the same user operation that re-weights the owners.
  * @param client - Client to use.
  * @param params - Parameters to use. See {@link InstallPluginParameters}.
  * @returns The user operation hash. See {@link SendUserOperationReturnType}.
@@ -79,7 +81,7 @@ export async function installPlugin(
   })
 
   return await sendUserOperation(client, {
-    calls: [call],
+    callData: call.data,
     ...userOp,
   } as SendUserOperationParameters)
 }

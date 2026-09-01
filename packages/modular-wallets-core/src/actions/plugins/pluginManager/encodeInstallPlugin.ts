@@ -47,13 +47,14 @@ export interface EncodeInstallPluginParameters {
 }
 
 /**
- * Encodes an `installPlugin` call as an `execute`-ready call targeting the account itself.
+ * Encodes an `installPlugin` call targeting the account itself.
  *
- * `installPlugin` is a native function of the UpgradableMSCA that accepts calls from the EntryPoint or from the
- * account itself, so the returned call can be sent as the single call of a user operation (viem wraps it in
- * `execute(account, 0, data)`), or its `data` can be used as raw user operation calldata.
+ * Submit `data` as the raw user operation calldata (`sendUserOperation({ callData })`, which `installPlugin` does),
+ * one plugin per user operation. Do NOT pass it as one of `calls`: viem would wrap it in `execute(account, 0, data)`,
+ * and on the Circle MSCA a self-call re-enters runtime validation, which the weighted multisig plugin always rejects.
+ * Only the EntryPoint path, validated by the owners' user operation validation, reaches native functions.
  * @param parameters - Parameters to use. See {@link EncodeInstallPluginParameters}.
- * @returns The call to execute. See {@link EncodedCall}.
+ * @returns The call to submit. See {@link EncodedCall}.
  */
 export function encodeInstallPlugin({
   account,

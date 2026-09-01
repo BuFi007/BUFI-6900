@@ -78,6 +78,18 @@ export const WEIGHTED_MULTISIG_OWNER_USER_OP_VALIDATION_FUNCTION_ID = 0
 export const WEIGHTED_MULTISIG_UNIMPLEMENTED_RUNTIME_VALIDATION_FUNCTION_ID = 1
 
 /**
+ * The BufiEarnModule manifest dependency slot that backs the runtime validation of `changeConfigHash`
+ * (`OWNER_RUNTIME_VALIDATION_DEPENDENCY_INDEX` on the contract).
+ */
+export const EARN_MODULE_OWNER_RUNTIME_VALIDATION_DEPENDENCY_INDEX = 0
+
+/**
+ * The BufiEarnModule manifest dependency slot that backs the user operation validation of `changeConfigHash`
+ * (`OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX` on the contract).
+ */
+export const EARN_MODULE_OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX = 1
+
+/**
  * A 65-byte placeholder secp256k1 signature used to estimate the gas of session key user operations.
  *
  * It is well-formed (`r` below the curve order, low `s`, `v` = 28) so `ECDSA.tryRecover` yields an address instead of

@@ -17,6 +17,7 @@
  */
 
 export * from './computeEarnConfigHash'
+export * from './earnModuleDependencies'
 export * from './encodeAutoEarn'
 export * from './encodeChangeConfigHash'
 export * from './encodeEarnModuleInstallData'

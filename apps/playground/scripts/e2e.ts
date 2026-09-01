@@ -157,7 +157,9 @@ async function main() {
   // ── 2. address book ───────────────────────────────────────────────────────────────────────────────────────
   section('Owner installs ColdStorageAddressBookPlugin (production dependency slots) with [friend] allowlisted')
   const abInstall = encodeInstallAddressBook({ account: address, recipients: [friend], deployment })
-  const abHash = await bundler.sendUserOperation({ calls: [abInstall] })
+  // Management calls are raw userOp calldata (never wrapped in execute(account, …)): the inner self-call would
+  // hit runtime validation, which weighted owners deliberately cannot pass.
+  const abHash = await bundler.sendUserOperation({ callData: abInstall.data })
   assert((await bundler.waitForUserOperationReceipt({ hash: abHash })).success, 'address book install succeeded')
   installed = await getInstalledPlugins(rpc, { account: address })
   assert(installed.map((p) => p.toLowerCase()).includes(deployment.coldStorageAddressBook.address.toLowerCase()), 'address book listed by AccountLoupe')
@@ -190,7 +192,7 @@ async function main() {
       },
     ],
   })
-  const skHash = await bundler.sendUserOperation({ calls: [face.installSessionKeyPlugin] })
+  const skHash = await bundler.sendUserOperation({ callData: face.installSessionKeyPlugin.data })
   assert((await bundler.waitForUserOperationReceipt({ hash: skHash })).success, 'session key plugin install succeeded')
   const keys = await getSessionKeys(rpc, { plugin: deployment.bufiSessionKey.address, account: address })
   assert(keys.map((k) => k.toLowerCase()).includes(agent.address.toLowerCase()), 'agent key registered')
@@ -235,7 +237,7 @@ async function main() {
   section('Owner revokes the agent key; the agent is rejected')
   const predecessor = await findPredecessor(rpc, { plugin: deployment.bufiSessionKey.address, account: address, sessionKey: agent.address })
   const revoke = encodeRemoveSessionKey({ sessionKey: agent.address, predecessor })
-  const rvHash = await bundler.sendUserOperation({ calls: [{ to: address, data: revoke, value: 0n }] })
+  const rvHash = await bundler.sendUserOperation({ callData: revoke })
   assert((await bundler.waitForUserOperationReceipt({ hash: rvHash })).success, 'removeSessionKey succeeded')
   await expectRejected('revoked agent transfer', () => agentTransfer(friend, USDC(1)))
 
@@ -251,7 +253,7 @@ async function main() {
     await rpc.waitForTransactionReceipt({ hash: await deployer.writeContract({ address: earn, abi: EARN_ABI, functionName: 'setConfig', args: [configs] }) })
     await rpc.waitForTransactionReceipt({ hash: await deployer.writeContract({ address: earn, abi: EARN_ABI, functionName: 'addAuthorizedRelayer', args: [relayer.account.address] }) })
     const earnInstall = encodeInstallEarnModule({ account: address, configHash, deployment })
-    const eHash = await bundler.sendUserOperation({ calls: [earnInstall] })
+    const eHash = await bundler.sendUserOperation({ callData: earnInstall.data })
     assert((await bundler.waitForUserOperationReceipt({ hash: eHash })).success, 'earn install succeeded')
     const sweep = await relayer.writeContract({ address, abi: EARN_ABI, functionName: 'autoEarn', args: [usdc, USDC(1_000)] })
     assert((await rpc.waitForTransactionReceipt({ hash: sweep })).status === 'success', 'relayer autoEarn tx mined')

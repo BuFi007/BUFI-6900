@@ -36,6 +36,7 @@ import {
 import { EARN_MODULE_ABI } from '../../../../abis'
 import {
   computeEarnConfigHash,
+  earnModuleDependencies,
   encodeAutoEarn,
   encodeChangeConfigHash,
   encodeEarnModuleInstallData,
@@ -43,6 +44,10 @@ import {
   encodeInstallPlugin,
   getEarnConfigs,
 } from '../../../../actions'
+import {
+  EARN_MODULE_OWNER_RUNTIME_VALIDATION_DEPENDENCY_INDEX,
+  EARN_MODULE_OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX,
+} from '../../../../constants'
 import { AccountType } from '../../../../types'
 
 // Independently declared ABI fragments for the calldata assertions
@@ -138,11 +143,14 @@ describe('Actions > plugins > earn > encoders', () => {
     )
   })
 
-  it('should encode changeConfigHash as a call to the module', () => {
-    expect(
-      encodeChangeConfigHash({ plugin: MockPluginAddress, newConfigHash: 42n }),
-    ).toEqual({
-      to: MockPluginAddress,
+  it('should encode changeConfigHash as raw calldata targeting the account', () => {
+    const call = encodeChangeConfigHash({
+      account: MockAccountAddress,
+      newConfigHash: 42n,
+    })
+
+    expect(call).toEqual({
+      to: MockAccountAddress,
       value: 0n,
       data: encodeFunctionData({
         abi: EARN_ABI,
@@ -150,9 +158,46 @@ describe('Actions > plugins > earn > encoders', () => {
         args: [42n],
       }),
     })
+    expect(call.data.slice(0, 10)).toBe(
+      toFunctionSelector('changeConfigHash(uint256)'),
+    )
   })
 
-  it('should install the earn module of a deployment without dependencies', () => {
+  it('should wire the owner dependency slots exactly like the address book', () => {
+    const weighted = MockSandboxDeployment.weightedWebauthnMultisig.address
+    const dependencies = earnModuleDependencies(weighted)
+
+    expect(dependencies).toEqual([
+      { plugin: weighted, functionId: 1 },
+      { plugin: weighted, functionId: 0 },
+    ])
+    expect(EARN_MODULE_OWNER_RUNTIME_VALIDATION_DEPENDENCY_INDEX).toBe(0)
+    expect(EARN_MODULE_OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX).toBe(1)
+    expect(
+      dependencies[EARN_MODULE_OWNER_RUNTIME_VALIDATION_DEPENDENCY_INDEX]
+        .functionId,
+    ).toBe(1)
+    expect(
+      dependencies[EARN_MODULE_OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX]
+        .functionId,
+    ).toBe(0)
+  })
+
+  it('should expose the manifest dependency slot constants in the ABI', () => {
+    const names = EARN_MODULE_ABI.map((item) => item.name)
+
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'OWNER_RUNTIME_VALIDATION_DEPENDENCY_INDEX',
+        'OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX',
+        'FUNCTION_ID_RUNTIME_VALIDATION_RELAYER',
+        'changeConfigHash',
+        'autoEarn',
+      ]),
+    )
+  })
+
+  it('should install the earn module of a deployment with the owner dependency slots', () => {
     const deployment = {
       ...MockSandboxDeployment,
       bufiEarnModule: {
@@ -160,6 +205,7 @@ describe('Actions > plugins > earn > encoders', () => {
         manifestHash: `0x${'44'.repeat(32)}` as const,
       },
     }
+    const weighted = MockSandboxDeployment.weightedWebauthnMultisig.address
 
     expect(
       encodeInstallEarnModule({
@@ -173,6 +219,10 @@ describe('Actions > plugins > earn > encoders', () => {
         plugin: MockPluginAddress,
         manifestHash: `0x${'44'.repeat(32)}`,
         pluginInstallData: encodeEarnModuleInstallData(7n),
+        dependencies: [
+          { plugin: weighted, functionId: 1 },
+          { plugin: weighted, functionId: 0 },
+        ],
       }),
     )
   })

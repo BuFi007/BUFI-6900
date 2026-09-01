@@ -62,13 +62,14 @@ export interface BuildAgentFaceCallsParameters {
 
 export interface AgentFaceCalls {
   /**
-   * Submit this (alone, in its own user operation) when the session key plugin is NOT yet installed: it installs the
-   * plugin and seeds every agent key through the install data.
+   * Submit this (as raw user operation calldata, in its own user operation) when the session key plugin is NOT yet
+   * installed: it installs the plugin and seeds every agent key through the install data.
    */
   installSessionKeyPlugin: EncodedCall
   /**
-   * Submit these when the session key plugin IS already installed: one `addSessionKey` call per agent. They are all
-   * owner-validated plugin execution functions, so they may share one user operation.
+   * Submit these when the session key plugin IS already installed: one `addSessionKey` call per agent, each as the
+   * raw calldata of its own user operation. They are owner-validated plugin execution functions reached through the
+   * account's fallback, which only the EntryPoint path may enter, so they cannot be batched through `executeBatch`.
    */
   addSessionKeys: EncodedCall[]
   /**

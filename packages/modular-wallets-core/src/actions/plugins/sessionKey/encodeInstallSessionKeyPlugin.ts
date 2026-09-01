@@ -47,9 +47,9 @@ export interface EncodeInstallSessionKeyPluginParameters {
  * Encodes the `installPlugin` call that installs the BUFI session key plugin on a weighted-multisig account, wired
  * through {@link sessionKeyDependencies} and optionally seeded with session keys.
  *
- * Submit it as its own user operation.
+ * Submit `data` as raw user operation calldata, in its own user operation.
  * @param parameters - Parameters to use. See {@link EncodeInstallSessionKeyPluginParameters}.
- * @returns The call to execute. See {@link EncodedCall}.
+ * @returns The call to submit. See {@link EncodedCall}.
  * @throws Error if the deployment has no session key plugin.
  */
 export function encodeInstallSessionKeyPlugin({

@@ -44,7 +44,8 @@ export interface UninstallPluginParameters
 }
 
 /**
- * Uninstalls an ERC-6900 plugin from the account by sending an `uninstallPlugin` user operation.
+ * Uninstalls an ERC-6900 plugin from the account by sending an `uninstallPlugin` user operation. The encoded call is
+ * submitted as the raw user operation calldata (see `installPlugin`).
  * @param client - Client to use.
  * @param params - Parameters to use. See {@link UninstallPluginParameters}.
  * @returns The user operation hash. See {@link SendUserOperationReturnType}.
@@ -69,7 +70,7 @@ export async function uninstallPlugin(
   })
 
   return await sendUserOperation(client, {
-    calls: [call],
+    callData: call.data,
     ...userOp,
   } as SendUserOperationParameters)
 }

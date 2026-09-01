@@ -39,7 +39,9 @@ export interface EncodeUpdateMultisigWeightsParameters {
 }
 
 /**
- * Encodes an `updateMultisigWeights` call on the WeightedWebauthnMultisigPlugin. Send it to the account itself.
+ * Encodes an `updateMultisigWeights` call on the WeightedWebauthnMultisigPlugin. Submit it as raw user operation
+ * calldata targeting the account: the plugin's runtime validation for it always reverts, so only an owner-validated
+ * user operation can re-weight the account.
  * @param parameters - Parameters to use. See {@link EncodeUpdateMultisigWeightsParameters}.
  * @returns The encoded call data.
  */

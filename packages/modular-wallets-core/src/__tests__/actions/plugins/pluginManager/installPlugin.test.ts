@@ -64,7 +64,7 @@ afterEach(() => {
 })
 
 describe('Actions > plugins > pluginManager > installPlugin', () => {
-  it('should send an installPlugin user operation targeting the account', async () => {
+  it('should send the installPlugin calldata as raw user operation calldata', async () => {
     const result = await installPlugin(client, {
       account,
       plugin: MockPluginAddress,
@@ -78,19 +78,32 @@ describe('Actions > plugins > pluginManager > installPlugin', () => {
       client,
       {
         account,
-        calls: [
-          encodeInstallPlugin({
-            account: account.address,
-            plugin: MockPluginAddress,
-            manifestHash: MockManifestHash,
-            pluginInstallData: '0x1234',
-            dependencies: [{ plugin: MockPluginAddress, functionId: 0 }],
-          }),
-        ],
+        callData: encodeInstallPlugin({
+          account: account.address,
+          plugin: MockPluginAddress,
+          manifestHash: MockManifestHash,
+          pluginInstallData: '0x1234',
+          dependencies: [{ plugin: MockPluginAddress, functionId: 0 }],
+        }).data,
         maxFeePerGas: 1n,
       },
     )
     expect(result).toBe(PluginUserOperationHashResponseMock)
+  })
+
+  it('should never wrap the install in execute calls', async () => {
+    await installPlugin(client, {
+      account,
+      plugin: MockPluginAddress,
+      manifestHash: MockManifestHash,
+    })
+
+    const [, parameters] = (
+      viemAccountAbstraction.sendUserOperation as jest.Mock
+    ).mock.calls[0] as [unknown, Record<string, unknown>]
+
+    expect(parameters.calls).toBeUndefined()
+    expect(parameters.callData).toMatch(/^0x[0-9a-f]+$/)
   })
 
   it('should use the client account when none is passed', async () => {
@@ -104,7 +117,11 @@ describe('Actions > plugins > pluginManager > installPlugin', () => {
     expect(viemAccountAbstraction.sendUserOperation).toHaveBeenCalledWith(
       clientWithAccount,
       expect.objectContaining({
-        calls: [expect.objectContaining({ to: account.address, value: 0n })],
+        callData: encodeInstallPlugin({
+          account: account.address,
+          plugin: MockPluginAddress,
+          manifestHash: MockManifestHash,
+        }).data,
       }),
     )
   })
@@ -121,7 +138,7 @@ describe('Actions > plugins > pluginManager > installPlugin', () => {
 })
 
 describe('Actions > plugins > pluginManager > uninstallPlugin', () => {
-  it('should send an uninstallPlugin user operation targeting the account', async () => {
+  it('should send the uninstallPlugin calldata as raw user operation calldata', async () => {
     const result = await uninstallPlugin(client, {
       account,
       plugin: MockPluginAddress,
@@ -133,14 +150,12 @@ describe('Actions > plugins > pluginManager > uninstallPlugin', () => {
       client,
       {
         account,
-        calls: [
-          encodeUninstallPlugin({
-            account: account.address,
-            plugin: MockPluginAddress,
-            config: '0xaa',
-            pluginUninstallData: '0xbb',
-          }),
-        ],
+        callData: encodeUninstallPlugin({
+          account: account.address,
+          plugin: MockPluginAddress,
+          config: '0xaa',
+          pluginUninstallData: '0xbb',
+        }).data,
       },
     )
     expect(result).toBe(PluginUserOperationHashResponseMock)

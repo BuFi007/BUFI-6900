@@ -23,7 +23,8 @@ import { ADDRESS_BOOK_PLUGIN_ABI } from '../../../abis'
 import type { Address, Hex } from 'viem'
 
 /**
- * Encodes a `removeAllowedRecipients` call. Send it to the account itself.
+ * Encodes a `removeAllowedRecipients` call. Submit it as raw user operation calldata targeting the account (see
+ * `encodeAddAllowedRecipients`).
  * @param recipients - The recipients to remove.
  * @returns The encoded call data.
  */

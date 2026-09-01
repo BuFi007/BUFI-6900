@@ -18,6 +18,7 @@
 
 import { encodeInstallPlugin } from '../pluginManager/encodeInstallPlugin'
 
+import { earnModuleDependencies } from './earnModuleDependencies'
 import { encodeEarnModuleInstallData } from './encodeEarnModuleInstallData'
 
 import type { EncodedCall, StackDeployment } from '../../../types'
@@ -33,16 +34,19 @@ export interface EncodeInstallEarnModuleParameters {
    */
   configHash: bigint
   /**
-   * The stack deployment. Must carry `bufiEarnModule`.
+   * The stack deployment. Must carry `bufiEarnModule`; its weighted multisig plugin backs the dependency slots.
    */
   deployment: StackDeployment
 }
 
 /**
- * Encodes the `installPlugin` call that installs the BufiEarnModule. The module has no manifest dependencies: it
- * supplies its own relayer runtime validation.
+ * Encodes the `installPlugin` call that installs the BufiEarnModule on a weighted-multisig account, wired to the
+ * multisig plugin through {@link earnModuleDependencies} so that `changeConfigHash` is owner-gated. `autoEarn` keeps
+ * the module's own relayer runtime validation.
+ *
+ * Submit `data` as raw user operation calldata, in its own user operation.
  * @param parameters - Parameters to use. See {@link EncodeInstallEarnModuleParameters}.
- * @returns The call to execute. See {@link EncodedCall}.
+ * @returns The call to submit. See {@link EncodedCall}.
  * @throws Error if the deployment has no earn module.
  */
 export function encodeInstallEarnModule({
@@ -59,5 +63,8 @@ export function encodeInstallEarnModule({
     plugin: deployment.bufiEarnModule.address,
     manifestHash: deployment.bufiEarnModule.manifestHash,
     pluginInstallData: encodeEarnModuleInstallData(configHash),
+    dependencies: earnModuleDependencies(
+      deployment.weightedWebauthnMultisig.address,
+    ),
   })
 }

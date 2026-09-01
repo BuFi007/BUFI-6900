@@ -23,8 +23,9 @@ import { ADDRESS_BOOK_PLUGIN_ABI } from '../../../abis'
 import type { Address, Hex } from 'viem'
 
 /**
- * Encodes an `addAllowedRecipients` call. Send it to the account itself (the plugin execution function is installed
- * on the account); by default a recipient may then receive any token.
+ * Encodes an `addAllowedRecipients` call. Submit it as raw user operation calldata targeting the account (the plugin
+ * execution function is installed on the account and validated by the owners); by default a recipient may then
+ * receive any token. Never wrap it in `execute`: a self-call re-enters runtime validation, which is fail-closed.
  * @param recipients - The recipients to allow.
  * @returns The encoded call data.
  */

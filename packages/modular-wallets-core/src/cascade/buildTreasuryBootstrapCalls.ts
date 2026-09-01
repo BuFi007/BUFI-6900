@@ -45,17 +45,22 @@ export interface BuildTreasuryBootstrapCallsParameters {
 
 export interface TreasuryBootstrapCalls {
   /**
-   * Submit 1: re-weights the bootstrap signer to the treasury's final weights and threshold.
+   * Submit 1: re-weights the bootstrap signer to the treasury's final weights and threshold. Raw user operation
+   * calldata (`sendUserOperation({ callData })`).
    */
   updateMultisigWeights: EncodedCall
   /**
-   * Submit 2: installs the ColdStorageAddressBookPlugin seeded with the initial allowlist.
+   * Submit 2: installs the ColdStorageAddressBookPlugin seeded with the initial allowlist. Raw user operation
+   * calldata.
    */
   installAddressBook: EncodedCall
 }
 
 /**
  * Builds the two user operations that turn a freshly deployed account into a BUFI treasury face.
+ *
+ * Each call's `data` is the raw user operation calldata: both target the account, and a self-call through
+ * `execute` would re-enter the runtime validation the weighted multisig plugin fails closed.
  *
  * They MUST be submitted as two separate user operations, in this order, never batched into one. The re-weighting
  * changes the ownership plugin's validation state for the account, and a plugin whose manifest depends on that

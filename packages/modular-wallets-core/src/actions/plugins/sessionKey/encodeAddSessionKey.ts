@@ -24,8 +24,9 @@ import type { SessionKeyRegistration } from '../../../types'
 import type { Hex } from 'viem'
 
 /**
- * Encodes an `addSessionKey(sessionKey, tag, permissionUpdates)` call. Send it to the account itself; it is validated
- * by the owners. Build `permissionUpdates` with `buildBufiGrant` or the individual permission update encoders.
+ * Encodes an `addSessionKey(sessionKey, tag, permissionUpdates)` call. Submit it as raw user operation calldata
+ * targeting the account; it is validated by the owners. Build `permissionUpdates` with `buildBufiGrant` or the
+ * individual permission update encoders.
  * @param parameters - The registration. See {@link SessionKeyRegistration}.
  * @returns The encoded call data.
  */

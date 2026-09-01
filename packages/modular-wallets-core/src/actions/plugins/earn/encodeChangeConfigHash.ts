@@ -25,9 +25,9 @@ import type { Address } from 'viem'
 
 export interface EncodeChangeConfigHashParameters {
   /**
-   * The BufiEarnModule address.
+   * The modular smart contract account that adopts the config set.
    */
-  plugin: Address
+  account: Address
   /**
    * The config hash to adopt.
    */
@@ -35,17 +35,21 @@ export interface EncodeChangeConfigHashParameters {
 }
 
 /**
- * Encodes the `changeConfigHash` call the ACCOUNT sends to the module (an owner-signed user operation) to adopt a
- * different config set. `changeConfigHash` is not an installed execution function, so the call targets the module.
+ * Encodes the `changeConfigHash` call through which the account adopts a different owner-registered config set.
+ *
+ * `changeConfigHash` is an execution function installed on the account, validated by the owners through the
+ * module's user operation dependency slot. Submit `data` as raw user operation calldata targeting the account: a
+ * call to the module itself is rejected by the account (`TargetIsPlugin`), and a self-call through `execute` re-enters
+ * runtime validation, which the weighted multisig plugin fails closed.
  * @param parameters - Parameters to use. See {@link EncodeChangeConfigHashParameters}.
- * @returns The call to execute. See {@link EncodedCall}.
+ * @returns The call to submit. See {@link EncodedCall}.
  */
 export function encodeChangeConfigHash({
-  plugin,
+  account,
   newConfigHash,
 }: EncodeChangeConfigHashParameters): EncodedCall {
   return {
-    to: plugin,
+    to: account,
     value: 0n,
     data: encodeFunctionData({
       abi: EARN_MODULE_ABI,

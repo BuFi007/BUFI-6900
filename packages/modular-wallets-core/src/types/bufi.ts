@@ -123,7 +123,12 @@ export interface Call {
 }
 
 /**
- * A call in the shape accepted by a viem `SmartAccount`'s `encodeCalls` (and therefore `sendUserOperation`).
+ * An encoded call together with its target.
+ *
+ * When `to` is the account itself (plugin installs and every plugin management function), submit `data` as the raw
+ * user operation calldata (`sendUserOperation({ callData: data })`), one call per user operation. Passing such a call
+ * through `calls` wraps it in `execute`, and on the Circle MSCA a self-call re-enters runtime validation, which the
+ * weighted multisig plugin always rejects.
  */
 export interface EncodedCall {
   /**

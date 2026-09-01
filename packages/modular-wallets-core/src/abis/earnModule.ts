@@ -24,6 +24,11 @@ const CONFIG_INPUT_COMPONENTS = [
 
 /**
  * The BufiEarnModule ABI (the subset the SDK encodes or reads).
+ *
+ * `autoEarn` and `changeConfigHash` are execution functions installed on the account: `autoEarn` is runtime-only and
+ * relayer-gated, `changeConfigHash` is owner-gated through the two manifest dependency slots (slot 0 backs runtime
+ * validation, slot 1 backs user operation validation), the same arrangement as the ColdStorageAddressBookPlugin
+ * management functions.
  */
 export const EARN_MODULE_ABI = [
   {
@@ -88,6 +93,27 @@ export const EARN_MODULE_ABI = [
     name: 'manifestHash',
     outputs: [{ internalType: 'bytes32', name: '', type: 'bytes32' }],
     stateMutability: 'pure',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'FUNCTION_ID_RUNTIME_VALIDATION_RELAYER',
+    outputs: [{ internalType: 'uint8', name: '', type: 'uint8' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'OWNER_RUNTIME_VALIDATION_DEPENDENCY_INDEX',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
     type: 'function',
   },
 ] as const
