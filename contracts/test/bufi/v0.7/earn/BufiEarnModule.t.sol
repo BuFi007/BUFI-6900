@@ -5,6 +5,7 @@ import { Test } from "forge-std/src/Test.sol";
 
 import { BufiEarnModule } from "../../../../src/bufi/v0.7/earn/BufiEarnModule.sol";
 import { MockMsca, MockUsdc, MockVault } from "./mocks/Mocks.sol";
+import {FunctionReference} from "@circle/msca/6900/v0.7/common/Structs.sol";
 
 contract BufiEarnModuleTest is Test {
     BufiEarnModule internal module;
@@ -35,9 +36,17 @@ contract BufiEarnModuleTest is Test {
         vm.prank(owner);
         configHash = module.setConfig(configs);
 
-        account.installPlugin(address(module), module.manifestHash(), abi.encode(configHash));
+        account.installPlugin(address(module), module.manifestHash(), abi.encode(configHash), _ownerDeps());
 
         usdc.mint(address(account), TREASURY_BALANCE);
+    }
+
+    /// @dev The two owner-validation slots changeConfigHash depends on. The mock only checks the
+    /// count; on a real weighted account these are (weighted, 1) and (weighted, 0).
+    function _ownerDeps() internal returns (FunctionReference[] memory deps) {
+        deps = new FunctionReference[](2);
+        deps[0] = FunctionReference(makeAddr("owner-plugin"), 1);
+        deps[1] = FunctionReference(makeAddr("owner-plugin"), 0);
     }
 
     function test_relayerAutoEarnDepositsIntoVault() public {
@@ -101,8 +110,36 @@ contract BufiEarnModuleTest is Test {
     function test_installRejectsZeroConfigHash() public {
         MockMsca fresh = new MockMsca();
         bytes32 hash = module.manifestHash();
+        FunctionReference[] memory deps = _ownerDeps();
         vm.expectRevert(BufiEarnModule.InvalidConfigHash.selector);
-        fresh.installPlugin(address(module), hash, abi.encode(uint256(0)));
+        fresh.installPlugin(address(module), hash, abi.encode(uint256(0)), deps);
+    }
+
+    function test_installRequiresTheTwoOwnerDependencySlots() public {
+        MockMsca fresh = new MockMsca();
+        bytes32 hash = module.manifestHash();
+        FunctionReference[] memory none = new FunctionReference[](0);
+        vm.expectRevert(abi.encodeWithSelector(MockMsca.DependencyCountMismatch.selector, 2, 0));
+        fresh.installPlugin(address(module), hash, abi.encode(configHash), none);
+
+        assertEq(account.dependencyCount(), 2);
+        (, uint8 runtimeId) = account.dependencies(module.OWNER_RUNTIME_VALIDATION_DEPENDENCY_INDEX());
+        (, uint8 userOpId) = account.dependencies(module.OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX());
+        assertEq(runtimeId, 1, "slot 0: fail-closed runtime id");
+        assertEq(userOpId, 0, "slot 1: owner userOp validation id");
+    }
+
+    function test_changeConfigHashRuntimeCallIsFailClosed() public {
+        // Dependency-backed runtime validation: neither the relayer nor anyone
+        // else can re-point the vault set by calling the account at runtime.
+        vm.prank(relayer);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MockMsca.RuntimeValidationFailClosed.selector, BufiEarnModule.changeConfigHash.selector
+            )
+        );
+        BufiEarnModule(address(account)).changeConfigHash(configHash + 1);
+        assertEq(module.accountConfig(address(account)), configHash);
     }
 
     function test_installRejectsDoubleInstall() public {

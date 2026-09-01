@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.24;
 
+import {CircleCanonical} from "../../../harness/CircleCanonical.sol";
 import {CircleStackHarness} from "../../../harness/CircleStackHarness.sol";
 import {MockVault} from "./mocks/Mocks.sol";
 
@@ -9,12 +10,13 @@ import {SandboxUSDC} from "../../../../src/sandbox/SandboxUSDC.sol";
 
 import {IEntryPoint} from "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import {PackedUserOperation} from "@account-abstraction/contracts/interfaces/PackedUserOperation.sol";
-import {InvalidValidationFunctionId} from "@circle/msca/6900/shared/common/Errors.sol";
+import {InvalidValidationFunctionId, NotImplemented} from "@circle/msca/6900/shared/common/Errors.sol";
 import {BaseMSCA} from "@circle/msca/6900/v0.7/account/BaseMSCA.sol";
 import {UpgradableMSCA} from "@circle/msca/6900/v0.7/account/UpgradableMSCA.sol";
-import {PluginManifest} from "@circle/msca/6900/v0.7/common/PluginManifest.sol";
+import {ManifestAssociatedFunctionType, PluginManifest} from "@circle/msca/6900/v0.7/common/PluginManifest.sol";
 import {Call, ExecutionFunctionConfig, FunctionReference} from "@circle/msca/6900/v0.7/common/Structs.sol";
 import {IAccountLoupe} from "@circle/msca/6900/v0.7/interfaces/IAccountLoupe.sol";
+import {IPlugin} from "@circle/msca/6900/v0.7/interfaces/IPlugin.sol";
 import {IPluginExecutor} from "@circle/msca/6900/v0.7/interfaces/IPluginExecutor.sol";
 import {IPluginManager} from "@circle/msca/6900/v0.7/interfaces/IPluginManager.sol";
 import {IStandardExecutor} from "@circle/msca/6900/v0.7/interfaces/IStandardExecutor.sol";
@@ -28,9 +30,9 @@ import {Vm} from "forge-std/src/Vm.sol";
 /// @notice BufiEarnModule installed on Circle's REAL ERC-6900 v0.7 account (canonical bytecode, canonical
 ///         addresses, multisig-signed userOps through EntryPoint v0.7) instead of the `MockMsca` its unit
 ///         suite uses. Covers install/uninstall through the multisig, the relayer runtime path, every
-///         rejection the account enforces, composition with ColdStorageAddressBookPlugin, and the two facts
-///         the mock hides: `changeConfigHash` is unreachable on a real MSCA, and the AddressBook allowlist does
-///         not see plugin-initiated deposits (see `src/bufi/v0.7/earn/EARN-NOTES.md`).
+///         rejection the account enforces, multisig adoption of a new config set through the routed
+///         `changeConfigHash`, and composition with ColdStorageAddressBookPlugin — whose allowlist does not
+///         see plugin-initiated deposits (see `src/bufi/v0.7/earn/EARN-NOTES.md`).
 contract BufiEarnModuleOnMscaTest is CircleStackHarness {
     BufiEarnModule internal module;
     SandboxUSDC internal usdc;
@@ -75,21 +77,42 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
     // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
     /// The manifest facts every integrator must know before calling installPlugin.
-    function test_manifest_declaresOneRuntimeOnlyExecutionFunctionAndNoDependencies() public view {
+    function test_manifest_declaresTwoExecutionFunctionsAndTwoOwnerDependencySlots() public view {
         PluginManifest memory m = module.pluginManifest();
 
-        assertEq(m.executionFunctions.length, 1, "exactly one execution function");
-        assertEq(m.executionFunctions[0], BufiEarnModule.autoEarn.selector, "...and it is autoEarn");
-        assertTrue(
-            m.executionFunctions[0] != BufiEarnModule.changeConfigHash.selector, "changeConfigHash is NOT routed"
-        );
+        assertEq(m.executionFunctions.length, 2, "autoEarn + changeConfigHash");
+        assertEq(m.executionFunctions[0], BufiEarnModule.autoEarn.selector);
+        assertEq(m.executionFunctions[1], BufiEarnModule.changeConfigHash.selector);
 
-        assertEq(m.runtimeValidationFunctions.length, 1, "autoEarn is runtime-validated (SELF, id 0)");
+        assertEq(m.dependencyInterfaceIds.length, 2, "install with TWO dependency slots");
+        assertEq(m.dependencyInterfaceIds[0], type(IPlugin).interfaceId);
+        assertEq(m.dependencyInterfaceIds[1], type(IPlugin).interfaceId);
+        assertEq(module.OWNER_RUNTIME_VALIDATION_DEPENDENCY_INDEX(), 0);
+        assertEq(module.OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX(), 1);
+
+        assertEq(m.runtimeValidationFunctions.length, 2);
         assertEq(m.runtimeValidationFunctions[0].executionSelector, BufiEarnModule.autoEarn.selector);
+        assertTrue(
+            m.runtimeValidationFunctions[0].associatedFunction.functionType == ManifestAssociatedFunctionType.SELF,
+            "autoEarn: SELF runtime validation (relayer check)"
+        );
         assertEq(m.runtimeValidationFunctions[0].associatedFunction.functionId, 0);
-        assertEq(m.userOpValidationFunctions.length, 0, "no userOp validation at all");
+        assertEq(m.runtimeValidationFunctions[1].executionSelector, BufiEarnModule.changeConfigHash.selector);
+        assertTrue(
+            m.runtimeValidationFunctions[1].associatedFunction.functionType
+                == ManifestAssociatedFunctionType.DEPENDENCY,
+            "changeConfigHash: runtime validation -> dependency slot 0"
+        );
+        assertEq(m.runtimeValidationFunctions[1].associatedFunction.dependencyIndex, 0);
 
-        assertEq(m.dependencyInterfaceIds.length, 0, "install with an EMPTY dependency array");
+        assertEq(m.userOpValidationFunctions.length, 1, "only changeConfigHash has a userOp path");
+        assertEq(m.userOpValidationFunctions[0].executionSelector, BufiEarnModule.changeConfigHash.selector);
+        assertTrue(
+            m.userOpValidationFunctions[0].associatedFunction.functionType == ManifestAssociatedFunctionType.DEPENDENCY,
+            "changeConfigHash: userOp validation -> dependency slot 1"
+        );
+        assertEq(m.userOpValidationFunctions[0].associatedFunction.dependencyIndex, 1);
+
         assertTrue(m.permitAnyExternalAddress, "vault targets are config-driven");
         assertFalse(m.canSpendNativeToken);
         assertEq(m.interfaceIds.length, 0);
@@ -100,39 +123,69 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
         assertEq(m.preRuntimeValidationHooks.length, 0);
     }
 
-    function test_install_throughMultisigUserOp_withEmptyDependencies_bindsAutoEarnToTheAccount() public {
+    function test_install_throughMultisigUserOp_withOwnerDependencies_bindsBothFunctions() public {
         bytes32 expectedHash = keccak256(abi.encode(module.pluginManifest()));
         assertEq(module.manifestHash(), expectedHash, "manifestHash() == keccak256(abi.encode(manifest))");
+        FunctionReference[] memory deps = _earnDependencies();
 
         vm.expectEmit(true, false, false, true, address(msca));
-        emit IPluginManager.PluginInstalled(address(module), expectedHash, new FunctionReference[](0));
+        emit IPluginManager.PluginInstalled(address(module), expectedHash, deps);
         assertTrue(_installEarn(configHash), "install userOp executes");
 
         assertTrue(_isInstalled(msca, address(module)), "getInstalledPlugins lists the module");
         assertTrue(module.isInitialized(address(msca)));
         assertEq(module.accountConfig(address(msca)), configHash, "onInstall adopted the config hash");
 
-        ExecutionFunctionConfig memory cfg =
-            IAccountLoupe(address(msca)).getExecutionFunctionConfig(BufiEarnModule.autoEarn.selector);
-        assertEq(cfg.plugin, address(module), "autoEarn routes to the module");
-        assertEq(cfg.runtimeValidationFunction.plugin, address(module));
-        assertEq(cfg.runtimeValidationFunction.functionId, module.FUNCTION_ID_RUNTIME_VALIDATION_RELAYER());
-        assertEq(cfg.userOpValidationFunction.plugin, address(0), "no userOp validation function");
+        IAccountLoupe loupe = IAccountLoupe(address(msca));
+        ExecutionFunctionConfig memory earn = loupe.getExecutionFunctionConfig(BufiEarnModule.autoEarn.selector);
+        assertEq(earn.plugin, address(module), "autoEarn routes to the module");
+        assertEq(earn.runtimeValidationFunction.plugin, address(module));
+        assertEq(earn.runtimeValidationFunction.functionId, module.FUNCTION_ID_RUNTIME_VALIDATION_RELAYER());
+        assertEq(earn.userOpValidationFunction.plugin, address(0), "autoEarn: no userOp validation function");
+
+        ExecutionFunctionConfig memory adopt =
+            loupe.getExecutionFunctionConfig(BufiEarnModule.changeConfigHash.selector);
+        assertEq(adopt.plugin, address(module), "changeConfigHash routes to the module");
+        assertEq(adopt.userOpValidationFunction.plugin, address(weightedPlugin), "userOp: weighted owner validation");
+        assertEq(adopt.userOpValidationFunction.functionId, CircleCanonical.WEIGHTED_USER_OP_VALIDATION_OWNER);
+        assertEq(adopt.runtimeValidationFunction.plugin, address(weightedPlugin), "runtime: weighted, fail-closed id");
+        assertEq(adopt.runtimeValidationFunction.functionId, CircleCanonical.WEIGHTED_RUNTIME_DEPENDENCY_FAIL_CLOSED);
     }
 
-    function test_install_rejectsDependenciesTheManifestDoesNotDeclare() public {
+    function test_install_rejectsAnEmptyOrShortDependencyArray() public {
         (bool ok, bytes memory reason) = _executeUserOpWithReason(
-            _installPluginCalldata(address(module), abi.encode(configHash), _addressBookDependencies()), quorum
+            _installPluginCalldata(address(module), abi.encode(configHash), new FunctionReference[](0)), quorum
         );
-        assertFalse(ok, "execution phase reverts");
-        assertEq(bytes4(reason), PluginManager.InvalidPluginDependency.selector);
+        assertFalse(ok, "empty array: execution phase reverts");
+        assertEq(reason, abi.encodeWithSelector(PluginManager.InvalidPluginDependency.selector, address(module)));
+
+        FunctionReference[] memory one = new FunctionReference[](1);
+        one[0] = _earnDependencies()[1];
+        (ok, reason) =
+            _executeUserOpWithReason(_installPluginCalldata(address(module), abi.encode(configHash), one), quorum);
+        assertFalse(ok, "one slot: execution phase reverts");
+        assertEq(reason, abi.encodeWithSelector(PluginManager.InvalidPluginDependency.selector, address(module)));
+
         assertFalse(_isInstalled(msca, address(module)));
         assertFalse(module.isInitialized(address(msca)));
     }
 
+    function test_install_rejectsADependencyPluginThatIsNotInstalledOnTheAccount() public {
+        FunctionReference[] memory deps = new FunctionReference[](2);
+        deps[0] = FunctionReference(address(addressBookPlugin), 1);
+        deps[1] = FunctionReference(address(addressBookPlugin), 0);
+        (bool ok, bytes memory reason) =
+            _executeUserOpWithReason(_installPluginCalldata(address(module), abi.encode(configHash), deps), quorum);
+        assertFalse(ok);
+        assertEq(
+            reason, abi.encodeWithSelector(PluginManager.InvalidPluginDependency.selector, address(addressBookPlugin))
+        );
+        assertFalse(_isInstalled(msca, address(module)));
+    }
+
     function test_install_rejectsZeroConfigHash_surfacedAsFailToCallOnInstall() public {
         (bool ok, bytes memory reason) = _executeUserOpWithReason(
-            _installPluginCalldata(address(module), abi.encode(uint256(0)), new FunctionReference[](0)), quorum
+            _installPluginCalldata(address(module), abi.encode(uint256(0)), _earnDependencies()), quorum
         );
         assertFalse(ok);
         assertEq(
@@ -150,7 +203,7 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
         Signer[] memory solo = new Signer[](1);
         solo[0] = owners[1];
         _expectValidationRevert(
-            msca, _installPluginCalldata(address(module), abi.encode(configHash), new FunctionReference[](0)), solo
+            msca, _installPluginCalldata(address(module), abi.encode(configHash), _earnDependencies()), solo
         );
         assertFalse(_isInstalled(msca, address(module)));
 
@@ -293,42 +346,81 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
     // ┃  Config adoption on a real account                                              ┃
     // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-    /// `changeConfigHash` expects `msg.sender == account`, which the MockMsca reaches via `callPlugin`. A real
-    /// Circle MSCA has no such door: StandardExecutor refuses any `execute`/`executeBatch` target that reports
-    /// IPlugin support, and the selector is not an execution function, so neither the userOp nor the runtime
-    /// fallback can route it. Every path is closed; the adopted hash never changes.
-    function test_changeConfigHash_isUnreachableOnARealMsca() public {
+    /// `changeConfigHash` is an execution function routed through the account with AddressBook-style owner
+    /// validation: a threshold-signed userOp on the ACCOUNT is the one door. Runtime callers of any kind hit
+    /// the fail-closed dependency slot, a single owner is below threshold, and the old `execute(plugin, ...)`
+    /// path is still refused by the executor.
+    function test_quorumAdoptsNewConfigHash_viaUserOp() public {
         assertTrue(_installEarn(configHash));
-        MockVault other = new MockVault(IERC20(address(usdc)));
-        uint256 newHash = _registerConfig(address(other));
+        uint256 firstShares = vault.previewDeposit(100e6);
+        _autoEarnAs(relayer, address(usdc), 100e6);
+        assertEq(vault.balanceOf(address(msca)), firstShares, "vault A works before the switch");
+
+        MockVault vaultB = new MockVault(IERC20(address(usdc)));
+        uint256 newHash = _registerConfig(address(vaultB));
         bytes memory adopt = abi.encodeCall(BufiEarnModule.changeConfigHash, (newHash));
-        bytes memory targetIsPlugin = abi.encodeWithSelector(StandardExecutor.TargetIsPlugin.selector, address(module));
 
-        // (a) execute(module, 0, changeConfigHash): rejected in the execution phase.
-        (bool ok, bytes memory reason) = _executeUserOpWithReason(_executeCalldata(address(module), 0, adopt), quorum);
-        assertFalse(ok, "execute -> TargetIsPlugin");
-        assertEq(reason, targetIsPlugin);
+        // (a) A single owner is below threshold: rejected at the EntryPoint.
+        Signer[] memory solo = new Signer[](1);
+        solo[0] = owners[1];
+        _expectValidationRevert(msca, adopt, solo);
 
-        // (b) executeBatch: same guard, per call.
-        Call[] memory calls = new Call[](1);
-        calls[0] = Call({target: address(module), value: 0, data: adopt});
-        (ok, reason) = _executeUserOpWithReason(abi.encodeCall(IStandardExecutor.executeBatch, (calls)), quorum);
-        assertFalse(ok, "executeBatch -> TargetIsPlugin");
-        assertEq(reason, targetIsPlugin);
-
-        // (c) a userOp whose callData IS changeConfigHash: no validation function -> AA23 at the EntryPoint.
-        _expectValidationRevert(msca, adopt, quorum);
-
-        // (d) a runtime call to the account with that selector (from an owner): no runtime validation either.
+        // (b) Runtime calls hit the fail-closed dependency slot (weighted id 1 is unimplemented): an owner EOA,
+        //     the relayer and a stranger are all refused the same way.
+        bytes memory failClosed = abi.encodeWithSelector(
+            BaseMSCA.RuntimeValidationFailed.selector,
+            address(weightedPlugin),
+            CircleCanonical.WEIGHTED_RUNTIME_DEPENDENCY_FAIL_CLOSED,
+            abi.encodeWithSelector(
+                NotImplemented.selector,
+                IPlugin.runtimeValidationFunction.selector,
+                CircleCanonical.WEIGHTED_RUNTIME_DEPENDENCY_FAIL_CLOSED
+            )
+        );
         vm.prank(owners[0].addr);
-        vm.expectRevert(abi.encodeWithSelector(InvalidValidationFunctionId.selector, uint8(0)));
+        vm.expectRevert(failClosed);
+        BufiEarnModule(address(msca)).changeConfigHash(newHash);
+        vm.prank(relayer);
+        vm.expectRevert(failClosed);
+        BufiEarnModule(address(msca)).changeConfigHash(newHash);
+        vm.prank(stranger);
+        vm.expectRevert(failClosed);
         BufiEarnModule(address(msca)).changeConfigHash(newHash);
 
-        assertEq(module.accountConfig(address(msca)), configHash, "adopted config untouched by every attempt");
+        // (c) execute(plugin, ...) is still not a door: the executor refuses plugin targets.
+        (bool ok, bytes memory reason) = _executeUserOpWithReason(_executeCalldata(address(module), 0, adopt), quorum);
+        assertFalse(ok);
+        assertEq(reason, abi.encodeWithSelector(StandardExecutor.TargetIsPlugin.selector, address(module)));
+        assertEq(module.accountConfig(address(msca)), configHash, "nothing above changed the adopted hash");
+
+        // (d) The quorum's userOp on the ACCOUNT adopts the new set.
+        vm.expectEmit(true, false, false, true, address(module));
+        emit BufiEarnModule.ConfigHashChanged(address(msca), configHash, newHash);
+        assertTrue(_executeUserOp(msca, adopt, quorum), "changeConfigHash userOp executes");
+        assertEq(module.accountConfig(address(msca)), newHash);
+        BufiEarnModule.ConfigWithToken[] memory cfg = module.getAllConfigs(address(msca));
+        assertEq(cfg.length, 1);
+        assertEq(cfg[0].vault, address(vaultB));
+
+        // (e) Deposits now land in vault B; the vault A position is untouched.
+        uint256 secondShares = vaultB.previewDeposit(50e6);
+        _autoEarnAs(relayer, address(usdc), 50e6);
+        assertEq(vaultB.balanceOf(address(msca)), secondShares, "deposit went to vault B");
+        assertEq(usdc.balanceOf(address(vaultB)), 50e6);
+        assertEq(vault.balanceOf(address(msca)), firstShares, "vault A position untouched");
     }
 
-    /// On a real MSCA "adopt a new config set" is uninstall -> reinstall with the new hash: two multisig userOps.
-    function test_adoptingANewConfig_isUninstallThenReinstallWithTheNewHash() public {
+    function test_changeConfigHash_viaUserOp_rejectsAZeroHash() public {
+        assertTrue(_installEarn(configHash));
+        (bool ok, bytes memory reason) =
+            _executeUserOpWithReason(abi.encodeCall(BufiEarnModule.changeConfigHash, (0)), quorum);
+        assertFalse(ok, "execution phase reverts");
+        assertEq(reason, abi.encodeWithSelector(BufiEarnModule.InvalidConfigHash.selector));
+        assertEq(module.accountConfig(address(msca)), configHash);
+    }
+
+    /// Alternative path, still valid: uninstall and reinstall with the new hash (two multisig userOps).
+    function test_adoptingANewConfig_alsoWorksAsUninstallThenReinstallWithTheNewHash() public {
         assertTrue(_installEarn(configHash));
         uint256 firstShares = vault.previewDeposit(100e6);
         _autoEarnAs(relayer, address(usdc), 100e6);
@@ -413,11 +505,28 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
         assertEq(vault.balanceOf(address(msca)), expectedShares, "empty allowlist, deposit still lands");
     }
 
+    /// The address book does not see `changeConfigHash` either (it is not `execute`), so the multisig can
+    /// re-point deposits at a vault the allowlist never mentions. The multisig quorum is the whole gate.
+    function test_addressBook_doesNotGateChangeConfigHash() public {
+        assertTrue(_installEarn(configHash));
+        address[] memory allowlist = new address[](0);
+        assertTrue(_installAddressBook(msca, allowlist, quorum));
+
+        MockVault vaultB = new MockVault(IERC20(address(usdc)));
+        uint256 newHash = _registerConfig(address(vaultB));
+        assertTrue(_executeUserOp(msca, abi.encodeCall(BufiEarnModule.changeConfigHash, (newHash)), quorum));
+        assertEq(module.accountConfig(address(msca)), newHash);
+
+        uint256 expectedShares = vaultB.previewDeposit(1e6);
+        _autoEarnAs(relayer, address(usdc), 1e6);
+        assertEq(vaultB.balanceOf(address(msca)), expectedShares);
+    }
+
     // ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
     // ┃  Uninstall                                                                      ┃
     // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-    function test_uninstall_throughMultisigUserOp_disablesAutoEarnAndRemovesItFromTheLoupe() public {
+    function test_uninstall_throughMultisigUserOp_disablesBothFunctionsAndRemovesItFromTheLoupe() public {
         assertTrue(_installEarn(configHash));
 
         vm.expectEmit(true, true, false, true, address(msca));
@@ -426,19 +535,22 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
 
         assertFalse(_isInstalled(msca, address(module)), "getInstalledPlugins no longer lists it");
         assertFalse(module.isInitialized(address(msca)), "onUninstall cleared the account's config");
-        assertEq(
-            IAccountLoupe(address(msca)).getExecutionFunctionConfig(BufiEarnModule.autoEarn.selector).plugin,
-            address(0),
-            "autoEarn selector unbound"
-        );
+        IAccountLoupe loupe = IAccountLoupe(address(msca));
+        assertEq(loupe.getExecutionFunctionConfig(BufiEarnModule.autoEarn.selector).plugin, address(0));
+        ExecutionFunctionConfig memory adopt =
+            loupe.getExecutionFunctionConfig(BufiEarnModule.changeConfigHash.selector);
+        assertEq(adopt.plugin, address(0), "changeConfigHash selector unbound");
+        assertEq(adopt.userOpValidationFunction.plugin, address(0), "...and its owner validation released");
 
-        // The relayer now hits an empty runtime validation slot before the plugin is even consulted.
+        // The relayer now hits an empty runtime validation slot before the plugin is even consulted ...
         vm.prank(relayer);
         vm.expectRevert(abi.encodeWithSelector(InvalidValidationFunctionId.selector, uint8(0)));
         BufiEarnModule(address(msca)).autoEarn(address(usdc), 1e6);
         assertEq(vault.balanceOf(address(msca)), 0);
+        // ... and a changeConfigHash userOp has no validation function any more.
+        _expectValidationRevert(msca, abi.encodeCall(BufiEarnModule.changeConfigHash, (configHash)), quorum);
 
-        // And the account can install it again — plugin storage was fully released.
+        // And the account can install it again — plugin storage and dependency counters were fully released.
         assertTrue(_installEarn(configHash), "reinstall after uninstall");
         assertTrue(_isInstalled(msca, address(module)));
     }
@@ -454,8 +566,14 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
         return module.setConfig(cfg);
     }
 
+    /// The production dependency pair on a weighted account — identical to the address book's:
+    /// slot 0 (runtime) -> Weighted id 1 (unimplemented, fail-closed), slot 1 (userOp) -> Weighted id 0.
+    function _earnDependencies() internal view returns (FunctionReference[] memory) {
+        return _addressBookDependencies();
+    }
+
     function _installEarn(uint256 hash) internal returns (bool) {
-        return _installPlugin(msca, address(module), abi.encode(hash), new FunctionReference[](0), quorum);
+        return _installPlugin(msca, address(module), abi.encode(hash), _earnDependencies(), quorum);
     }
 
     function _uninstallCalldata() internal view returns (bytes memory) {

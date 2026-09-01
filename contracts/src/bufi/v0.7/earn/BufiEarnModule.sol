@@ -37,6 +37,23 @@ import {PackedUserOperation} from "@account-abstraction/contracts/interfaces/Pac
  *    calls the account directly; less surface for the first audit pass.
  *  - Relayer add/remove is onlyOwner — relayers cannot mint more relayers.
  *  - SentinelList dependency replaced with a plain array + membership mapping.
+ *  - `changeConfigHash` is an ERC-6900 execution function routed through the
+ *    account (see "Deviation (BUFI-6900)" below), not a bare
+ *    `msg.sender == account` call the way a Safe module reaches it.
+ *
+ * Deviation (BUFI-6900): on Circle's real MSCA the 2026-08-02 build could not
+ * adopt a new config set at all. `changeConfigHash` was not in the manifest,
+ * and `StandardExecutor.execute` refuses any target that reports IPlugin
+ * support (`TargetIsPlugin`), so no userOp, batch or runtime path reached it;
+ * the only way to change vaults was uninstall + reinstall. It is now a proper
+ * execution function with the same owner-gated validation shape as
+ * ColdStorageAddressBookPlugin's `addAllowedRecipients`: dependency slot 0
+ * backs runtime validation, slot 1 backs userOp validation. On weighted
+ * multisig accounts the installer passes
+ * `[FunctionReference(weightedPlugin, 1), FunctionReference(weightedPlugin, 0)]`
+ * — id 1 is deliberately unimplemented on the weighted plugin, so the runtime
+ * path is fail-closed and only a threshold-signed userOp can re-point the
+ * account's vault set. `autoEarn` is unchanged: runtime-only, relayer-gated.
  *
  * DEVELOPMENT ONLY: gated off in production by `isCircleEarnModuleEnabled()`
  * in packages/env/src/circle.ts. Target chains: Avalanche + Arc, where
@@ -61,6 +78,12 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable {
 
     /// @dev functionId for the relayer runtime validation referenced in the manifest.
     uint8 public constant FUNCTION_ID_RUNTIME_VALIDATION_RELAYER = 0;
+
+    /// @dev Dependency slots for `changeConfigHash`, mirroring ColdStorageAddressBookPlugin.
+    /// Slot 0 backs runtime validation (point it at an unimplemented owner function id to
+    /// fail closed); slot 1 backs userOp validation (the owner's userOp validation id).
+    uint256 public constant OWNER_RUNTIME_VALIDATION_DEPENDENCY_INDEX = 0;
+    uint256 public constant OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX = 1;
 
     /// @dev Relayer addresses allowed to trigger autoEarn on installed accounts.
     mapping(address => bool) public authorizedRelayers;
@@ -156,8 +179,12 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable {
         return configHash_;
     }
 
-    /// @notice Called by the account itself (via its own execute) to adopt a
-    /// different config set.
+    /// @notice Execution function installed on the account: the account adopts a
+    /// different owner-registered config set. Reached through the account's
+    /// fallback, so msg.sender is the MSCA itself. The manifest binds it to the
+    /// owner's userOp validation (dependency slot 1) and a fail-closed runtime
+    /// dependency (slot 0), so on a weighted account only a threshold-signed
+    /// userOp can call it — never a relayer, never a single owner at runtime.
     function changeConfigHash(uint256 newConfigHash) external {
         address account = msg.sender;
         if (!isInitialized(account)) revert ModuleNotInitialized(account);
@@ -323,10 +350,14 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable {
         metadata.name = "BufiEarnModule";
         metadata.version = "0.1.0-dev";
         metadata.author = "BUFI";
-        metadata.permissionDescriptors = new SelectorPermission[](1);
+        metadata.permissionDescriptors = new SelectorPermission[](2);
         metadata.permissionDescriptors[0] = SelectorPermission({
             functionSelector: this.autoEarn.selector,
             permissionDescription: "Deposit account ERC-20 balance into its pre-configured ERC-4626 vault"
+        });
+        metadata.permissionDescriptors[1] = SelectorPermission({
+            functionSelector: this.changeConfigHash.selector,
+            permissionDescription: "Adopt a different owner-registered vault set (multisig-only)"
         });
         return metadata;
     }
@@ -339,22 +370,49 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable {
      * @dev permitAnyExternalAddress is required because vault targets are
      * config-driven (not knowable at install time). The effective call surface
      * is still only IERC20.approve + IERC4626.deposit toward the account's
-     * adopted config — enforced by autoEarn being the sole execution function.
-     * No userOpValidationFunctions: autoEarn is runtime-callable only.
+     * adopted config — autoEarn is the only execution function that moves
+     * funds. autoEarn has no userOp validation: it is runtime-callable only.
+     * changeConfigHash is owner-gated through two dependency slots, the same
+     * arrangement ColdStorageAddressBookPlugin uses for its management
+     * functions: `dependencyInterfaceIds = [IPlugin, IPlugin]`, runtime
+     * validation -> slot 0, userOp validation -> slot 1.
      */
     function _manifest() internal pure returns (PluginManifest memory) {
         PluginManifest memory manifest;
 
-        manifest.executionFunctions = new bytes4[](1);
+        manifest.executionFunctions = new bytes4[](2);
         manifest.executionFunctions[0] = this.autoEarn.selector;
+        manifest.executionFunctions[1] = this.changeConfigHash.selector;
 
-        manifest.runtimeValidationFunctions = new ManifestAssociatedFunction[](1);
+        manifest.dependencyInterfaceIds = new bytes4[](2);
+        manifest.dependencyInterfaceIds[OWNER_RUNTIME_VALIDATION_DEPENDENCY_INDEX] = type(IPlugin).interfaceId;
+        manifest.dependencyInterfaceIds[OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX] = type(IPlugin).interfaceId;
+
+        manifest.userOpValidationFunctions = new ManifestAssociatedFunction[](1);
+        manifest.userOpValidationFunctions[0] = ManifestAssociatedFunction({
+            executionSelector: this.changeConfigHash.selector,
+            associatedFunction: ManifestFunction({
+                functionType: ManifestAssociatedFunctionType.DEPENDENCY,
+                functionId: 0, // unused for dependency
+                dependencyIndex: OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX
+            })
+        });
+
+        manifest.runtimeValidationFunctions = new ManifestAssociatedFunction[](2);
         manifest.runtimeValidationFunctions[0] = ManifestAssociatedFunction({
             executionSelector: this.autoEarn.selector,
             associatedFunction: ManifestFunction({
                 functionType: ManifestAssociatedFunctionType.SELF,
                 functionId: FUNCTION_ID_RUNTIME_VALIDATION_RELAYER,
                 dependencyIndex: 0
+            })
+        });
+        manifest.runtimeValidationFunctions[1] = ManifestAssociatedFunction({
+            executionSelector: this.changeConfigHash.selector,
+            associatedFunction: ManifestFunction({
+                functionType: ManifestAssociatedFunctionType.DEPENDENCY,
+                functionId: 0, // unused for dependency
+                dependencyIndex: OWNER_RUNTIME_VALIDATION_DEPENDENCY_INDEX
             })
         });
 
