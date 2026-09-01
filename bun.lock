@@ -9,6 +9,18 @@
         "typescript": "5.8.2",
       },
     },
+    "apps/playground": {
+      "name": "@bufi/playground",
+      "version": "0.1.0",
+      "dependencies": {
+        "@bufi/modular-wallets-core": "workspace:*",
+        "viem": "2.45.3",
+      },
+      "devDependencies": {
+        "@types/bun": "1.3.10",
+        "typescript": "5.8.2",
+      },
+    },
     "packages/mock-circle": {
       "name": "@bufi/mock-circle",
       "version": "0.1.0",
@@ -183,6 +195,8 @@
     "@bufi/modular-wallets-core": ["@bufi/modular-wallets-core@workspace:packages/modular-wallets-core"],
 
     "@bufi/msca-recovery": ["@bufi/msca-recovery@workspace:packages/msca-recovery"],
+
+    "@bufi/playground": ["@bufi/playground@workspace:apps/playground"],
 
     "@colors/colors": ["@colors/colors@1.6.0", "", {}, "sha512-Ir+AOibqzrIsL6ajt3Rz3LskB7OiMVHqltZmspbW/TJuTVuyOMirVqAkjfY6JISiLHgyNqicAC8AyHHGzNd/dA=="],
 

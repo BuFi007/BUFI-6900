@@ -1,0 +1,19 @@
+{
+  "name": "@bufi/playground",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Headless end-to-end drive of the BUFI-6900 sandbox: SDK fork → mock Circle API → Circle stack at canonical addresses → BUFI plugins.",
+  "scripts": {
+    "e2e": "bun run scripts/e2e.ts",
+    "check:type": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bufi/modular-wallets-core": "workspace:*",
+    "viem": "2.45.3"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.10",
+    "typescript": "5.8.2"
+  }
+}
