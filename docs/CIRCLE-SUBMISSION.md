@@ -1,0 +1,44 @@
+# Submission to Circle — BUFI ERC-6900 plugins for Modular Wallets
+
+**From:** BUFI (Business Finance; Circle Alliance member). **Repo:** `BuFi007/BUFI-6900`.
+**Ask:** review and, if acceptable, list `BufiSessionKeyPlugin` (and `BufiEarnModule`) as installable plugins for
+Circle Modular Wallets on the ERC-6900 v0.7 account generation; guidance on the v0.8 migration path for
+`GatewayExecutionModule`.
+
+## What is in the box
+
+1. **A faithful local replica of your stack.** Your creation bytecode and CREATE2 salts from
+   `buidl-wallet-contracts/script/bytecode-deploy` replayed on anvil / in Foundry tests, so the sandbox holds the
+   production `UpgradableMSCAFactory`, `PluginManager`, `WeightedWebauthnMultisigPlugin` and
+   `ColdStorageAddressBookPlugin` at the production addresses with the production manifest hashes. Nothing of
+   yours is recompiled or modified.
+2. **`BufiSessionKeyPlugin`** — ERC-6900 v0.7 session keys for AI-agent wallets: per-key access lists,
+   ERC20/native/gas spend limits with refresh windows, `validAfter`/`validUntil`. A port of Alchemy's audited
+   Modular Account v1 `SessionKeyPlugin` to ERC-4337 v0.7 (`PackedUserOperation`) and to your `BasePlugin`; the
+   deviation list is `contracts/src/bufi/v0.7/session/PORT-NOTES.md`. Installed on your weighted-multisig account
+   with the same dependency-slot arrangement you guided us to for the AddressBook (slot 0 → function id 1
+   fail-closed, slot 1 → owner validation id 0).
+3. **`BufiEarnModule`** — deposit-only auto-earn into multisig-adopted ERC-4626 vaults, triggered by a relayer.
+4. **`GatewayExecutionModule`** (v0.8) — Gateway delegate lifecycle for treasury MSCAs; includes the finding that
+   Gateway attributes deposits to `msg.sender`, so an MSCA must call Gateway directly with helper-encoded
+   calldata.
+5. **SDK fork** `@bufi/modular-wallets-core` — your web SDK plus plugin actions/decorators in your style, and
+   **`@bufi/mock-circle`**, a Modular Wallets API stand-in (bundler + ERC-7677 paymaster) so the whole flow runs
+   without credentials. Both are offered upstream if useful.
+
+## Questions for Circle
+
+1. Does `PluginManager.install`'s ERC-165 check intentionally exclude v0.6-shaped plugins (we hit
+   `PluginNotImplementInterface` with Alchemy's stock plugin and with an earlier BUFI build), or is a shim planned?
+2. Is the "runtime slot → unimplemented function id" pattern the sanctioned fail-closed idiom for weighted
+   accounts, or should plugins ship a dedicated always-deny runtime validator?
+3. `ColdStorageAddressBookPlugin` hooks `execute`/`executeBatch` only. For plugins that execute through
+   `executeFromPluginExternal` or their own selector, is there an account-level way to apply the allowlist, or
+   is per-plugin duplication (as we do) the intended model?
+4. Modules Beta: if a Circle-audited session-key module for v0.7 accounts exists or is scheduled, we would prefer
+   to adopt it — please share timing.
+5. v0.8: expected mainnet timeline and whether v0.7 plugins should be re-authored as modules or wrapped.
+
+## Test matrix (regenerate with `bun run contracts:test`)
+
+_Numbers filled from CI on the tagged commit — see the README "Findings" section and `docs/PLUGIN-COMPOSITION.md`._
