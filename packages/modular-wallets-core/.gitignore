@@ -1,0 +1,5 @@
+dist/
+coverage/
+.jest/
+junit.xml
+eslint_report.json

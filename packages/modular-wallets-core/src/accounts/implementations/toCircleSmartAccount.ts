@@ -1,0 +1,258 @@
+/*
+ * Copyright (c) 2026, Circle Internet Group, Inc. All rights reserved.
+ * Modifications Copyright (c) 2026 BUFI. Licensed under the Apache License, Version 2.0.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import {
+  encodeFunctionData,
+  hashMessage,
+  hashTypedData,
+  pad,
+  publicActions,
+  slice,
+} from 'viem'
+import {
+  entryPoint07Abi as abi,
+  getUserOperationHash,
+  toSmartAccount,
+} from 'viem/account-abstraction'
+
+import { toCircleModularWalletClient } from '../../clients'
+import {
+  CIRCLE_CANONICAL_DEPLOYMENT,
+  ENTRY_POINT_07,
+  FACTORY,
+  MODULAR_WALLETS_TRANSPORT_KEY,
+  STUB_SIGNATURE,
+  UPGRADABLE_MSCA as upgradableMsca,
+} from '../../constants'
+import {
+  type CircleSmartAccountImplementation,
+  type ToCircleSmartAccountParameters,
+  type ToCircleSmartAccountReturnType,
+} from '../../types'
+import {
+  computeAddress,
+  getInitializeUpgradableMSCAParams,
+  getSenderForContract,
+  getSalt,
+  toReplaySafeHash,
+  getDefaultVerificationGasLimit,
+} from '../../utils'
+
+import { getModularWalletAddress } from './getModularWalletAddress'
+import { signAndWrap } from './signAndWrap'
+
+import type { Address, TypedData } from 'abitype'
+import type { Hex, TypedDataDefinition } from 'viem'
+import type { UserOperation } from 'viem/account-abstraction'
+
+/**
+ * Creates a Circle smart account.
+ * @param parameters - Parameters to use. See {@link ToCircleSmartAccountParameters}.
+ * @returns Circle smart Account. See {@link ToCircleSmartAccountReturnType}.
+ */
+export async function toCircleSmartAccount(
+  parameters: ToCircleSmartAccountParameters,
+): Promise<ToCircleSmartAccountReturnType> {
+  const {
+    address,
+    client,
+    owner,
+    name,
+    deployment = CIRCLE_CANONICAL_DEPLOYMENT,
+  } = parameters
+  // BUFI modification: the EntryPoint and factory addresses come from the deployment so a redeployed stack
+  // (for example the anvil sandbox) computes addresses, factory args and user operation hashes correctly.
+  const entryPoint = {
+    ...ENTRY_POINT_07,
+    address: deployment.entryPoint,
+  } as const
+  const factory = {
+    abi: FACTORY.abi,
+    address: deployment.upgradableMscaFactory,
+  } as const
+  const publicClient = client.extend(publicActions)
+  const sender = getSenderForContract(owner)
+  const initializeUpgradableMSCAParams = getInitializeUpgradableMSCAParams(
+    owner,
+    deployment,
+  )
+  const salt = getSalt()
+  let deployed = false
+  let walletAddress: Address | undefined
+
+  // Only calls Circle Modular Wallet API if the client transport is a Circle custom transport
+  if (client.transport.key === MODULAR_WALLETS_TRANSPORT_KEY) {
+    // Transform the client into a Circle modular wallet client and create a modular wallet
+    const circleModularWalletClient = toCircleModularWalletClient({ client })
+    const wallet = await getModularWalletAddress({
+      client: circleModularWalletClient,
+      owner,
+      name,
+    })
+
+    // Set the address from the RPC response
+    walletAddress = wallet.address
+  }
+
+  // viem 2.45 narrowed `toSmartAccount`'s client generic; our modular wallet
+  // client satisfies the contract at runtime.
+  return toSmartAccount({
+    client: client as CircleSmartAccountImplementation['client'],
+    entryPoint,
+    extend: { abi, factory },
+    getAddress: async function (): Promise<Address> {
+      if (address) return Promise.resolve(address)
+      if (walletAddress) return Promise.resolve(walletAddress)
+      return Promise.resolve(computeAddress(owner, deployment))
+    },
+    encodeCalls: function (
+      calls: readonly {
+        to: Hex
+        data?: Hex | undefined
+        value?: bigint | undefined
+      }[],
+    ): Promise<Hex> {
+      return Promise.resolve(
+        encodeFunctionData(
+          calls.length === 1
+            ? {
+                abi: upgradableMsca.abi,
+                functionName: 'execute',
+                args: [
+                  calls[0].to,
+                  calls[0].value ?? 0n,
+                  calls[0].data ?? '0x',
+                ],
+              }
+            : {
+                abi: upgradableMsca.abi,
+                functionName: 'executeBatch',
+                args: [
+                  calls.map((call) => ({
+                    data: call.data ?? '0x',
+                    target: call.to,
+                    value: call.value ?? 0n,
+                  })),
+                ],
+              },
+        ),
+      )
+    },
+    async getFactoryArgs() {
+      const factoryData = encodeFunctionData({
+        abi: factory.abi,
+        functionName: 'createAccount',
+        args: [sender, salt, initializeUpgradableMSCAParams],
+      })
+      return Promise.resolve({ factory: factory.address, factoryData })
+    },
+    async getStubSignature() {
+      return Promise.resolve(STUB_SIGNATURE)
+    },
+    async sign(parameters) {
+      const address = await this.getAddress()
+
+      const hash = toReplaySafeHash({
+        address,
+        chainId: client.chain!.id,
+        hash: parameters.hash,
+        deployment,
+      })
+
+      return signAndWrap({ hash, owner, sender })
+    },
+    async signMessage(parameters) {
+      const address = await this.getAddress()
+
+      const hash = toReplaySafeHash({
+        address,
+        chainId: client.chain!.id,
+        hash: hashMessage(parameters.message),
+        deployment,
+      })
+      return signAndWrap({
+        hash,
+        owner,
+        sender,
+      })
+    },
+    async signTypedData(parameters) {
+      const { domain, types, primaryType, message } =
+        parameters as TypedDataDefinition<TypedData, string>
+      const address = await this.getAddress()
+
+      const hash = toReplaySafeHash({
+        address,
+        chainId: client.chain!.id,
+        hash: hashTypedData({
+          domain,
+          message,
+          primaryType,
+          types,
+        }),
+        deployment,
+      })
+      return signAndWrap({ hash, owner, sender })
+    },
+    async signUserOperation(parameters) {
+      const { chainId = client.chain!.id, ...userOperation } = parameters
+
+      const address = await this.getAddress()
+      const userOperationHash = getUserOperationHash({
+        chainId,
+        entryPointAddress: entryPoint.address,
+        entryPointVersion: entryPoint.version,
+        userOperation: {
+          ...(userOperation as unknown as UserOperation),
+          sender: address,
+        },
+      })
+      const pubKeyId = pad(slice(sender, 2))
+
+      return signAndWrap({
+        hash: userOperationHash,
+        owner,
+        sender: pubKeyId,
+        hasUserOpGas: true,
+      })
+    },
+    userOperation: {
+      async estimateGas(userOperation) {
+        if (!deployed) {
+          const code = await publicClient.getCode({
+            address: walletAddress ?? computeAddress(owner, deployment),
+          })
+
+          deployed = code !== '0x' && Boolean(code)
+        }
+
+        // Only call getDefaultVerificationGasLimit if verificationGasLimit is not provided
+        const verificationGasLimit =
+          userOperation.verificationGasLimit !== undefined
+            ? BigInt(userOperation.verificationGasLimit)
+            : BigInt(await getDefaultVerificationGasLimit(client, deployed))
+
+        return Promise.resolve({
+          verificationGasLimit,
+        })
+      },
+    },
+    // viem 2.45's inferred return type omits Circle-specific `extend` metadata.
+  })
+}

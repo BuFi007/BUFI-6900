@@ -1,10 +1,14 @@
 {
   "name": "bufi-6900",
   "private": true,
-  "description": "BUFI-6900 — ERC-6900 plugin sandbox for Circle Modular Smart Contract Accounts: redeployable Circle stack, BUFI plugins, forked SDK, mock Circle API and playground.",
+  "description": "BUFI-6900 \u2014 ERC-6900 plugin sandbox for Circle Modular Smart Contract Accounts: redeployable Circle stack, BUFI plugins, forked SDK, mock Circle API and playground.",
   "license": "GPL-3.0-or-later",
   "type": "module",
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "tooling/*"
+  ],
   "scripts": {
     "build": "turbo run build",
     "test": "turbo run test",

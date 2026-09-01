@@ -1,0 +1,30 @@
+{
+  "name": "@templates/eslint-config",
+  "version": "1.0.0",
+  "description": "Base eslint config",
+  "type": "module",
+  "main": "index.mjs",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.5.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-import-resolver-node": "0.3.9",
+    "eslint-plugin-import-x": "4.16.0",
+    "eslint-plugin-jest": "29.15.2",
+    "eslint-plugin-jsdoc": "63.0.7",
+    "eslint-plugin-jsonc": "3.2.0",
+    "eslint-plugin-prettier": "5.5.6",
+    "eslint-plugin-promise": "7.3.0",
+    "eslint-plugin-tsdoc": "0.5.2",
+    "globals": "16.5.0",
+    "jsonc-eslint-parser": "2.4.0",
+    "prettier": "3.5.3",
+    "typescript-eslint": "8.61.1"
+  }
+}
