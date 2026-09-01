@@ -1,0 +1,30 @@
+{
+  "name": "bufi-6900",
+  "private": true,
+  "description": "BUFI-6900 — ERC-6900 plugin sandbox for Circle Modular Smart Contract Accounts: redeployable Circle stack, BUFI plugins, forked SDK, mock Circle API and playground.",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "check:type": "turbo run check:type",
+    "lint": "turbo run lint",
+    "contracts:build": "cd contracts && forge build",
+    "contracts:test": "cd contracts && forge test -vv",
+    "contracts:fmt": "cd contracts && forge fmt",
+    "anvil": "anvil --chain-id 31337 --code-size-limit 250000 --balance 1000000 --host 127.0.0.1 --port 8545",
+    "stack:deploy": "cd contracts && forge script script/DeployStack.s.sol --rpc-url http://127.0.0.1:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 -vv",
+    "mock:circle": "bun run --cwd packages/mock-circle dev",
+    "sandbox:e2e": "bun run --cwd apps/playground e2e"
+  },
+  "devDependencies": {
+    "turbo": "2.9.16",
+    "typescript": "5.8.2"
+  },
+  "engines": {
+    "node": ">=24.18.0",
+    "bun": ">=1.3.0"
+  },
+  "packageManager": "bun@1.3.10"
+}

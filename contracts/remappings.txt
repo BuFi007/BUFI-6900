@@ -1,0 +1,14 @@
+forge-std/=lib/forge-std/
+@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
+@account-abstraction/=lib/account-abstraction/
+@eth-infinitism/account-abstraction/=lib/account-abstraction/contracts/
+@modular-account-libs/=lib/modular-account-libs/src/
+@solady/=lib/solady/src/
+@fcl/=lib/FreshCryptoLib/solidity/src/
+@erc6900/reference-implementation/=lib/erc6900-reference-implementation/src/
+@circle/=lib/buidl-wallet-contracts/src/
+@circle-test/=lib/buidl-wallet-contracts/test/
+@circle-script/=lib/buidl-wallet-contracts/script/
+@alchemy-mav1/=lib/alchemy-modular-account/src/
+@erc6900/reference-implementation-v0.8.1/=lib/erc6900-reference-implementation-v0.8.1/src/

@@ -1,0 +1,43 @@
+# BUFI-6900 — single Foundry project for the redeployable Circle MSCA stack + BUFI plugins.
+# Toolchain mirrors circlefin/buidl-wallet-contracts (solc 0.8.24, paris, via_ir, 200 runs)
+# so bytecode-level behaviour of the vendored Circle sources is unchanged.
+[profile.default]
+src = 'src'
+out = 'out'
+test = 'test'
+script = 'script'
+libs = ['lib']
+solc_version = "0.8.24"
+evm_version = 'paris'
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+auto_detect_solc = false
+auto_detect_remappings = false
+fs_permissions = [
+  { access = "read-write", path = "./deployments" },
+  { access = "read", path = "./lib/buidl-wallet-contracts/script/bytecode-deploy/build-output" },
+]
+no_match_coverage = "test/|script/|lib/"
+
+[profile.ci]
+fuzz = { runs = 1024 }
+
+[fuzz]
+runs = 256
+
+[invariant]
+runs = 128
+fail_on_revert = true
+depth = 15
+
+[fmt]
+line_length = 120
+wrap_comments = true
+sort_imports = true
+
+[rpc_endpoints]
+local = "http://127.0.0.1:8545"
+avax-fuji = "${AVAX_FUJI_RPC_URL}"
+arc-testnet = "${ARC_TESTNET_RPC_URL}"
+base-sepolia = "${BASE_SEPOLIA_RPC_URL}"

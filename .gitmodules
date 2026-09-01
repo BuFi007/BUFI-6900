@@ -1,0 +1,36 @@
+[submodule "contracts/lib/buidl-wallet-contracts"]
+	path = contracts/lib/buidl-wallet-contracts
+	url = https://github.com/circlefin/buidl-wallet-contracts.git
+[submodule "contracts/lib/msca-wallet-recovery-upstream"]
+	path = contracts/lib/msca-wallet-recovery-upstream
+	url = https://github.com/circlefin/msca-wallet-recovery.git
+[submodule "contracts/lib/forge-std"]
+	path = contracts/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std.git
+[submodule "contracts/lib/openzeppelin-contracts"]
+	path = contracts/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts.git
+[submodule "contracts/lib/openzeppelin-contracts-upgradeable"]
+	path = contracts/lib/openzeppelin-contracts-upgradeable
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable.git
+[submodule "contracts/lib/solady"]
+	path = contracts/lib/solady
+	url = https://github.com/Vectorized/solady.git
+[submodule "contracts/lib/FreshCryptoLib"]
+	path = contracts/lib/FreshCryptoLib
+	url = https://github.com/rdubois-crypto/FreshCryptoLib.git
+[submodule "contracts/lib/modular-account-libs"]
+	path = contracts/lib/modular-account-libs
+	url = https://github.com/erc6900/modular-account-libs.git
+[submodule "contracts/lib/erc6900-reference-implementation"]
+	path = contracts/lib/erc6900-reference-implementation
+	url = https://github.com/erc6900/reference-implementation.git
+[submodule "contracts/lib/alchemy-modular-account"]
+	path = contracts/lib/alchemy-modular-account
+	url = https://github.com/alchemyplatform/modular-account.git
+[submodule "contracts/lib/account-abstraction"]
+	path = contracts/lib/account-abstraction
+	url = https://github.com/eth-infinitism/account-abstraction.git
+[submodule "contracts/lib/erc6900-reference-implementation-v0.8.1"]
+	path = contracts/lib/erc6900-reference-implementation-v0.8.1
+	url = https://github.com/erc6900/reference-implementation.git

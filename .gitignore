@@ -1,0 +1,20 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+.jest/
+*.log
+.env
+.env.local
+.DS_Store
+
+# foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/**/dry-run/
+contracts/deployments/local/
+
+# sandbox runtime state
+.sandbox/
+contracts/out-*/
+contracts/cache-*/
