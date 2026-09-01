@@ -1,0 +1,36 @@
+{
+  "chainId": 31337,
+  "rpcUrl": "http://127.0.0.1:8545",
+  "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+  "create2Deployer": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+  "pluginManager": "0x00000005e69188224e4dEeF607801916DC0936d5",
+  "upgradableMscaFactory": "0x0000000DF7E6c9Dc387cAFc5eCBfa6c3a6179AdD",
+  "upgradableMscaImpl": "0xA70F1296869DA9D7CB69578123F21888E6dB2B62",
+  "plugins": {
+    "weightedWebauthnMultisig": {
+      "address": "0x0000000C984AFf541D6cE86Bb697e68ec57873C8",
+      "manifestHash": "0xa043327d77a74c1c55cfa799284b831fe09535a88b9f5fa4173d334e5ba0fd91"
+    },
+    "coldStorageAddressBook": {
+      "address": "0x0000000d81083B16EA76dfab46B0315B0eDBF3d0",
+      "manifestHash": "0x9d177c1c9573b10436b693b7a49f0face36b677c1606a2c579bba1415be349d8"
+    },
+    "bufiSessionKey": null,
+    "bufiEarnModule": {
+      "address": "0xa9D33E3c5522067ba8E651E285637D192c79B98b",
+      "manifestHash": "0x173ac108a4718e39e957622f3c34dbc6ba4eb76f51a1bde2c710a7a4fcda5c55"
+    }
+  },
+  "paymaster": {
+    "address": "0x7C5Af6d0CBfE443Aa5c42992B80643E0FE6c7b6B",
+    "signer": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
+  },
+  "tokens": {
+    "usdc": "0x38B45856e28E86985560f9c4B87113E8Eb86b0AD"
+  },
+  "accounts": {
+    "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "bundler": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "factoryOwner": "0x0166EA90E565476f13c6a0D25ED2C35599E58785"
+  }
+}

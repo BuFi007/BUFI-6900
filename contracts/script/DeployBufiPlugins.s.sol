@@ -13,7 +13,8 @@ import {Script, console} from "forge-std/src/Script.sol";
 ///         its own stack. Idempotent: skips a plugin whose code already exists at the expected address.
 ///
 ///         forge script script/DeployBufiPlugins.s.sol --rpc-url avax-fuji --broadcast -vv
-///         env: DEPLOYER_PRIVATE_KEY, EARN_MODULE_OWNER (defaults to the deployer), BUFI_PLUGIN_SALT (optional)
+///         env: DEPLOYER_PRIVATE_KEY, EARN_MODULE_OWNER / EARN_MODULE_RELAYER (default to the deployer),
+///              BUFI_PLUGIN_SALT (optional)
 contract DeployBufiPlugins is Script {
     address internal constant CREATE2_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
 
@@ -21,19 +22,20 @@ contract DeployBufiPlugins is Script {
         uint256 key = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address deployer = vm.addr(key);
         address earnOwner = vm.envOr("EARN_MODULE_OWNER", deployer);
+        address earnRelayer = vm.envOr("EARN_MODULE_RELAYER", deployer);
         bytes32 salt = vm.envOr("BUFI_PLUGIN_SALT", keccak256("bufi-6900-plugins-v0.1.0"));
         require(CREATE2_DEPLOYER.code.length != 0, "CREATE2 deployer missing on this chain");
 
         vm.startBroadcast(key);
         address sessionKey = _create2("BufiSessionKeyPlugin", salt, type(BufiSessionKeyPlugin).creationCode, "");
-        address earn = _create2("BufiEarnModule", salt, type(BufiEarnModule).creationCode, abi.encode(earnOwner));
+        address earn = _create2("BufiEarnModule", salt, type(BufiEarnModule).creationCode, abi.encode(earnRelayer, earnOwner));
         vm.stopBroadcast();
 
         console.log("chainId                     %s", block.chainid);
         console.log("BufiSessionKeyPlugin        %s", sessionKey);
         console.log("  manifestHash");
         console.logBytes32(keccak256(abi.encode(IPlugin(sessionKey).pluginManifest())));
-        console.log("BufiEarnModule              %s (owner %s)", earn, earnOwner);
+        console.log("BufiEarnModule              %s (owner %s, relayer %s)", earn, earnOwner, earnRelayer);
         console.log("  manifestHash");
         console.logBytes32(keccak256(abi.encode(IPlugin(earn).pluginManifest())));
     }
