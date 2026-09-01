@@ -5,20 +5,9 @@ import {CircleCanonical} from "../harness/CircleCanonical.sol";
 import {CircleStackHarness} from "../harness/CircleStackHarness.sol";
 
 import {UpgradableMSCA} from "@circle/msca/6900/v0.7/account/UpgradableMSCA.sol";
+import {SandboxUSDC} from "../../src/sandbox/SandboxUSDC.sol";
+
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-contract SandboxUSDC is ERC20 {
-    constructor() ERC20("USD Coin", "USDC") {}
-
-    function decimals() public pure override returns (uint8) {
-        return 6;
-    }
-
-    function mint(address to, uint256 amount) external {
-        _mint(to, amount);
-    }
-}
 
 /// @notice Proves the sandbox recreates Circle's production stack faithfully: canonical addresses, the
 ///         SDK-pinned manifest hashes, the implementation address the SDK hard-codes, and a full

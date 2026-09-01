@@ -2,8 +2,8 @@
 pragma solidity 0.8.24;
 
 import {Test, console2} from "forge-std/src/Test.sol";
-import {IGatewayWallet} from "../../../../src/bufi/v0.8/gateway/interfaces/IGatewayWallet.sol";
-import {IGatewayMinter} from "../../../../src/bufi/v0.8/gateway/interfaces/IGatewayMinter.sol";
+import {IGatewayWallet} from "../../../src/bufi/v0.8/gateway/interfaces/IGatewayWallet.sol";
+import {IGatewayMinter} from "../../../src/bufi/v0.8/gateway/interfaces/IGatewayMinter.sol";
 
 /**
  * @title GatewayForkTest

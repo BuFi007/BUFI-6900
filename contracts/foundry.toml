@@ -19,6 +19,12 @@ fs_permissions = [
   { access = "read", path = "./lib/buidl-wallet-contracts/script/bytecode-deploy/build-output" },
 ]
 no_match_coverage = "test/|script/|lib/"
+# Fork-only suites (need --fork-url): run with `FOUNDRY_PROFILE=fork forge test --fork-url $SEPOLIA_RPC_URL`
+no_match_path = "test/fork/**"
+
+[profile.fork]
+no_match_path = ""
+match_path = "test/fork/**"
 
 [profile.ci]
 fuzz = { runs = 1024 }

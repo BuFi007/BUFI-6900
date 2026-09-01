@@ -2,9 +2,9 @@
 pragma solidity 0.8.24;
 
 import {Test, console2} from "forge-std/src/Test.sol";
-import {GatewayExecutionModule} from "../../../../src/bufi/v0.8/gateway/GatewayExecutionModule.sol";
-import {IGatewayExecutionModule} from "../../../../src/bufi/v0.8/gateway/interfaces/IGatewayExecutionModule.sol";
-import {IGatewayWallet} from "../../../../src/bufi/v0.8/gateway/interfaces/IGatewayWallet.sol";
+import {GatewayExecutionModule} from "../../../src/bufi/v0.8/gateway/GatewayExecutionModule.sol";
+import {IGatewayExecutionModule} from "../../../src/bufi/v0.8/gateway/interfaces/IGatewayExecutionModule.sol";
+import {IGatewayWallet} from "../../../src/bufi/v0.8/gateway/interfaces/IGatewayWallet.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
