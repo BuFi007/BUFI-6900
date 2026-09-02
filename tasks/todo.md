@@ -74,3 +74,8 @@ to auditors and to Circle. Plus a fork of Circle's web SDK that speaks our plugi
 - [ ] Tenderly defensive + Codex adversarial pass — BLOCKED on Tenderly MCP OAuth (`/mcp` → tenderly) or a TENDERLY_ACCESS_KEY
 - [ ] mock-circle: raise passkey verification-gas tiers on anvil (no P-256 precompile) or run anvil `--odyssey`
 - [ ] CircleStackHarness `_lastUserOpRevertReason` drains recorded logs twice (v0.8 harness fixed its copy) — fix in v0.7 harness
+- [x] Codex adversarial pre-Tenderly pass: `reports/ADVERSARIAL_PRE_TENDERLY.md` — 7 confirmed (F-01 Medium nonce-lane, F-02..F-07 Low, F-08/F-09 info)
+- [ ] fixes: F-01 (nonce lane for every key, D10), F-06 (earn verifies shares/asset delta), F-08 (sorted configs); F-02..F-05/F-07/F-09 documented as accepted with mitigations
+- [ ] Tenderly defensive S4–S10 on vnet `bufi-6900-fuji-audit` → `reports/AUDIT_REPORT.md`, then the Codex-on-Tenderly adversarial pass
+- [ ] SDK agent-role grant presets (8183 buyer/provider, 8004 rater, float funder, gateway depositor)
+- [ ] Arc-testnet fork proof: agent MSCA funds an ERC-8183 job as a session key; provider submits; owners complete
