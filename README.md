@@ -166,12 +166,13 @@ the AddressBook is a trust list, not a firewall against code you allowlisted.
 
 | Suite | Count | What it pins |
 | --- | --- | --- |
-| `forge test` (default profile) | 229 | canonical redeploy (3) · earn unit (17) · earn on real MSCA (21) · gateway local (41) + on a real Circle v0.8 account (14) · session-key port on real MSCA (83) · session-key integration (22) · session-key × AddressBook (5) · agentic policy (5) · recipient hook (18) |
+| `forge test` (default profile) | 264 | canonical redeploy (3) · earn unit (17) · earn on real MSCA (21) · gateway local (41) + on a real Circle v0.8 account (14) · session-key port on real MSCA (83) · session-key integration (22) · session-key × AddressBook (5) · agentic policy (5) · recipient hook (18) |
 | `FOUNDRY_PROFILE=fork forge test --fork-url <base>` | 1 | Circle production MSCA on a Base-mainnet fork sweeps USDC into a live Morpho Vault V2 (`docs/EARN-MORPHO.md`) |
-| `@bufi/modular-wallets-core` jest | 446 | 315 upstream unchanged + 131 BUFI (encoding vectors, grant DSL, deployment parametrisation, agent account, testnet constants) |
+| `@bufi/modular-wallets-core` jest | 461 | 315 upstream unchanged + 131 BUFI (encoding vectors, grant DSL, deployment parametrisation, agent account, testnet constants) |
 | `@bufi/mock-circle` bun test | 16 | canonical deploy + idempotence, bundler (initCode deploy + transfer, AA24), paymaster (sponsored op, AA34) |
 | `@bufi/msca-recovery` bun test | 6 | independent lane (viem + permissionless, no BUFI SDK): session-key transfer through the sandbox bundler, nonce lane, budget |
 | `bun run sandbox:e2e` | 6 steps | SDK → mock → stack → plugins: create/deploy, AddressBook gating, grant, agent spend/over-budget/off-scope, revoke, earn sweep |
+| `FOUNDRY_PROFILE=fork-arc forge test --fork-url <arc testnet>` | 3 | an agent MSCA runs a real ERC-8183 job on Circle's native Arc contract as a session key (`docs/AGENTIC-WALLET.md`) |
 | `apps/playground` UI (Vite) | smoke | same scenario in a browser, EOA and passkey (virtual authenticator) owners — `apps/playground/docs/playground.png` |
 | `scripts/live/install-on-fuji.ts` | 5 steps | Circle's real API + bundler on Fuji: deploy, install session key, grant, agent spend, AddressBook |
 

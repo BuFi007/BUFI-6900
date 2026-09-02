@@ -52,10 +52,26 @@ Stop re-implementing the band in Shiva for agent ops; Shiva pre-flights and shap
 
 | Claim | Where |
 | --- | --- |
-| session key + hook + AddressBook composition on Circle's production bytecode | `contracts/test/bufi/v0.7/**` (229 tests) |
+| session key + hook + AddressBook composition on Circle's production bytecode | `contracts/test/bufi/v0.7/**` (264 tests) |
 | agent spend through Circle's real bundler on Fuji, incl. Circle paymaster sponsorship | `scripts/live/install-on-fuji.ts`, `contracts/deployments/avax-fuji.canary.json` |
-| agent buyer funds an ERC-8183 job on Circle's native Arc contract via a session key | `contracts/test/fork/agentic/AgentFaceErc8183.t.sol` (Arc testnet fork) |
-| Gateway float face | design; desk plan 212 canary provisioned the passkey ops MSCA on the 1271 rail — the float face is the same account shape with the agent key as a weight-1 owner |
+| **agent MSCA runs a real ERC-8183 job on Circle's native Arc contract, as a session key** | `contracts/test/fork/agentic/AgentFaceErc8183.t.sol` (Arc testnet fork, 3 tests) |
+| Gateway float face | design; desk plan 212's canary provisioned the passkey ops MSCA on the 1271 rail — the float face is the same account shape with the agent key as a weight-1 owner |
+
+### What the Arc fork proof changed
+
+1. **The recipient hook had to learn that agents do work, not only payments.** It failed closed on every call whose
+   calldata is not a recognised token transfer, which is correct for Circle's `execute` path but made the hook and
+   the agentic rails mutually exclusive — with it installed, an agent could move tokens and nothing else. A
+   zero-value non-token call is now judged by its **target**: still fail-closed for anything unlisted, and
+   decodable transfers are still judged by their recipient, so token policy is untouched.
+2. **The role split is the reverse of what desk's parameter names suggest.** On Circle's native contract the
+   PROVIDER states the price (`setBudget`) and the buyer funds it; `createJob`'s third argument is a **deadline**,
+   not an amount, and the fifth is `address(0)`, not the token. Confirmed against job 182422. `erc8183BuyerGrant`
+   no longer grants `setBudget`.
+3. **An AddressBook-gated account cannot settle its own jobs by hand.** `complete` carries no decodable recipient,
+   so Circle's plugin rejects the owners' `execute`; a session key scoped to `complete` succeeds through the hook's
+   target branch. Settling is therefore a granted agent capability (`includeComplete`) or an un-gated account —
+   raised with Circle as question 7.
 
 ## What still lives in the app layer
 
