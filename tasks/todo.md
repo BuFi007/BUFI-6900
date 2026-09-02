@@ -52,7 +52,7 @@ to auditors and to Circle. Plus a fork of Circle's web SDK that speaks our plugi
 
 ## Review (2026-09-01)
 
-- Contracts 197/197, SDK 441/441, mock 16/16, e2e green. Seven findings in README; composition matrix in docs.
+- Contracts 269/269, SDK 461/461, mock 16/16, e2e green. Seven findings in README; composition matrix in docs.
 - Follow-ups: Vite UI for the playground; v0.8 account harness (Circle `UpgradableMSCA` v0.8 + modules) for the
   Gateway module; ERC-20 recipient hook plugin (after Circle answers submission Q3); testnet deploy of the fixed
   plugins via `script/DeployBufiPlugins.s.sol`; `packages/msca-recovery` session-key scenario.

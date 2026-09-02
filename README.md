@@ -166,7 +166,7 @@ the AddressBook is a trust list, not a firewall against code you allowlisted.
 
 | Suite | Count | What it pins |
 | --- | --- | --- |
-| `forge test` (default profile) | 264 | canonical redeploy (3) · earn unit (17) · earn on real MSCA (21) · gateway local (41) + on a real Circle v0.8 account (14) · session-key port on real MSCA (83) · session-key integration (22) · session-key × AddressBook (5) · agentic policy (5) · recipient hook (18) |
+| `forge test` (default profile) | 269 | canonical redeploy (3) · earn unit (17) + on real MSCA (21) · gateway local (38) + helper on MSCA (3) + on a real Circle v0.8 account (14) · session-key port on real MSCA (83) + integration (22) + × AddressBook (5) · ghost-shield AddressBook (5) · agentic policy (5) · recipient hook (19) · adversarial (34: composition 6 · earn 10 · recipient hook 4 · session key 14) |
 | `FOUNDRY_PROFILE=fork forge test --fork-url <base>` | 1 | Circle production MSCA on a Base-mainnet fork sweeps USDC into a live Morpho Vault V2 (`docs/EARN-MORPHO.md`) |
 | `@bufi/modular-wallets-core` jest | 461 | 315 upstream unchanged + 131 BUFI (encoding vectors, grant DSL, deployment parametrisation, agent account, testnet constants) |
 | `@bufi/mock-circle` bun test | 16 | canonical deploy + idempotence, bundler (initCode deploy + transfer, AA24), paymaster (sponsored op, AA34) |

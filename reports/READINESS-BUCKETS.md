@@ -9,14 +9,33 @@ blocks the launch claim and is gated on an external party, so it starts now.
 
 | # | Bucket | Score | Blocks | Owner action |
 |---|---|---|---|---|
-| 1 | Scope definition & provenance | 70% | audit submission | rewrite two docs |
+| 1 | Scope definition & provenance | **100%** ✅ | — | closed 2026-09-02 |
 | 2 | Test evidence (coverage + gas) | 65% | audit submission | isolate v0.8 compile profile |
 | 3 | Deployment & explorer verification | 45% | audit submission | deploy hook, verify 3 contracts |
 | 4 | **Arc private mainnet validation** | **10%** | **launch claim** | **unblock dRPC entitlement** |
 
 ---
 
-## 1. Scope definition & provenance — 70%
+## 1. Scope definition & provenance — 100% ✅ closed 2026-09-02
+
+- ✓ `BufiSessionRecipientHookPlugin` (321 + 34 lines) is now a row in the in-scope table of
+  `docs/AUDIT-SCOPE.md`, marked "new, unaudited, no upstream to diff against — read it first", with claim 7
+  mapping it to its 19 tests.
+- ✓ New **"Where to spend the review"** section ranks auditor attention: the hook's `_getTargetOrRecipient`
+  divergence first (with the reason it exists and the F-02/F-03 consequence), then D10, then F-06/F-08.
+- ✓ Every count re-measured today rather than carried forward. The old figures were wrong in both directions:
+  `forge test` 197 → **269** (17 suites), jest 441 → **461**, SDK coverage 99.4% → **98.93%**.
+- ✓ Stale counts also corrected in `README.md`, `docs/CIRCLE-SUBMISSION.md`, `docs/AGENTIC-WALLET.md`,
+  `reports/AUDIT_REPORT.md`, `tasks/todo.md`. Repo-wide grep for `197|441|264|99.4%` outside vendored libs
+  returns nothing.
+- ✓ Corrected a second false claim: "fork suites need a Sepolia RPC" — they need **three** networks
+  (Arc testnet, Base mainnet, Sepolia), now tabulated per suite.
+- ✓ `docs/THREAT-MODEL.md` gains invariants 7 (one allowlist, both paths) and 8 (the hook only narrows), four
+  new attack-surface rows, and four residual risks — including the one that matters most: an allowlisted
+  contract is trusted for whatever its own calldata does.
+- ✓ The absent Solidity coverage figure is now stated as absent, with the exact Yul error, instead of omitted.
+
+### Superseded assessment (kept for the record) — 70%
 
 - ✗ `BufiSessionRecipientHookPlugin` (321 lines) appears nowhere in
   `docs/AUDIT-SCOPE.md` — `grep -nE "recipient-hook|RecipientHook"` returns zero

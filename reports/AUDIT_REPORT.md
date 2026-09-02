@@ -169,4 +169,4 @@ bun run reports/audit/driver.ts s2
 | --- | --- |
 | Defensive pass | ☑ Partial — S1, S2 PASS on post-fix bytecode; S3–S10 BLOCKED on plan quota, covered by the forge suites |
 | Adversarial pass | ☑ Complete — `reports/ADVERSARIAL_PRE_TENDERLY.md` (no Critical/High; 1 Medium and 2 Informational fixed, 5 Low accepted with mitigations) |
-| Local suites at this commit | forge 264/264 · SDK jest 461/461 · mock-circle 16/16 · Arc agentic fork 3/3 · Base earn fork 1/1 |
+| Local suites at this commit | forge 269/269 (17 suites) · SDK jest 461/461 · mock-circle 16/16 · Arc agentic fork 3/3 · Base earn fork 1/1 — all re-measured 2026-09-02 |

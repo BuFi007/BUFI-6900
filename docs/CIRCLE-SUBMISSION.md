@@ -57,8 +57,8 @@ Both install on your production `UpgradableMSCA` on those chains with `dependenc
 
 | Layer | Tests | Notes |
 | --- | --- | --- |
-| Contracts (`forge test`) | 197 | 83 of them are Alchemy's own SessionKeyPlugin cases re-run on Circle's production account bytecode |
-| SDK fork (jest) | 441 | 315 upstream tests unchanged — the fork is a drop-in superset |
+| Contracts (`forge test`) | 269 | 83 of them are Alchemy's own SessionKeyPlugin cases re-run on Circle's production account bytecode |
+| SDK fork (jest) | 461 | 315 upstream tests unchanged — the fork is a drop-in superset |
 | Mock Circle API (bun test) | 16 | `circle_getAddress` output equals the address in Circle's own SDK fixture for the same owner |
 | Sandbox e2e | 6 steps green | SDK fork → mock → canonical stack → plugins |
 
