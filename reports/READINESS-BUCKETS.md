@@ -12,7 +12,7 @@ blocks the launch claim and is gated on an external party, so it starts now.
 | 1 | Scope definition & provenance | **100%** ✅ | — | closed 2026-09-02 |
 | 2 | Test evidence (coverage + gas) | **100%** ✅ | — | closed 2026-09-02 |
 | 3 | Deployment & explorer verification | **100%** ✅ | — | closed 2026-09-02 |
-| 4 | **Arc private mainnet validation** | **10%** | **launch claim** | **unblock dRPC entitlement** |
+| 4 | **Arc private mainnet validation** | **55%** | **launch claim** | **fund an address we hold the key to** |
 
 ---
 
@@ -185,7 +185,56 @@ Everything proven so far is on **Arc testnet, chainId 5042002**. Arc private
 mainnet is a different chain — **chainId 5042** — with a different economic
 model: USDC is the native gas token, so every gas payment is real money.
 
-### Access status — VALID KEY, ENTITLEMENT NOT GRANTED
+### Access status — CONNECTED 2026-09-02 (Alchemy, not dRPC)
+
+**Arc private mainnet is reachable.** `eth_chainId` → `0x13b2` (5042), head block 18,832,323, through
+`https://arc-mainnet.g.alchemy.com/v2/<key>`. The key is in `.env.local` (gitignored, mode 600) in both this repo
+and desk-v1, as `ARC_MAINNET_RPC_URL` / `ARC_TESTNET_RPC_URL`.
+
+**dRPC is a dead end and should not be retried.** Circle's answer (Jenna Teeman, 2026-09-02): *"You should use
+Alchemy as they have a free tier. We cannot ask partners to bypass their payment structure."* The `code 35` gate
+was correctly diagnosed as a plan entitlement — it is simply not one Circle will lift. The dRPC key remains valid
+for `arc-testnet`, which is on the free tier.
+
+### Circle's MSCA stack IS on 5042 — the unknown that decided this bucket
+
+Read directly with `eth_getCode`, not from documentation (Circle's contract-address page lists none of these):
+
+| | address | |
+| --- | --- | --- |
+| EntryPoint v0.7 | `0x0000000071727De22E5E9d8BAf0edAc6f37da032` | **present** |
+| UpgradableMSCAFactory | `0x0000000DF7E6c9Dc387cAFc5eCBfa6c3a6179AdD` | **present** |
+| PluginManager | `0x00000005e69188224e4dEeF607801916DC0936d5` | **present** |
+| Arachnid CREATE2 | `0x4e59b44847b379578588920cA78FbF26c0B4956C` | **present** |
+| WeightedWebauthnMultisigPlugin | `0x0000000C984AFf541D6cE86Bb697e68ec57873C8` | **present** |
+| ColdStorageAddressBookPlugin | `0x0000000d81083B16EA76dfab46B0315B0eDBF3d0` | **present** |
+| USDC ERC-20 · GatewayWallet · GatewayMinter | (docs addresses above) | **present** |
+| BUFI's three plugins | — | absent, not yet deployed here |
+
+Every fixture in this repo assumes exactly that stack at exactly those addresses, and the CREATE2 factory being
+present means the shared-salt same-address property carries to 5042. **A dry run confirms it**: the three BUFI
+plugins predict the same addresses as on Fuji and Arc testnet, for an estimated **0.51 USDC** total
+(8,580,890 gas at 60 gwei — native gas is USDC, 18dp).
+
+An earlier revision of this file recorded the missing EntryPoint as the thing that could turn this bucket into a
+conversation with Circle rather than a deployment. It was a documentation gap, not an absence — which is why it
+was recorded as unverified rather than asserted either way.
+
+### Funding — SENT, BUT NOT TO AN ADDRESS WE CONTROL
+
+Circle sent 2 USDC in tx `0x82ce2a9f3d1f77db1ac66e3e3626ff758c29a2f4855c6ab1670ee20dc7ad2d80`. Verified against
+the chain rather than the explorer link, by `desk-v1/scripts/arc/check-funding.ts`:
+
+- status success, block 15250792, value **2 USDC**
+- from `0x5EEc44fb7806ED8f1Ea73d9F916cE0DBdAD000a7`
+- to **`0xc6ee3c13214A37e66f3d2eE477c3205e89a99b38`** — which still holds the 2 USDC
+- the address that was requested, `0x3997cAB2A642EE1667A1c4aAa77b7CF4Bc8b0238`, has a balance of **0**
+
+Neither address has a private key in any local store (`.deployer-wallet.json`, `~/.metamask`, either repo), so
+custody of both is unresolved here and is the owner's to settle. This is exactly the case the check script exists
+for: a green explorer link plus a zero balance is indistinguishable from success if you only read the link.
+
+### Superseded access assessment (kept for the record) — dRPC
 
 Provisioned 2026-08-17 by the Arc admin against dRPC team
 `a39c3294-5485-433a-9abc-43d6f33987bc`. Credentials live in `.env.local`
@@ -295,7 +344,7 @@ written as `amount * 1e12`. Expect it again on 5042 and note that ERC-20
 
 ### Criteria for 100%
 
-- ✗ A `eth_chainId` from the Arc private mainnet RPC returns `0x13b2` (5042).
+- ✓ A `eth_chainId` from the Arc private mainnet RPC returns `0x13b2` (5042).
 - ✗ `contracts/deployments/arc-private-mainnet.json` exists with Circle's stack
   addresses **read from that chain**, not copied from testnet. Deliberately not
   pre-written: chain 5042 is a mainnet and inventing an address there is worse

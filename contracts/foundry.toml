@@ -94,4 +94,5 @@ arc-testnet = "${ARC_TESTNET_RPC_URL}"
 # Arc PRIVATE MAINNET (chainId 5042). Real network, USDC is the native gas token.
 # Access is permissioned: a whitelisted provider endpoint + Circle-approved gas funding.
 arc-private-mainnet = "${ARC_PRIVATE_MAINNET_RPC_URL}"
+arc-mainnet = "${ARC_MAINNET_RPC_URL}"
 base-sepolia = "${BASE_SEPOLIA_RPC_URL}"
