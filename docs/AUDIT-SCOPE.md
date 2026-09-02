@@ -81,7 +81,7 @@ contain an uncommitted file, and a count an auditor cannot reproduce from a clea
 
 | Suite | Result |
 | --- | --- |
-| `forge test` (default profile) | **264 passed / 0 failed**, 16 suites |
+| `forge test` (default profile) | **283 passed / 0 failed**, 18 suites |
 | `@bufi/modular-wallets-core` jest | **461 passed**, 84 suites, 8 snapshots |
 | — coverage | 98.93% stmts · 94.48% branch · 98.57% funcs · 98.91% lines |
 | `@bufi/mock-circle` (bun) | **16 passed**, 3 files, 126 assertions |
@@ -99,14 +99,15 @@ method notes in `reports/COVERAGE.md`:
 
 | | v0.7 tree |
 | --- | --- |
-| Lines | **91.35%** (602/659) |
-| Statements | **92.17%** (659/715) |
-| Branches | **90.83%** (99/109) |
-| Functions | **93.62%** (88/94) |
+| Lines | **94.54%** (623/659) |
+| Statements | **94.97%** (679/715) |
+| Branches | **97.25%** (106/109) |
+| Functions | **100.00%** (94/94) |
 
-Per contract, the two worth an auditor's eye: `BufiSessionRecipientHookPlugin` is 96.25% lines / **100% branches**
-/ 100% functions — the newest and least audited contract is the best covered. `BufiEarnModule` is the weakest at
-80% lines / **56.25% branches**, so the F-06 and F-08 failure paths are under-exercised.
+`BufiSessionRecipientHookPlugin` is 96.25% lines / 100% branches / 100% functions, and `BufiEarnModule` is 97.50%
+/ 100% / 100% — both F-06 deposit guards are exercised by purpose-built hostile vaults. The only contract below
+90% is `PluginStorageLib.sol` (vendored, reached through assembly, invisible to the instrumenter); it is the sole
+reason the totals are not higher.
 
 **`src/bufi/v0.8/gateway/**` has no coverage figure and none is claimed.** The coverage profile skips it: with
 via-IR off (which `forge coverage` requires for accurate source mapping) solc 0.8.24's legacy codegen cannot copy
@@ -114,8 +115,10 @@ the harnesses' struct arrays to storage, and with `--ir-minimum` on, Circle's *v
 Yul stack-too-deep we do not control. 214 of the 264 tracked tests run under coverage. Reasoning and the rejected
 alternative are in `reports/COVERAGE.md`.
 
-`.gas-snapshot` is committed (263 entries). There are **0 invariant tests** and 12 fuzz tests — bucket 2 in
-`reports/READINESS-BUCKETS.md`.
+`.gas-snapshot` is committed (282 entries). There are **3 invariant tests** (`test/invariant/`, 1920 calls each,
+0 reverts) and 12 fuzz tests. The invariants assert the two properties an agent grant exists to guarantee, over
+arbitrary session-key sequences: the agent never spends beyond its grant, and no token ever reaches an address
+outside the account's AddressBook.
 
 ## Known limitations the auditor should not rediscover
 

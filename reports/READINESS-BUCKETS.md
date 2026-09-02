@@ -10,7 +10,7 @@ blocks the launch claim and is gated on an external party, so it starts now.
 | # | Bucket | Score | Blocks | Owner action |
 |---|---|---|---|---|
 | 1 | Scope definition & provenance | **100%** ✅ | — | closed 2026-09-02 |
-| 2 | Test evidence (coverage + gas) | **85%** | audit submission | invariant tests remain |
+| 2 | Test evidence (coverage + gas) | **100%** ✅ | — | closed 2026-09-02 |
 | 3 | Deployment & explorer verification | **100%** ✅ | — | closed 2026-09-02 |
 | 4 | **Arc private mainnet validation** | **10%** | **launch claim** | **unblock dRPC entitlement** |
 
@@ -58,7 +58,47 @@ including the rule change that made agentic work possible at all
 (`_getTargetOrRecipient` returns `recipient == address(0) ? target : recipient`
 instead of reverting) — and refresh every count from a real run.
 
-## 2. Test evidence — 85% (was 65%; coverage + gas closed 2026-09-02)
+## 2. Test evidence — 100% ✅ closed 2026-09-02
+
+| | before | after |
+| --- | --- | --- |
+| `forge test` (tracked) | 264 | **283** |
+| Lines | 91.35% | **94.54%** |
+| Branches | 90.83% | **97.25%** |
+| Functions | 93.62% | **100.00%** |
+| `BufiEarnModule` branches | 56.25% | **100.00%** |
+| Invariant tests | 0 | **3** |
+
+- ✓ **`forge coverage` runs** via `[profile.coverage]` + `--ir-minimum`. Full table: `reports/COVERAGE.md`.
+- ✓ **`.gas-snapshot` committed**, 282 entries, tracked tree only.
+- ✓ **`BufiEarnModuleGuards.t.sol` (13 tests)** closes the earn module. The two F-06 deposit guards are each
+  driven by a purpose-built hostile vault: one reporting a different `asset()`, one that mints shares but debits
+  half — the exact shape the pre-F-06 module reported as a clean success. Plus the config guards
+  (`EmptyConfigList`, `TooManyTokens` at exactly the 101st token, `ModuleNotInitialized`) and the five ERC-6900
+  entry points the module deliberately leaves unimplemented.
+- ✓ **`AgentEnvelope.invariant.t.sol` — 3 invariants, 1920 calls each, 0 reverts.** Over arbitrary sequences of
+  session-key ops (handlers deliberately request amounts past the budget and recipients off the allowlist):
+  the agent never spends beyond its grant; no token ever reaches an unlisted address; and USDC is conserved
+  between the account and the allowlist. Both properties are BUFI code — the session-key spend accounting and
+  the recipient hook — not Circle's.
+- ✓ Two deterministic tests guard against a **vacuous** invariant run, proving the handlers move state in both
+  directions (one accepted op, one rejected). They are plain tests, not a fourth invariant, because foundry
+  evaluates invariants against the initial state too, where nothing has run.
+- ✓ **A fuzz counterexample found and resolved.** `testFuzz_sessionKeyTimeRange` failed at
+  `validAfter = type(uint48).max, validUntil = 0`. Traced to Circle's *vendored* `ValidationDataLib:71`: it
+  repacks `validUntil == 0` as indefinite (`type(uint48).max`) and then forces `SIG_VALIDATION_FAILED` whenever
+  `validAfter >= validUntil`. The BUFI plugin returned success; the account correctly closed an **empty**
+  window. Not a defect — the test's blanket `authorizer == 0` was wrong. It now asserts both branches, and
+  `test_sessionKeyTimeRange_emptyWindowFailsClosed` pins the corner deterministically so it no longer depends
+  on the fuzzer rediscovering it.
+- ⚠️ `src/bufi/v0.8/gateway/**` still has NO coverage figure, stated as such. Two compiler walls meet there —
+  legacy codegen cannot copy the harnesses' struct arrays to storage, and `--ir-minimum` hits a Yul
+  stack-too-deep in Circle's *vendored* v0.8 `BaseMSCA`. Rewriting our harnesses was tried and rejected: ~15
+  files, and the first attempt broke the `fork-arc` profile with a different Yul error.
+- ⚠️ `PluginStorageLib.sol` reports 0% statements. Vendored, reached through assembly, invisible to the
+  instrumenter. It is the only reason the totals are not higher; do not close it with tests that assert nothing.
+
+### Superseded assessment (85%, coverage + gas only)
 
 - ✓ **`forge coverage` runs.** `[profile.coverage]` in `contracts/foundry.toml` skips the v0.8 tree, its harness
   and the fork suites; `FOUNDRY_PROFILE=coverage forge coverage --ir-minimum` then reports **91.35% lines /

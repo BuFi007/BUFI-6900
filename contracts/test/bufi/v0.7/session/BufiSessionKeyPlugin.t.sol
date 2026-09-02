@@ -535,7 +535,40 @@ contract BufiSessionKeyPluginTest is SessionKeyHarness {
             assertEq(uint48(validationData >> 160), type(uint48).max, "validUntil (0 repacked as max by Circle)");
         }
         assertEq(uint48(validationData >> 208), startTime, "validAfter");
-        assertEq(uint160(validationData), 0, "authorizer");
+
+        // The window can be EMPTY, and an empty window is a rejection rather than an authorisation. Circle's
+        // `ValidationDataLib._unpackValidationData` repacks `validUntil == 0` as "indefinite" =
+        // `type(uint48).max`, and `_intersectValidationData` then forces the authorizer to 1 whenever
+        // `validAfter >= validUntil` (ValidationDataLib.sol:71). The plugin itself returns success in that case —
+        // it is the account that closes the door, which is the right place for it.
+        //
+        // Under `endTime == 0 || startTime < endTime` the only pair that reaches it is
+        // `startTime == type(uint48).max, endTime == 0`. Asserting both branches proves the rule instead of
+        // assuming away the corner. (Found by the fuzzer, 2026-09-02.)
+        uint48 effectiveValidUntil = endTime == 0 ? type(uint48).max : endTime;
+        if (startTime >= effectiveValidUntil) {
+            assertEq(uint160(validationData), 1, "empty window fails closed");
+        } else {
+            assertEq(uint160(validationData), 0, "authorizer");
+        }
+    }
+
+    /// @dev The corner above, pinned deterministically so it does not depend on the fuzzer rediscovering it: a key
+    ///      whose start time is `type(uint48).max` and whose end time is "indefinite" is never usable, and the
+    ///      account reports that as a validation failure rather than as a merely-not-yet-valid op.
+    function test_sessionKeyTimeRange_emptyWindowFailsClosed() public {
+        assertTrue(
+            _updateKeyPermissions(
+                account, sessionKey1.addr, _updates(_permTimeRange(type(uint48).max, 0), _permAllowAll()), quorum
+            )
+        );
+
+        PackedUserOperation memory op = _prepareSessionKeyUserOp(account, _calls(_call(address(0), 0, "")), sessionKey1);
+        uint256 validationData = _validateAsEntryPoint(account, op);
+
+        assertEq(uint48(validationData >> 208), type(uint48).max, "validAfter");
+        assertEq(uint48(validationData >> 160), type(uint48).max, "validUntil (0 repacked as max by Circle)");
+        assertEq(uint160(validationData), 1, "authorizer: empty window rejected");
     }
 
     function test_rotateKey_basic() public {
