@@ -10,7 +10,7 @@ blocks the launch claim and is gated on an external party, so it starts now.
 | # | Bucket | Score | Blocks | Owner action |
 |---|---|---|---|---|
 | 1 | Scope definition & provenance | **100%** ✅ | — | closed 2026-09-02 |
-| 2 | Test evidence (coverage + gas) | 65% | audit submission | isolate v0.8 compile profile |
+| 2 | Test evidence (coverage + gas) | **85%** | audit submission | invariant tests remain |
 | 3 | Deployment & explorer verification | 45% | audit submission | deploy hook, verify 3 contracts |
 | 4 | **Arc private mainnet validation** | **10%** | **launch claim** | **unblock dRPC entitlement** |
 
@@ -23,8 +23,15 @@ blocks the launch claim and is gated on an external party, so it starts now.
   mapping it to its 19 tests.
 - ✓ New **"Where to spend the review"** section ranks auditor attention: the hook's `_getTargetOrRecipient`
   divergence first (with the reason it exists and the F-02/F-03 consequence), then D10, then F-06/F-08.
-- ✓ Every count re-measured today rather than carried forward. The old figures were wrong in both directions:
-  `forge test` 197 → **269** (17 suites), jest 441 → **461**, SDK coverage 99.4% → **98.93%**.
+- ✓ Every count re-measured today rather than carried forward. `forge test` 197 → **264** (16 suites),
+  jest 441 → **461**, SDK coverage 99.4% → **98.93%**.
+- ⚠️ **Measure the tracked tree, not the working tree.** A first pass published 269 / 17 suites. That was wrong:
+  the working tree held an untracked `contracts/test/bufi/v0.7/ghost/GhostShieldAddressBook.t.sol` (5 tests,
+  created 2026-09-02 14:00 by another session), so 5 of those tests do not exist in a clean clone. The tracked
+  number is 264 and it is what the docs now carry. Use
+  `forge test --no-match-contract GhostShieldAddressBookTest` while that file is uncommitted. A count an auditor
+  cannot reproduce is worse than a stale one — this is the same failure mode bucket 1 exists to fix, reached from
+  the opposite direction.
 - ✓ Stale counts also corrected in `README.md`, `docs/CIRCLE-SUBMISSION.md`, `docs/AGENTIC-WALLET.md`,
   `reports/AUDIT_REPORT.md`, `tasks/todo.md`. Repo-wide grep for `197|441|264|99.4%` outside vendored libs
   returns nothing.
@@ -51,7 +58,24 @@ including the rule change that made agentic work possible at all
 (`_getTargetOrRecipient` returns `recipient == address(0) ? target : recipient`
 instead of reverting) — and refresh every count from a real run.
 
-## 2. Test evidence — 65%
+## 2. Test evidence — 85% (was 65%; coverage + gas closed 2026-09-02)
+
+- ✓ **`forge coverage` runs.** `[profile.coverage]` in `contracts/foundry.toml` skips the v0.8 tree, its harness
+  and the fork suites; `FOUNDRY_PROFILE=coverage forge coverage --ir-minimum` then reports **91.35% lines /
+  92.17% statements / 90.83% branches / 93.62% functions** over the v0.7 tree (214 of 264 tests). Full table and
+  the method note: `reports/COVERAGE.md`.
+- ✓ **`.gas-snapshot` committed**, 263 entries, tracked tree only.
+- ✓ The hook — newest, least audited — is the best-covered contract: 96.25% lines, 100% branches, 100% functions.
+- ✗ **`BufiEarnModule` is 56.25% branches / 80% lines**, the weakest in-scope contract. The F-06 / F-08 failure
+  paths are under-exercised. Close this before submission.
+- ✗ **0 invariant tests.** 12 fuzz tests exist. Candidates: session-key budget accounting never exceeds the
+  granted envelope; multisig weight total equals the sum of owner weights.
+- ⚠️ `src/bufi/v0.8/gateway/**` has NO coverage figure, stated as such rather than omitted. Two compiler walls
+  meet there — legacy codegen cannot copy the harnesses' struct arrays to storage, and `--ir-minimum` hits a Yul
+  stack-too-deep in Circle's *vendored* v0.8 `BaseMSCA`. Rewriting our harnesses to satisfy legacy codegen was
+  tried and rejected: ~15 files, and the first attempt broke the `fork-arc` profile with a different Yul error.
+
+### Superseded assessment (kept for the record) — 65%
 
 - ✗ `forge coverage` fails repo-wide, even with `--ir-minimum`:
   `Yul exception: Variable var_hookUninstallData_24747_offset is 6 too deep in

@@ -52,7 +52,7 @@ Stop re-implementing the band in Shiva for agent ops; Shiva pre-flights and shap
 
 | Claim | Where |
 | --- | --- |
-| session key + hook + AddressBook composition on Circle's production bytecode | `contracts/test/bufi/v0.7/**` (177 tests; 269 across the whole default profile) |
+| session key + hook + AddressBook composition on Circle's production bytecode | `contracts/test/bufi/v0.7/**` (172 tests; 264 across the whole default profile) |
 | agent spend through Circle's real bundler on Fuji, incl. Circle paymaster sponsorship | `scripts/live/install-on-fuji.ts`, `contracts/deployments/avax-fuji.canary.json` |
 | **agent MSCA runs a real ERC-8183 job on Circle's native Arc contract, as a session key** | `contracts/test/fork/agentic/AgentFaceErc8183.t.sol` (Arc testnet fork, 3 tests) |
 | Gateway float face | design; desk plan 212's canary provisioned the passkey ops MSCA on the 1271 rail — the float face is the same account shape with the agent key as a weight-1 owner |

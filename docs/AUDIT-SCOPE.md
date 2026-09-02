@@ -75,11 +75,13 @@ Reviewer time is not uniform across the table above. Ranked:
 
 ## Numbers at the tagged commit
 
-Measured 2026-09-02, not carried forward from a previous revision.
+Measured 2026-09-02 against the **tracked** tree (`forge test --no-match-contract GhostShieldAddressBookTest`),
+not carried forward from a previous revision. Measure the tracked tree, not the working tree: a working tree can
+contain an uncommitted file, and a count an auditor cannot reproduce from a clean clone is worse than no count.
 
 | Suite | Result |
 | --- | --- |
-| `forge test` (default profile) | **269 passed / 0 failed**, 17 suites |
+| `forge test` (default profile) | **264 passed / 0 failed**, 16 suites |
 | `@bufi/modular-wallets-core` jest | **461 passed**, 84 suites, 8 snapshots |
 | — coverage | 98.93% stmts · 94.48% branch · 98.57% funcs · 98.91% lines |
 | `@bufi/mock-circle` (bun) | **16 passed**, 3 files, 126 assertions |
@@ -92,12 +94,28 @@ Fork suites are excluded from the default profile and each needs a **different**
 | `test/fork/earn/**` | `fork` | Base mainnet 8453, block 50769826 | 1 test; needs a Base mainnet RPC |
 | `test/fork/gateway/**` | `fork-arc` | Sepolia | needs `$SEPOLIA_RPC_URL` |
 
-`forge coverage` does **not** currently run: it compiles the whole tree regardless of `--no-match-path`, and
-Circle's vendored v0.8 `BaseMSCA` overflows the stack under it (`Yul exception: Variable
-var_hookUninstallData_24747_offset is 6 too deep in the stack`), including with `--ir-minimum`. There is no
-Solidity coverage figure to quote and none is claimed. Tracked as bucket 2 in `reports/READINESS-BUCKETS.md`.
+**Solidity coverage** — `FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report summary`, full table and
+method notes in `reports/COVERAGE.md`:
 
-There are **0 invariant tests** and 12 fuzz tests. No gas snapshot is committed.
+| | v0.7 tree |
+| --- | --- |
+| Lines | **91.35%** (602/659) |
+| Statements | **92.17%** (659/715) |
+| Branches | **90.83%** (99/109) |
+| Functions | **93.62%** (88/94) |
+
+Per contract, the two worth an auditor's eye: `BufiSessionRecipientHookPlugin` is 96.25% lines / **100% branches**
+/ 100% functions — the newest and least audited contract is the best covered. `BufiEarnModule` is the weakest at
+80% lines / **56.25% branches**, so the F-06 and F-08 failure paths are under-exercised.
+
+**`src/bufi/v0.8/gateway/**` has no coverage figure and none is claimed.** The coverage profile skips it: with
+via-IR off (which `forge coverage` requires for accurate source mapping) solc 0.8.24's legacy codegen cannot copy
+the harnesses' struct arrays to storage, and with `--ir-minimum` on, Circle's *vendored* v0.8 `BaseMSCA` hits a
+Yul stack-too-deep we do not control. 214 of the 264 tracked tests run under coverage. Reasoning and the rejected
+alternative are in `reports/COVERAGE.md`.
+
+`.gas-snapshot` is committed (263 entries). There are **0 invariant tests** and 12 fuzz tests — bucket 2 in
+`reports/READINESS-BUCKETS.md`.
 
 ## Known limitations the auditor should not rediscover
 

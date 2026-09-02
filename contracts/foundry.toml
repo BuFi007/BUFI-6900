@@ -54,6 +54,23 @@ optimizer_runs = 200
 paths = "lib/buidl-wallet-contracts/**"
 evm_version = "paris"
 
+# Coverage. `forge coverage` needs source-accurate mapping, so it turns the optimizer and via-IR OFF; solc
+# 0.8.24's legacy codegen then cannot copy a struct array from memory to storage, which every harness here does
+# (`Signer[]`, `Vm.Log[]`). `--ir-minimum` puts via-IR back and fixes all of those in one move — but it then hits
+# a Yul stack-too-deep inside Circle's VENDORED v0.8 `BaseMSCA` (`var_hookUninstallData_… is 6 too deep`), which
+# is out-of-scope code we do not control.
+#
+# So this profile skips the v0.8 tree (and the fork suites, which need RPCs). Coverage is therefore reported for
+# the ERC-6900 **v0.7** contracts only; `src/bufi/v0.8/gateway/**` has NO coverage figure and none is claimed.
+# Run:  FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report summary
+[profile.coverage]
+skip = [
+  "src/bufi/v0.8/**",
+  "test/bufi/v0.8/**",
+  "test/fork/**",
+  "test/harness/CircleV08Harness.sol",
+]
+
 [profile.ci]
 fuzz = { runs = 1024 }
 
