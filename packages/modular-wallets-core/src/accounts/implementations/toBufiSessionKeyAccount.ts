@@ -24,12 +24,12 @@ import {
 import { readContract } from 'viem/actions'
 
 import { encodeExecuteWithSessionKey } from '../../actions/plugins/sessionKey/encodeExecuteWithSessionKey'
-import { getDefaultVerificationGasLimit } from '../../utils/smartAccount/getDefaultVerificationGasLimit'
 import {
   CIRCLE_CANONICAL_DEPLOYMENT,
   ENTRY_POINT_07,
   SESSION_KEY_STUB_SIGNATURE,
 } from '../../constants'
+import { getDefaultVerificationGasLimit } from '../../utils/smartAccount/getDefaultVerificationGasLimit'
 
 import type {
   BufiSessionKeyAccountImplementation,
