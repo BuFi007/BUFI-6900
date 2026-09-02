@@ -176,7 +176,35 @@ broadcasts nothing.
 
 ---
 
-## 4. Arc private mainnet validation — 10%
+## Live validation — GREEN 2026-09-02 21:28Z (Avalanche Fuji)
+
+The package's weakest point was that nothing had run live: the only canary (06:53 the same day) had installed the
+**pre-fix** session-key plugin `0x28504B34…`, the one the deployments files label *"never install"*, and did not
+include the recipient hook at all. Both are now closed on a real chain through Circle's real bundler.
+
+Account `0x431bebb64552cefb2fbdb3968c75307aa709dc2b`, owner `0x09Ce8E…`, artifact
+`contracts/deployments/avax-fuji.canary.json`:
+
+| step | evidence |
+| --- | --- |
+| **Migrated off the superseded plugin** | uninstall tx `0xe03e3d8f…`, then install of the fixed `0xBd607dBA…` tx `0x69878f26…` |
+| Agent spend through Circle's bundler | userOp `0xe273e399…`, tx `0xa3028f78…`, delta exactly 1 USDC |
+| AddressBook installed, allowlist = `[owner]` | step 4 |
+| **Recipient hook installed** `0xAa8B4fb7…` | userOp `0xd09f8e5b…`, tx `0xe94213…` |
+| **Hooked agent → allowlisted recipient** | userOp `0x889e20b5…`, success, delta 1 USDC |
+| **Hooked agent → unlisted recipient** | **rejected**, `validateUserOp` reverted, recipient balance 0 |
+
+Two things that matter beyond "it works":
+
+- The rejection happened in the **validation phase** (`validateUserOp reverted`), not by a failing execution.
+  That is what a `preUserOpValidationHook` is supposed to do: the op never reaches execution, so no gas is spent
+  on a doomed transfer and no partial state is written.
+- The migration is the real upgrade path, not a workaround. Circle derives the account address from the OWNER,
+  not from the account `name` label, so a re-run always lands on the same account — and two plugins cannot both
+  claim `executeWithSessionKey` (`ExecutionDetailAlreadySet`). Any integrator moving from a superseded plugin to
+  a fixed one must uninstall first. That is now exercised live rather than assumed.
+
+## 4. Arc private mainnet validation
 
 The first three buckets are about the audit package. This one is about whether
 the claim "BUFI runs on Arc" survives contact with the real network.

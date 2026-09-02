@@ -12,7 +12,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { type Address, type Hex, createPublicClient, createWalletClient, encodeFunctionData, formatEther, http, parseAbi, parseEther, toFunctionSelector } from 'viem'
+import { type Address, type Hex, createPublicClient, encodeAbiParameters, createWalletClient, encodeFunctionData, formatEther, http, parseAbi, parseEther, toFunctionSelector } from 'viem'
 import { createBundlerClient } from 'viem/account-abstraction'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { avalancheFuji } from 'viem/chains'
@@ -21,6 +21,8 @@ import {
   AVAX_FUJI_DEPLOYMENT,
   buildAgentFaceCalls,
   encodeInstallAddressBook,
+  encodeInstallPlugin,
+  encodeUninstallPlugin,
   getAllowedRecipients,
   getInstalledPlugins,
   getSessionKeys,
@@ -53,7 +55,12 @@ async function main() {
   const client = createPublicClient({ chain, transport: modular })
 
   console.log('1. account via Circle Modular Wallets API (circle_getAddress)')
-  const account = await toCircleSmartAccount({ client, owner, deployment, name: 'bufi-6900-canary' })
+  // The 2026-09-02 06:53 run installed the PRE-FIX session-key plugin (0x28504B34…) on the account named
+  // 'bufi-6900-canary'. Two plugins cannot claim `executeWithSessionKey` on one account, so re-running there
+  // would revert on install. A new name gives a new deterministic address; override to re-target deliberately.
+  const accountName = process.env.CANARY_ACCOUNT_NAME ?? 'bufi-6900-canary-v2'
+  const account = await toCircleSmartAccount({ client, owner, deployment, name: accountName })
+  state.accountName = accountName
   const address = account.address
   state.account = address; state.owner = owner.address; save()
   log(`account ${address} (owner EOA ${owner.address})`)
@@ -91,6 +98,26 @@ async function main() {
       expiry: { validUntil: nowTs + 7 * 86_400 },
     } }],
   })
+  // MIGRATION. The 2026-09-02 06:53 run installed the pre-fix session-key plugin (adversarial findings
+  // F-01/F-06/F-08) on this account, and Circle derives the account address from the OWNER, not from the
+  // `name` label — so a re-run lands on the same account. Two plugins cannot both claim
+  // `executeWithSessionKey` (0x31d99c2c): installing the fixed one on top reverts
+  // `ExecutionDetailAlreadySet(0xBd607dBA…, 0x31d99c2c)`. Uninstall the superseded one first. This is also the
+  // real upgrade path an integrator would take, so it is worth exercising live rather than side-stepping with
+  // a fresh owner.
+  const SUPERSEDED_SESSION_KEY = '0x28504B34871Aa5a00269a960A9390187cbB5c070' as Address
+  if (installed.map((p) => p.toLowerCase()).includes(SUPERSEDED_SESSION_KEY.toLowerCase())) {
+    log(`superseded session-key plugin ${SUPERSEDED_SESSION_KEY} is installed — uninstalling before the fixed one`)
+    await send('uninstallSupersededSessionKeyPlugin', {
+      callData: encodeUninstallPlugin({ account: address, plugin: SUPERSEDED_SESSION_KEY }).data,
+    })
+    installed = await getInstalledPlugins(rpc, { account: address })
+    if (installed.map((p) => p.toLowerCase()).includes(SUPERSEDED_SESSION_KEY.toLowerCase())) {
+      throw new Error('superseded plugin still listed after uninstall')
+    }
+    state.migratedFrom = SUPERSEDED_SESSION_KEY; save()
+  }
+
   if (!installed.map((p) => p.toLowerCase()).includes(skAddr.toLowerCase())) {
     await send('installSessionKeyPlugin', { callData: face.installSessionKeyPlugin.data })
   } else {
@@ -140,6 +167,54 @@ async function main() {
   const allowed = await getAllowedRecipients(rpc, { plugin: deployment.coldStorageAddressBook.address, account: address })
   log(`allowlist → ${allowed.join(', ')}`)
   state.addressBook = allowed; save()
+  console.log('5. install BufiSessionRecipientHookPlugin and prove it gates the agent path')
+  const hook = deployment.bufiSessionRecipientHook!
+  installed = await getInstalledPlugins(rpc, { account: address })
+  if (!installed.map((p) => p.toLowerCase()).includes(hook.address.toLowerCase())) {
+    // Install data binds the hook to an AddressBook the account itself installed; the hook re-checks that
+    // through IAccountLoupe in onInstall and reverts otherwise. Hooks resolve with an empty dependency list.
+    const hookInstall = encodeInstallPlugin({
+      account: address,
+      plugin: hook.address,
+      manifestHash: hook.manifestHash,
+      pluginInstallData: encodeAbiParameters([{ type: 'address' }], [deployment.coldStorageAddressBook.address]),
+    })
+    await send('installRecipientHook', { callData: hookInstall.data })
+  }
+  installed = await getInstalledPlugins(rpc, { account: address })
+  if (!installed.map((p) => p.toLowerCase()).includes(hook.address.toLowerCase())) {
+    throw new Error('recipient hook not listed by AccountLoupe')
+  }
+  state.installedPlugins = installed; save()
+  log(`installed → ${installed.join(', ')}`)
+
+  // ALLOW: owner is on the AddressBook set from step 4, so the same agent key may still pay it.
+  const allowBefore = await rpc.readContract({ address: usdc, abi: USDC_ABI, functionName: 'balanceOf', args: [owner.address] })
+  const allowHash = await agentBundler.sendUserOperation({ calls: [{ to: usdc, data: encodeFunctionData({ abi: USDC_ABI, functionName: 'transfer', args: [owner.address, USDC(1)] }) }] })
+  const allowR = await agentBundler.waitForUserOperationReceipt({ hash: allowHash, timeout: 180_000 })
+  const allowAfter = await rpc.readContract({ address: usdc, abi: USDC_ABI, functionName: 'balanceOf', args: [owner.address] })
+  log(`hooked agent -> ALLOWLISTED owner: userOp ${allowHash} success=${allowR.success} delta=${Number(allowAfter - allowBefore) / 1e6}`)
+  if (!allowR.success || allowAfter - allowBefore !== USDC(1)) throw new Error('allowlisted transfer did not land with the hook installed')
+
+  // DENY: a recipient that is not on the set. The hook is a preUserOpValidationHook, so the EntryPoint rejects
+  // the op during validation and the bundler throws — nothing reaches the execution phase.
+  const stranger = privateKeyToAccount(generatePrivateKey()).address
+  let denied = false
+  let denyReason = ''
+  try {
+    const h = await agentBundler.sendUserOperation({ calls: [{ to: usdc, data: encodeFunctionData({ abi: USDC_ABI, functionName: 'transfer', args: [stranger, USDC(1)] }) }] })
+    await agentBundler.waitForUserOperationReceipt({ hash: h, timeout: 180_000 })
+  } catch (e) {
+    denied = true
+    denyReason = String((e as { shortMessage?: string; message?: string }).shortMessage ?? (e as Error).message ?? e).slice(0, 200)
+  }
+  const strangerBal = await rpc.readContract({ address: usdc, abi: USDC_ABI, functionName: 'balanceOf', args: [stranger] })
+  log(`hooked agent -> UNLISTED ${stranger}: rejected=${denied} strangerBalance=${Number(strangerBal) / 1e6}`)
+  state.recipientHook = { plugin: hook.address, allowlisted: { userOpHash: allowHash, success: allowR.success }, unlisted: { recipient: stranger, rejected: denied, reason: denyReason, balance: strangerBal.toString() } }
+  save()
+  if (!denied) throw new Error('hook did NOT reject an unlisted recipient')
+  if (strangerBal !== 0n) throw new Error('unlisted recipient received tokens')
+
   console.log('\nLIVE CANARY GREEN')
   state.finishedAt = new Date().toISOString(); state.result = 'green'; save()
 }

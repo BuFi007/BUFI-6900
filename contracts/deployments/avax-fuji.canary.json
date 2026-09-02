@@ -1,29 +1,55 @@
 {
   "chainId": 43113,
-  "startedAt": "2026-09-02T06:53:24.591Z",
+  "startedAt": "2026-09-02T21:28:08.810Z",
+  "accountName": "bufi-6900-canary-v2",
   "account": "0x431bebb64552cefb2fbdb3968c75307aa709dc2b",
   "owner": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
-  "agent": "0x0241639196fdB6f0c9Df611C9913b1D257770925",
+  "agent": "0xc101eF1Fca7F93c6c968CFE253b0470eAC32fEd2",
+  "userOps": [
+    {
+      "label": "addSessionKey",
+      "userOpHash": "0xaff796ca6d97e2c4f394f0397d059d28621bfe9fa62d915f8f4385d7985be82b",
+      "tx": "0xa8f42ee7d426ea52917342d7c2e094badb5b21b01074e711535c9d766ac8dbd8",
+      "success": true
+    },
+    {
+      "label": "installRecipientHook",
+      "userOpHash": "0xd09f8e5b0d71befebe8fa7b47e58b5c4d49ea8db4a39d8169c2db672cd1334cf",
+      "tx": "0xe94213011aae8dc4c15a8d374ccdf113d70f7c9c5b440ce622f488c899fa75a2",
+      "success": true
+    }
+  ],
   "installedPlugins": [
     "0x0000000C984AFf541D6cE86Bb697e68ec57873C8",
-    "0x28504B34871Aa5a00269a960A9390187cbB5c070",
-    "0x0000000d81083B16EA76dfab46B0315B0eDBF3d0"
+    "0x0000000d81083B16EA76dfab46B0315B0eDBF3d0",
+    "0xBd607dBAC82CF1351C352FB65fC29dE9D0095339",
+    "0xAa8B4fb76e8Eb712435E2b948B3A35c4C069d98A"
   ],
   "sessionKeys": [
-    "0x0241639196fdB6f0c9Df611C9913b1D257770925",
-    "0xb2E2338780e8c67f708a41B423DFB0464237484C",
-    "0x6CA61E09fde5f59e7DfD8Fdb5395E6Eb42D84F23",
-    "0x08afCDA68D0ebCE924Bc959069F8220dD60a7A6a",
-    "0xEe321D9274b06C22a466fa23e9f6fE1f23b2aEB1"
+    "0xc101eF1Fca7F93c6c968CFE253b0470eAC32fEd2",
+    "0xfe9dA39D1efFC4EDD3c17616AF4b155b49B3f173"
   ],
   "agentSpend": {
-    "userOpHash": "0x8fd1f27cebd63547eb9675f2421f9f7d5cb53122178185fae82e450e92f92590",
-    "tx": "0xcd504609e35a57dcf78ddd7f0432d362ae1609105c8c794da264d99689803f78",
+    "userOpHash": "0xe273e399127b702720a1305471c96714997b02cf3285fcb29fcd8f48808467c8",
+    "tx": "0xa3028f78df80bc34fb0f4b78eb08bdc4161bff669ed6e9f1b3b6899340da35de",
     "success": true
   },
   "addressBook": [
     "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474"
   ],
-  "finishedAt": "2026-09-02T06:53:33.191Z",
+  "recipientHook": {
+    "plugin": "0xAa8B4fb76e8Eb712435E2b948B3A35c4C069d98A",
+    "allowlisted": {
+      "userOpHash": "0x889e20b5c72a40efb7439f8f8c1e4d84de309bf70878eb1fe959607f9d946e05",
+      "success": true
+    },
+    "unlisted": {
+      "recipient": "0xF470975b82e2C82935517193dA652B970f8FAE5f",
+      "rejected": true,
+      "reason": "The `validateUserOp` function on the Smart Account reverted.",
+      "balance": "0"
+    }
+  },
+  "finishedAt": "2026-09-02T21:28:41.736Z",
   "result": "green"
 }
