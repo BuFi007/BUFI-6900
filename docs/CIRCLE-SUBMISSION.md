@@ -41,4 +41,12 @@ Circle Modular Wallets on the ERC-6900 v0.7 account generation; guidance on the 
 
 ## Test matrix (regenerate with `bun run contracts:test`)
 
-_Numbers filled from CI on the tagged commit — see the README "Findings" section and `docs/PLUGIN-COMPOSITION.md`._
+| Layer | Tests | Notes |
+| --- | --- | --- |
+| Contracts (`forge test`) | 197 | 83 of them are Alchemy's own SessionKeyPlugin cases re-run on Circle's production account bytecode |
+| SDK fork (jest) | 441 | 315 upstream tests unchanged — the fork is a drop-in superset |
+| Mock Circle API (bun test) | 16 | `circle_getAddress` output equals the address in Circle's own SDK fixture for the same owner |
+| Sandbox e2e | 6 steps green | SDK fork → mock → canonical stack → plugins |
+
+Findings we would like you to confirm or correct are enumerated in the repository README ("Findings surfaced by
+the sandbox") and `docs/PLUGIN-COMPOSITION.md`.

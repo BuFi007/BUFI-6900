@@ -38,6 +38,12 @@
    from an authorised relayer; funds cannot leave the account through it —
    `test/bufi/v0.7/earn/**`.
 
+## Numbers at the tagged commit
+
+`forge test`: 197 passed / 0 failed (10 suites). `@bufi/modular-wallets-core`: 441 jest tests, 99.4% statements.
+`@bufi/mock-circle`: 16 bun tests. `bun run sandbox:e2e`: green (6 steps). Fork suites (`FOUNDRY_PROFILE=fork`)
+excluded from these counts.
+
 ## Known limitations the auditor should not rediscover
 
 - WebAuthn (P-256 passkey) owners are exercised by Circle's own suites, not ours; our harness signs with EOA

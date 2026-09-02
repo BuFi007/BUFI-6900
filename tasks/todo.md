@@ -13,39 +13,46 @@ to auditors and to Circle. Plus a fork of Circle's web SDK that speaks our plugi
 - [x] full Circle v0.7 stack compiles from vendored source (`src/CircleStack.sol`)
 
 ## Phase 1 — canonical redeploy + harness
-- [ ] `test/harness/CircleStackHarness.sol`: Circle bytecode at Circle addresses via CREATE2 salts; k-of-n signing
-- [ ] `test/stack/CanonicalStack.t.sol`: addresses, manifest hashes, 2-of-3 lifecycle, AddressBook gating
-- [ ] `script/DeployStack.s.sol`: same on anvil (+ SponsorPaymaster, v0.8 stack, BUFI plugins) → `deployments/local.json`
+- [x] `test/harness/CircleStackHarness.sol`: Circle bytecode at Circle addresses via CREATE2 salts; k-of-n signing
+- [x] `test/stack/CanonicalStack.t.sol`: addresses, manifest hashes, 2-of-3 lifecycle, AddressBook gating
+- [x] anvil deployer lives in `packages/mock-circle/src/deploy.ts` (EntryPoint via anvil_setCode, Circle CREATE2, SponsorPaymaster, BUFI plugins) → `contracts/deployments/local.json`; `script/DeployBufiPlugins.s.sol` for testnets. v0.8 stack deploy deferred (Gateway module is reference-only)
 
 ## Phase 2 — BUFI plugins (v0.7, EntryPoint 0.7)
-- [ ] `BufiSessionKeyPlugin` — port of Alchemy MAv1 SessionKeyPlugin (Spearbit+Quantstamp audited) to
+- [x] `BufiSessionKeyPlugin` — port of Alchemy MAv1 SessionKeyPlugin (Spearbit+Quantstamp audited) to
       PackedUserOperation + Circle BasePlugin; dependency slots on WeightedWebauthnMultisigPlugin;
       grants = {scope (targets/selectors), budget (ERC20/native/gas), expiry (validAfter/validUntil)}
-- [ ] `BufiEarnModule` — rewired to Circle's real IPlugin (the deployed 0xA9a9… build used the EP-0.6 struct and
+- [x] `BufiEarnModule` — rewired to Circle's real IPlugin (the deployed 0xA9a9… build used the EP-0.6 struct and
       would fail Circle's ERC-165 install check) + integration test on the real UpgradableMSCA
-- [ ] `GatewayExecutionModule` (v0.8) — carried over from desk-v1 `multi-sig-gateway`, tests re-homed
-- [ ] composition matrix tests: Weighted + AddressBook + SessionKey + Earn on ONE account; AND-gating proofs;
+- [x] `GatewayExecutionModule` (v0.8) — carried over from desk-v1 `multi-sig-gateway`, tests re-homed
+- [x] composition matrix tests: Weighted + AddressBook + SessionKey + Earn on ONE account; AND-gating proofs;
       uninstall ordering; agentic policy scenarios (agent key within/over budget, expired, wrong recipient)
 
 ## Phase 3 — SDK fork (`packages/modular-wallets-core`, @bufi/modular-wallets-core)
-- [ ] verbatim fork of `@circle-fin/modular-wallets-core` 1.0.15 (Apache-2.0), bun-run jest/tsup/eslint
-- [ ] `actions/plugins/*` + `clients/decorators/bufiCascade.ts`: installPlugin/uninstallPlugin/getInstalledPlugins,
+- [x] verbatim fork of `@circle-fin/modular-wallets-core` 1.0.15 (Apache-2.0), bun-run jest/tsup/eslint
+- [x] `actions/plugins/*` + `clients/decorators/bufiCascade.ts`: installPlugin/uninstallPlugin/getInstalledPlugins,
       sessionKeys (add/remove/updateTimeRange/setSpendLimits), addressBook, earn — Circle style (action fn + decorator)
-- [ ] `constants/deployments.ts`: per-chain stack config (canonical Circle + BUFI plugin addresses + sandbox)
-- [ ] `isCircleUrl` trusted-host opt-in for the mock server; node-safe `fetchFromApi`
+- [x] `constants/deployments.ts`: per-chain stack config (canonical Circle + BUFI plugin addresses + sandbox)
+- [x] `isCircleUrl` trusted-host opt-in for the mock server; node-safe `fetchFromApi`
 
 ## Phase 4 — mock Circle server (`packages/mock-circle`)
-- [ ] JSON-RPC: circle_getAddress / circle_getAddressMapping / circle_createAddressMapping /
+- [x] JSON-RPC: circle_getAddress / circle_getAddressMapping / circle_createAddressMapping /
       circle_getUserOperationGasPrice, pm_getPaymasterStubData / pm_getPaymasterData (SponsorPaymaster signer),
       eth_* bundler methods backed by a direct `EntryPoint.handleOps` submitter on anvil, rp_* passkey stubs
-- [ ] `bun run sandbox:up` = anvil + deploy + mock
+- [x] `bun run mock:circle` = anvil + deploy + mock
 
 ## Phase 5 — playground (`apps/playground`)
-- [ ] headless e2e (`bun run sandbox:e2e`): create account via SDK fork → install AddressBook → install
+- [x] headless e2e (`bun run sandbox:e2e`): create account via SDK fork → install AddressBook → install
       SessionKey → grant → agent spends within budget / rejected over budget / rejected off-allowlist → Earn
-- [ ] Vite UI forked from Circle's `examples/circle-smart-account`, pointed at the mock
+- [ ] (follow-up) Vite UI forked from Circle's `examples/circle-smart-account`, pointed at the mock
 
 ## Phase 6 — recovery fork (`packages/msca-recovery`), docs, CI, repo
-- [ ] `docs/AUDIT-SCOPE.md`, `docs/THREAT-MODEL.md`, `docs/PLUGIN-COMPOSITION.md`, `docs/CIRCLE-SUBMISSION.md`
-- [ ] GitHub Actions: forge build/test, bun test, e2e against anvil
+- [x] `docs/AUDIT-SCOPE.md`, `docs/THREAT-MODEL.md`, `docs/PLUGIN-COMPOSITION.md`, `docs/CIRCLE-SUBMISSION.md`
+- [x] GitHub Actions: forge build/test, bun test, e2e against anvil
 - [ ] create `BuFi007/BUFI-6900`, push; desk-v1 note + memory
+
+## Review (2026-09-01)
+
+- Contracts 197/197, SDK 441/441, mock 16/16, e2e green. Seven findings in README; composition matrix in docs.
+- Follow-ups: Vite UI for the playground; v0.8 account harness (Circle `UpgradableMSCA` v0.8 + modules) for the
+  Gateway module; ERC-20 recipient hook plugin (after Circle answers submission Q3); testnet deploy of the fixed
+  plugins via `script/DeployBufiPlugins.s.sol`; `packages/msca-recovery` session-key scenario.

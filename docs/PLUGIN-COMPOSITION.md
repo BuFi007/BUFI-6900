@@ -79,5 +79,38 @@ before any audit; the delegate-lifecycle *policy* belongs in the account's allow
 
 ## BufiSessionKeyPlugin — composition with Weighted + AddressBook
 
-_Filled from `test/bufi/v0.7/session/**` and `contracts/src/bufi/v0.7/session/PORT-NOTES.md` once the port
-lands (see README "Findings")._
+Proven in `test/bufi/v0.7/session/SessionKeyWithAddressBook.t.sol` and `AgenticWalletPolicy.t.sol` (Circle's production
+bytecode for both Circle plugins, on the same weighted 2-of-3 account), and reproduced through the SDK fork + mock
+Circle API by `apps/playground/scripts/e2e.ts`. Full deviation list: `contracts/src/bufi/v0.7/session/PORT-NOTES.md`.
+
+| Question | Answer | Test |
+| --- | --- | --- |
+| Does the stock Alchemy plugin install? | **No** — `PluginNotImplementInterface` (v0.6 `UserOperation` in `IPlugin`). The port keeps the ABI byte-identical (interface id + every selector/event/error asserted against Alchemy's interface compiled side by side) and the storage layout identical; the one behavioural change is the v0.7 gas formula. | `SessionKeyOnCircleMsca.t.sol` install/ABI cases; `PORT-NOTES.md` D6 |
+| Dependency slots | `[FunctionReference(weighted, 1), FunctionReference(weighted, 0)]` — same pair as the AddressBook; runtime path to key management fails closed, userOp path works; cannot be installed at account creation (init passes no dependencies), same as the AddressBook | `SessionKeyOnCircleMsca.t.sol` |
+| Do AddressBook hooks fire for `executeWithSessionKey`? | **No.** AddressBook hooks `execute`/`executeBatch` only and registers no execution hooks. An unrestricted key pays a stranger the owners cannot pay. | `test_addressBookDoesNotGateSessionKeyTransfers` |
+| Can the grant express recipients? | **Partly.** The access list inspects `Call.target` + selector. Native-value transfers ARE recipient-gateable (target == recipient), so mirroring the AddressBook set into the key's allowlist gives the intended AND-gate (stranger rejected, mixed batch rejected whole, list re-sync required after AddressBook changes). **ERC-20 transfers are NOT recipient-gateable**: a key scoped to `USDC.transfer` may name any recipient. | `test_erc20RecipientIsNotGatedBySessionKeyAccessList`; e2e step 4 |
+| What bounds an agent, then? | token contract + selector, ERC-20 amount per refresh window, native amount, gas prefund per window, `validAfter/validUntil`, required paymaster. Escalation impossible: nine owner selectors + calling the account from inside a session-key op all rejected. | `AgenticWalletPolicy.t.sol`, `SessionKeyOnCircleMsca.t.sol` |
+| Where is the ERC-20 budget enforced? | **Execution phase** (upstream design, kept): the op is included and reverts on-chain — gas is paid, no funds move. Time range, access list, gas and native limits are validation-phase (bundler rejects, AA22/AA23/AA24). | e2e step 4; `SessionKeyOnCircleMsca.t.sol` |
+| Nonce rule | A gas-limited key must use its own address as the 192-bit nonce key (upstream rule kept). viem's `toSmartAccount` injects a time-derived key, so `toBufiSessionKeyAccount` pins the key — without it every agent op fails `PermissionsCheckFailed`. | `SessionKeyHarness.sol`; e2e |
+| Management calls from the SDK | Raw userOp calldata, one call per userOp — never wrapped in `execute(account, …)`: the inner self-call re-enters runtime validation, which weighted owners deliberately cannot pass. Same rule for `installPlugin`, `changeConfigHash`, `addSessionKey`, `removeSessionKey`. | SDK `installPlugin` tests; e2e steps 2/3/5/6 |
+| Install order | Irrelevant; neither plugin depends on the other. | `SessionKeyWithAddressBook.t.sol` |
+
+### Closing the ERC-20 recipient gap (design note, not in the audited port)
+
+Two options, both new unaudited code, both deferred until Circle answers question 3 of `docs/CIRCLE-SUBMISSION.md`:
+1. a BUFI hook plugin registering a `preUserOpValidationHook` on `executeWithSessionKey` that decodes `(Call[], address)`
+   and re-uses Circle's `RecipientAddressLib` against the AddressBook set (hooks must be SELF — the PluginManager
+   resolves them with an empty dependency list);
+2. an extension of `_checkCallPermissions` with a per-key recipient list.
+
+Until then the agent envelope is: amount per window + gas per window + expiry + token/selector scope — recipient
+restriction for ERC-20 lives in the owner-side grant issuance policy, exactly as `docs/THREAT-MODEL.md` records.
+
+### Upstream behaviours kept verbatim that BUFI must design around
+
+- ERC-20 budget is execution-phase (bundler includes, reverts on-chain, gas paid).
+- Reconfiguring a limit keeps `limitUsed` (upstream NatSpec says cleared — it is not).
+- `resetSessionKeyGasLimitTimestamp` is public.
+- Gas-limited keys must use their address as nonce key.
+- Circle's `ValidationDataLib` reports `validAfter >= validUntil` as `authorizer = 1` (AA24 instead of AA22) and
+  reverts `WrongTimeBounds` on inverted bounds — ops are still rejected, only the error code differs.

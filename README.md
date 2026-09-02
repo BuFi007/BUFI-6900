@@ -69,20 +69,40 @@ Composition target: **WeightedWebauthnMultisigPlugin (owners) + ColdStorageAddre
 BufiSessionKeyPlugin (agent authority) + BufiEarnModule (yield)** on one account. Findings live in
 `docs/PLUGIN-COMPOSITION.md`.
 
-## Findings surfaced by the sandbox so far
+## Findings surfaced by the sandbox
 
 1. **Stock Alchemy `SessionKeyPlugin` cannot be installed on a Circle MSCA.** It targets ERC-4337 v0.6
    (`UserOperation`); Circle's `IPlugin` uses v0.7 `PackedUserOperation`, so the ERC-165 interface ids differ and
-   `PluginManager.install` reverts `PluginNotImplementInterface`. The port to v0.7 is the BUFI plugin.
+   `PluginManager.install` reverts `PluginNotImplementInterface`. The port to v0.7 is the BUFI plugin; ABI and
+   storage layout are byte-identical to the audited original, the one behavioural change is the v0.7 gas formula.
 2. **The `BufiEarnModule` build deployed 2026-08-02 at `0xA9a9…` (Fuji + Arc testnet) has the same defect** —
    it was written against a vendored `IERC6900.sol` using the v0.6 struct. It compiled and deployed, but Circle's
-   account would reject its install. Fixed here by building against Circle's real interfaces.
-3. **AddressBook hooks are selector-scoped** (`execute` / `executeBatch`). Plugin-initiated
-   `executeFromPluginExternal` calls and `executeWithSessionKey` userOps are separate selectors — see
-   `docs/PLUGIN-COMPOSITION.md` for what is and is not gated and how each plugin closes the gap.
+   account would reject its install. Also, its `changeConfigHash` was unreachable on a real account (not an
+   execution function; `execute(plugin, …)` reverts `TargetIsPlugin`). Both fixed here; redeploy required.
+3. **AddressBook hooks are selector-scoped** (`execute` / `executeBatch`). Neither the earn deposit path
+   (`executeFromPluginExternal`) nor `executeWithSessionKey` is gated by the recipient allowlist. Earn is bounded by
+   the multisig-adopted config hash instead; session keys by their own access list — which gates target + selector,
+   so **ERC-20 recipients are not gateable per key** (native transfers are). See `docs/PLUGIN-COMPOSITION.md`.
 4. **Weighted multisig owners cannot act at runtime**, only through userOps. Any plugin whose management
    functions take a runtime-validation dependency must point that slot at the deliberately unimplemented
-   function id 1 (fail-closed) and the userOp slot at id 0 — Circle's own AddressBook precedent.
+   function id 1 (fail-closed) and the userOp slot at id 0 — Circle's own AddressBook precedent. Corollary for
+   SDKs: management calls are raw userOp calldata, never wrapped in `execute(account, …)`.
+5. **Gas-limited session keys must use their address as nonce key** (audited upstream rule). viem's
+   `toSmartAccount` injects a time-derived key, so the SDK's session-key account pins it.
+6. **The ERC-20 budget is an execution-phase check**: an over-budget agent op is included and reverts on-chain
+   (gas paid, no funds moved); time range, access list, gas and native limits reject at validation.
+7. **`GatewayExecutionModule` (v0.8) cannot be a Gateway depositor**: Gateway attributes deposits/delegates to
+   `msg.sender`, so the module would hold the position and share one depositor across every account. Only the
+   `GatewayHelper` direct-execution pattern is sound; the module is reference-only.
+
+## Test matrix (commit-pinned; regenerate with the commands in Quickstart)
+
+| Suite | Count | What it pins |
+| --- | --- | --- |
+| `forge test` (10 suites) | 197 | canonical redeploy (3) · earn unit (17) · earn on real MSCA (21) · gateway local (41) · session-key port on real MSCA (83) · session-key integration (22) · session-key × AddressBook (5) · agentic policy (5) |
+| `@bufi/modular-wallets-core` jest | 441 | 315 upstream unchanged + 126 BUFI (encoding vectors, grant DSL, deployment parametrisation, agent account) |
+| `@bufi/mock-circle` bun test | 16 | canonical deploy + idempotence, bundler (initCode deploy + transfer, AA24), paymaster (sponsored op, AA34) |
+| `bun run sandbox:e2e` | 6 steps | SDK → mock → stack → plugins: create/deploy, AddressBook gating, grant, agent spend/over-budget/off-scope, revoke, earn sweep |
 
 ## Provenance
 
