@@ -69,3 +69,6 @@ to auditors and to Circle. Plus a fork of Circle's web SDK that speaks our plugi
 - [x] testnet redeploy — Fuji + Arc: SessionKey 0x28504B34…, Earn 0x57D446a9… (same on both); `contracts/deployments/*.json`, SDK `AVAX_FUJI_DEPLOYMENT` / `ARC_TESTNET_DEPLOYMENT`, README table
 - [x] live canary on Fuji through Circle's real API: install + grant + agent spend + AddressBook — green (`scripts/live/install-on-fuji.ts`)
 - [ ] mock-circle: simulate validation in `eth_estimateUserOperationGas` (stub signature) so the stub/estimation class of bug is caught locally
+- [x] Gateway/ERC-1271 evaluation (`docs/GATEWAY-1271-EVALUATION.md`) — plugin retired, helper kept
+- [x] Morpho earn: Base-fork proof against Vault V2 + reliability model (`docs/EARN-MORPHO.md`); Midnight = design only
+- [ ] Tenderly defensive + Codex adversarial pass — BLOCKED on Tenderly MCP OAuth (`/mcp` → tenderly) or a TENDERLY_ACCESS_KEY

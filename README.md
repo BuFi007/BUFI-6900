@@ -140,6 +140,13 @@ session-key account needs Circle's verification-gas floor hook like `toCircleSma
 | `@bufi/modular-wallets-core` jest | 441 | 315 upstream unchanged + 126 BUFI (encoding vectors, grant DSL, deployment parametrisation, agent account) |
 | `@bufi/mock-circle` bun test | 16 | canonical deploy + idempotence, bundler (initCode deploy + transfer, AA24), paymaster (sponsored op, AA34) |
 | `bun run sandbox:e2e` | 6 steps | SDK → mock → stack → plugins: create/deploy, AddressBook gating, grant, agent spend/over-budget/off-scope, revoke, earn sweep |
+| `FOUNDRY_PROFILE=fork forge test --fork-url <base>` | 1 | Circle production MSCA on a Base-mainnet fork sweeps USDC into a live Morpho Vault V2 (`docs/EARN-MORPHO.md`) |
+| `scripts/live/install-on-fuji.ts` | 5 steps | Circle's real API + bundler on Fuji: deploy, install session key, grant, agent spend, AddressBook |
+
+## Evaluations
+
+- `docs/GATEWAY-1271-EVALUATION.md` — a Gateway execution plugin is structurally wrong and unnecessary under ERC-1271; keep `GatewayHelper`.
+- `docs/EARN-MORPHO.md` — Morpho Blue via Vault V2 is proven on a Base fork; direct Blue and Midnight stay behind adapters the multisig adopts.
 
 ## Provenance
 
