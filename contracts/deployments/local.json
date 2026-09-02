@@ -15,10 +15,13 @@
       "address": "0x0000000d81083B16EA76dfab46B0315B0eDBF3d0",
       "manifestHash": "0x9d177c1c9573b10436b693b7a49f0face36b677c1606a2c579bba1415be349d8"
     },
-    "bufiSessionKey": null,
+    "bufiSessionKey": {
+      "address": "0x7DBca5Fe40A037DCfb3fBd0b539D70CB71337EEA",
+      "manifestHash": "0xa32b3449ba437645e2386051ad0fcb64b0c2a9fed66b2eb4349505a2cb11ff5d"
+    },
     "bufiEarnModule": {
-      "address": "0xa9D33E3c5522067ba8E651E285637D192c79B98b",
-      "manifestHash": "0x173ac108a4718e39e957622f3c34dbc6ba4eb76f51a1bde2c710a7a4fcda5c55"
+      "address": "0x15637983f2893DbfCFE2201c81809003e7ebDAd2",
+      "manifestHash": "0x5adab6895bc4f41df3405079667ae5103316a130ce3ebe225402958a96652e53"
     }
   },
   "paymaster": {
