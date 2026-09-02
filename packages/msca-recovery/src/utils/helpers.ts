@@ -16,7 +16,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { ethers, FetchRequest } from "ethers";
 import _ from "lodash";
+import { http } from "viem";
 import logger, { logAndExit } from "./logger.js";
 
 export const getEnvValue = (envVarName: string) => {
@@ -42,6 +44,18 @@ export const getOptionValue = (options: any, optionName: string, envVarName: str
   return val;
 };
 
+// BUFI: like getOptionValue, but never echoes the value (private keys).
+export const getSecretOptionValue = (options: any, optionName: string, envVarName: string) => {
+  const val = options[optionName] || process.env[envVarName]?.trim() || null;
+
+  if (!val) {
+    logAndExit(`No ${optionName} command line arg or ${envVarName} env var provided.`);
+  }
+
+  logger.info(`${optionName} provided: <redacted>`);
+  return val;
+};
+
 export const equalsIgnoreCase = (str1: string, str2: string) => {
   return _.isEqual(str1.toLowerCase(), str2.toLowerCase());
 };
@@ -51,3 +65,23 @@ export const maxBigInt = (a: bigint, b: bigint) : bigint => {
 };
 
 export const isAlchemyBundler = (bundlerUrl: string | undefined): boolean => !!bundlerUrl && bundlerUrl.includes('alchemy');
+
+// BUFI: optional `Authorization: Bearer <BUNDLER_BEARER_TOKEN>` on every bundler/RPC request. The @bufi/mock-circle
+// sandbox requires it (any non-empty key); hosted bundlers that key by URL leave it unset.
+export const getBundlerAuthHeaders = (): Record<string, string> => {
+  const token = process.env.BUNDLER_BEARER_TOKEN?.trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+// viem transport for the bundler URL, carrying the auth header when configured.
+export const bundlerHttp = (bundlerRPCUrl: string) =>
+  http(bundlerRPCUrl, { fetchOptions: { headers: getBundlerAuthHeaders() } });
+
+// ethers provider for the bundler URL, carrying the auth header when configured.
+export const bundlerJsonRpcProvider = (bundlerRPCUrl: string): ethers.JsonRpcProvider => {
+  const request = new FetchRequest(bundlerRPCUrl);
+  for (const [name, value] of Object.entries(getBundlerAuthHeaders())) {
+    request.setHeader(name, value);
+  }
+  return new ethers.JsonRpcProvider(request);
+};

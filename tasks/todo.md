@@ -43,7 +43,7 @@ to auditors and to Circle. Plus a fork of Circle's web SDK that speaks our plugi
 ## Phase 5 — playground (`apps/playground`)
 - [x] headless e2e (`bun run sandbox:e2e`): create account via SDK fork → install AddressBook → install
       SessionKey → grant → agent spends within budget / rejected over budget / rejected off-allowlist → Earn
-- [ ] (follow-up) Vite UI forked from Circle's `examples/circle-smart-account`, pointed at the mock
+- [x] (follow-up) Vite UI forked from Circle's `examples/circle-smart-account`, pointed at the mock
 
 ## Phase 6 — recovery fork (`packages/msca-recovery`), docs, CI, repo
 - [x] `docs/AUDIT-SCOPE.md`, `docs/THREAT-MODEL.md`, `docs/PLUGIN-COMPOSITION.md`, `docs/CIRCLE-SUBMISSION.md`
@@ -59,16 +59,18 @@ to auditors and to Circle. Plus a fork of Circle's web SDK that speaks our plugi
 
 ## Follow-ups — execution plan (2026-09-01, /go)
 
-- [ ] H1 `BufiSessionRecipientHookPlugin` — SELF pre-userOp hook on `executeWithSessionKey` that resolves recipients
+- [x] H1 `BufiSessionRecipientHookPlugin` — SELF pre-userOp hook on `executeWithSessionKey` that resolves recipients
       with Circle's `RecipientAddressLib` and enforces the AddressBook set → closes the ERC-20 recipient gap
-- [ ] H2 v0.8 harness — Circle `UpgradableMSCA` v0.8 + `SingleSignerValidationModule`; `GatewayExecutionModule`
+- [x] H2 v0.8 harness — Circle `UpgradableMSCA` v0.8 + `SingleSignerValidationModule`; `GatewayExecutionModule`
       installed as an execution module; msg.sender finding reproduced on a real v0.8 account
-- [ ] H3 Vite playground UI — fork of Circle's `examples/circle-smart-account` against the mock (passkey owner),
+- [x] H3 Vite playground UI — fork of Circle's `examples/circle-smart-account` against the mock (passkey owner),
       + BUFI panels (address book, agent grant, agent spend, earn)
-- [ ] H4 `@bufi/msca-recovery` — BUFI plugin ABIs + `session-key-transfer` scenario
+- [x] H4 `@bufi/msca-recovery` — BUFI plugin ABIs + `session-key-transfer` scenario
 - [x] testnet redeploy — Fuji + Arc: SessionKey 0x28504B34…, Earn 0x57D446a9… (same on both); `contracts/deployments/*.json`, SDK `AVAX_FUJI_DEPLOYMENT` / `ARC_TESTNET_DEPLOYMENT`, README table
 - [x] live canary on Fuji through Circle's real API: install + grant + agent spend + AddressBook — green (`scripts/live/install-on-fuji.ts`)
 - [ ] mock-circle: simulate validation in `eth_estimateUserOperationGas` (stub signature) so the stub/estimation class of bug is caught locally
 - [x] Gateway/ERC-1271 evaluation (`docs/GATEWAY-1271-EVALUATION.md`) — plugin retired, helper kept
 - [x] Morpho earn: Base-fork proof against Vault V2 + reliability model (`docs/EARN-MORPHO.md`); Midnight = design only
 - [ ] Tenderly defensive + Codex adversarial pass — BLOCKED on Tenderly MCP OAuth (`/mcp` → tenderly) or a TENDERLY_ACCESS_KEY
+- [ ] mock-circle: raise passkey verification-gas tiers on anvil (no P-256 precompile) or run anvil `--odyssey`
+- [ ] CircleStackHarness `_lastUserOpRevertReason` drains recorded logs twice (v0.8 harness fixed its copy) — fix in v0.7 harness

@@ -20,5 +20,6 @@ export * from "./blockchain.js";
 export * from "./configs.js";
 export * from "./helpers.js";
 export * from "./logger.js";
+export * from "./sessionKey.js";
 export * from "./types.js";
 export * from "./wallet.js";

@@ -1,0 +1,60 @@
+/* BUFI-6900 playground — plain CSS in the spirit of Circle's example (no UI library). */
+:root {
+  color-scheme: light;
+  --ink: #111;
+  --muted: #666;
+  --line: #ddd;
+  --good: #137333;
+  --bad: #b3261e;
+  --dev: #8a5a00;
+  --stub: #5b3fa3;
+}
+body {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: var(--ink);
+  margin: 1.5rem;
+  max-width: 1100px;
+}
+h1 small { font-size: 0.55em; color: var(--muted); font-weight: 400; }
+h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+.panel { border: 1px solid var(--line); border-radius: 8px; padding: 1rem; margin: 1rem 0; background: #fff; }
+.panel[data-disabled='true'] { opacity: 0.6; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 1rem; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85em; word-break: break-all; }
+.tag { display: inline-block; font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 999px; vertical-align: middle; margin-left: 0.3rem; font-weight: 600; letter-spacing: 0.02em; }
+.tag.dev { background: #fff3d6; color: var(--dev); }
+.tag.stub { background: #ece6fa; color: var(--stub); }
+.tag.ok { background: #dff3e4; color: var(--good); }
+.tag.off { background: #eee; color: var(--muted); }
+.tag.info { background: #e3ecfb; color: #1a4fa3; }
+.field { display: flex; flex-direction: column; gap: 0.15rem; margin: 0.35rem 0; }
+.field > span { font-size: 0.8rem; color: var(--muted); }
+input, textarea, select { font: inherit; padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: 6px; }
+input[type='checkbox'] { width: auto; }
+textarea { min-height: 3.5rem; font-family: ui-monospace, monospace; font-size: 0.85em; }
+button { font: inherit; padding: 0.4rem 0.8rem; border: 1px solid #333; border-radius: 6px; background: #fff; cursor: pointer; margin: 0.25rem 0.35rem 0.25rem 0; }
+button:hover:not(:disabled) { background: #f3f3f3; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.primary { background: #111; color: #fff; }
+button.primary:hover:not(:disabled) { background: #333; }
+.row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: end; }
+.row .field { min-width: 12rem; flex: 1; }
+.op { margin-top: 0.5rem; font-size: 0.9rem; }
+.op .pending { color: var(--muted); }
+.op .note { color: #333; }
+.op .error { color: var(--bad); }
+.good { color: var(--good); }
+.bad { color: var(--bad); }
+.muted { color: var(--muted); font-size: 0.85rem; }
+ul.list { padding-left: 1.1rem; margin: 0.35rem 0; }
+ul.list li { margin: 0.2rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+td, th { text-align: left; padding: 0.3rem 0.4rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 0.8rem; font-size: 0.9rem; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; }
+.banner { background: #f6f6f6; border-left: 3px solid #999; padding: 0.5rem 0.75rem; font-size: 0.85rem; margin-bottom: 1rem; }
+h3 { font-size: 0.95rem; margin: 0.9rem 0 0.3rem; }
+label.inline { display: inline; }
+label.inline input { vertical-align: middle; }
+.kv dd button { margin-left: 0.5rem; }

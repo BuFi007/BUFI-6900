@@ -21,6 +21,7 @@ import readlineSync from "readline-sync";
 import { UserOperation } from "permissionless";
 
 import { ERC20ABI } from "../abi/index.js";
+import { bundlerJsonRpcProvider } from "./helpers.js";
 import logger, { logAndExit } from "./logger.js";
 import { Address } from "./types.js";
 
@@ -55,7 +56,7 @@ export const getAndCheckBalance = async ({
 
   logger.info(`Wallet address: ${walletAddress}`);
   logger.info(`Token address: ${tokenAddress}`);
-  const provider = new ethers.JsonRpcProvider(bundlerRPCUrl);
+  const provider = bundlerJsonRpcProvider(bundlerRPCUrl);
 
   // Native token check
   const nativeBalance: ethers.BigNumberish = await provider.getBalance(walletAddress);

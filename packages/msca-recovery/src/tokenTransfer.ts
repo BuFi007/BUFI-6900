@@ -20,11 +20,11 @@ import commandLineArgs from "command-line-args";
 import "dotenv/config";
 import { createBundlerClient, ENTRYPOINT_ADDRESS_V07, sendUserOperation } from "permissionless";
 import readlineSync from "readline-sync";
-import { createPublicClient, getAddress, http, parseUnits } from "viem";
+import { createPublicClient, getAddress, parseUnits } from "viem";
 
 import { buildAndSignMultisigUserOp, encodeCallData, getERC20TransferCallData } from "./utils/blockchain.js";
 import { USDCTokenAddress, ViemChain } from "./utils/configs.js";
-import { equalsIgnoreCase, getEnvValue, getOptionValue } from "./utils/helpers.js";
+import { bundlerHttp, equalsIgnoreCase, getEnvValue, getOptionValue } from "./utils/helpers.js";
 import logger, { logAndExit, printSectionHeader } from "./utils/logger.js";
 import { NetworkKey } from "./utils/types.js";
 import { getAndCheckBalance } from "./utils/wallet.js";
@@ -98,13 +98,13 @@ export const tokenTransfer = async (argv: string[]): Promise<void> => {
 
   const client = createBundlerClient({
     chain: ViemChain[chain],
-    transport: http(bundlerRPCUrl),
+    transport: bundlerHttp(bundlerRPCUrl),
     entryPoint: ENTRYPOINT_ADDRESS_V07,
   });
 
   const publicClient = createPublicClient({
     chain: ViemChain[chain],
-    transport: http(bundlerRPCUrl),
+    transport: bundlerHttp(bundlerRPCUrl),
   });
 
   const userOperation = await buildAndSignMultisigUserOp({

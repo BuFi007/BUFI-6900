@@ -16,19 +16,25 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { BufiEarnModuleABI } from "./BufiEarnModule.js";
+import { BufiSessionKeyPluginABI } from "./BufiSessionKeyPlugin.js";
 import { ColdStorageAddressBookPluginABI } from "./ColdStorageAddressBookPlugin.js";
 import { DefaultTokenCallbackABI } from "./DefaultTokenCallback.js";
 import { EntryPointABI } from "./EntryPoint.js";
 import { ERC20ABI } from "./ERC20.js";
+import { SessionKeyPermissionsUpdatesABI } from "./SessionKeyPermissionsUpdates.js";
 import { UpgradableMSCAABI } from "./UpgradableMSCA.js";
 import { UpgradableMSCAFactoryABI } from "./UpgradableMSCAFactory.js";
 import { WeightedWebauthnMultisigPluginABI } from "./WeightedWebauthnMultisigPlugin.js";
 
 export {
+  BufiEarnModuleABI,
+  BufiSessionKeyPluginABI,
   ColdStorageAddressBookPluginABI,
   DefaultTokenCallbackABI,
   EntryPointABI,
   ERC20ABI,
+  SessionKeyPermissionsUpdatesABI,
   UpgradableMSCAABI,
   UpgradableMSCAFactoryABI,
   WeightedWebauthnMultisigPluginABI,

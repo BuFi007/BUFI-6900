@@ -25,7 +25,7 @@
     }
   },
   "paymaster": {
-    "address": "0x7C5Af6d0CBfE443Aa5c42992B80643E0FE6c7b6B",
+    "address": "0xE22d3c42c0309f7d0e0b7BA832e0A50e698Af93C",
     "signer": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
   },
   "tokens": {

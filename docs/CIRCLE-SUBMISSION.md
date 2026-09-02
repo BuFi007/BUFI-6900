@@ -46,6 +46,12 @@ Both install on your production `UpgradableMSCA` on those chains with `dependenc
 4. Modules Beta: if a Circle-audited session-key module for v0.7 accounts exists or is scheduled, we would prefer
    to adopt it — please share timing.
 5. v0.8: expected mainnet timeline and whether v0.7 plugins should be re-authored as modules or wrapped.
+6. v0.8 `ColdStorageAddressBookModule` (vendored source, not yet deployed): its manifest marks `addAllowedRecipients`
+   as `skipRuntimeValidation`, so any caller can extend an account's allowlist, and attaching it to the sole global
+   validation locks the account's administration (`test/bufi/v0.8/gateway/GatewayModuleOnCircleV08.t.sol`,
+   findings 8–13 in that directory's README). Is this WIP, or intended for a different validation topology?
+7. Would you accept `BufiSessionRecipientHookPlugin` (or extend `RecipientAddressLib`/AddressBook) so recipient
+   policy covers plugin-owned selectors like `executeWithSessionKey`?
 
 ## Test matrix (regenerate with `bun run contracts:test`)
 

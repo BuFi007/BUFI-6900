@@ -25,7 +25,11 @@ export type NetworkKey =
   | "ETH"
   | "ETH-SEPOLIA"
   | "ARB"
-  | "ARB-SEPOLIA";
+  | "ARB-SEPOLIA"
+  // BUFI: local mock-circle sandbox (anvil) and the two testnets carrying the BUFI plugins.
+  | "LOCAL-SANDBOX"
+  | "AVAX-FUJI"
+  | "ARC-TESTNET";
 
 // Type for addresses formatted as 0x{string}
 export type Address = `0x${string}`;
@@ -63,6 +67,8 @@ export interface UserOpParams extends BundlerParams {
 export interface UserOpEstimateParams extends UserOpParams {
   numSigners: number;
   gasFeesMultiplier: number;
+  // BUFI: replaces the weighted-multisig dummy signature during estimation (a session key signs one 65-byte ECDSA chunk).
+  dummySignature?: `0x${string}`;
 };
 
 export interface MultiSigParams {
@@ -88,4 +94,71 @@ export interface GetPartialUserOpParams extends BundlerParams {
 export interface ERC20TransferParams {
   toAddress: Address;
   amount: bigint;
+};
+
+// ─── BUFI: session-key scenarios ─────────────────────────────────────────────
+
+// One element of the `Call[]` batch `executeWithSessionKey` runs through the account.
+export interface SessionKeyCall {
+  target: Address;
+  value: bigint;
+  data: `0x${string}`;
+};
+
+export interface SessionKeyUserOpParams extends BundlerParams {
+  walletAddress: Address;
+  sessionKeyPrivateKey: `0x${string}`;
+  calls: SessionKeyCall[];
+  gasFeesMultiplier: number;
+};
+
+export interface SignedSessionKeyUserOp {
+  sessionKey: Address;
+  userOperation: UserOperation<"v0.7">;
+  userOpHash: `0x${string}`;
+};
+
+export interface SessionKeyTransferParams extends BundlerParams {
+  walletAddress: Address;
+  sessionKeyPrivateKey: `0x${string}`;
+  tokenAddress: Address;
+  recipientAddress: Address;
+  amount: bigint;
+  gasFeesMultiplier: number;
+  // Bundler receipt polling budget; defaults to 3 minutes like the upstream token-transfer loop.
+  receiptTimeoutMs?: number;
+};
+
+export interface SessionKeyTransferResult extends SignedSessionKeyUserOp {
+  transactionHash: `0x${string}`;
+  success: boolean;
+  reason?: string;
+};
+
+export interface SpendLimitInfo {
+  hasLimit: boolean;
+  limit: bigint;
+  limitUsed: bigint;
+  refreshInterval: number;
+  lastUsedTime: number;
+};
+
+export interface SessionKeyInfo {
+  sessionKey: Address;
+  validAfter: number;
+  validUntil: number;
+  // 0 = ALLOWLIST, 1 = DENYLIST, 2 = ALLOW_ALL_ACCESS (IBufiSessionKeyPlugin.ContractAccessControlType)
+  accessControlType: number;
+  nativeTokenLimit: SpendLimitInfo;
+  gasLimit: SpendLimitInfo;
+  gasLimitShouldReset: boolean;
+  requiredPaymaster: Address;
+  // Present when a token address was supplied to the read.
+  erc20Limit?: SpendLimitInfo & { token: Address };
+};
+
+export interface SessionKeysReadParams extends BundlerParams {
+  walletAddress: Address;
+  pluginAddress: Address;
+  tokenAddress?: Address;
 };

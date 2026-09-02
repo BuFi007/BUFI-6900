@@ -19,6 +19,8 @@
 // Parse the env file
 import "dotenv/config";
 
+import { sessionKeys } from "./sessionKeys.js";
+import { sessionKeyTransfer } from "./sessionKeyTransfer.js";
 import { signHash } from "./signHash.js";
 import { tokenTransfer } from "./tokenTransfer.js";
 import { logAndExit } from "./utils/index.js";
@@ -36,6 +38,13 @@ const scenario: string = args[0];
       break;
     case "sign-hash":
       await signHash(args.slice(1));
+      break;
+    // BUFI scenarios
+    case "session-key-transfer":
+      await sessionKeyTransfer(args.slice(1));
+      break;
+    case "session-keys":
+      await sessionKeys(args.slice(1));
       break;
     default:
       logAndExit(`Unrecognized scenario: ${scenario}`);

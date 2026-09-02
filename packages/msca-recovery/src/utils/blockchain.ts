@@ -21,12 +21,12 @@ import { ProviderInfo } from "@walletconnect/ethereum-provider/dist/types/types.
 import { ethers, toBigInt } from "ethers";
 import { createBundlerClient, ENTRYPOINT_ADDRESS_V07, estimateUserOperationGas, getAccountNonce, UserOperation } from "permissionless";
 import qrcode from 'qrcode-terminal';
-import { concat, concatHex, createPublicClient, createWalletClient, custom, encodeFunctionData, hexToBigInt, http, pad, toHex } from "viem";
+import { concat, concatHex, createPublicClient, createWalletClient, custom, encodeFunctionData, hexToBigInt, pad, toHex } from "viem";
 import { readContract } from "viem/actions";
 
 import { EntryPointABI, ERC20ABI } from "../abi/index.js";
 import { ViemChain } from "./configs.js";
-import { isAlchemyBundler, maxBigInt } from "./helpers.js";
+import { bundlerHttp, isAlchemyBundler, maxBigInt } from "./helpers.js";
 import logger, { formatUserOperation, logAndExit } from "./logger.js";
 import { Address, ERC20TransferParams, GetPartialUserOpParams, MultiSigParams, MultiSigUserOpParams, Signer, SignMessageParams, UserOpEstimateParams, UserOpParams } from "./types.js";
 
@@ -64,7 +64,7 @@ export const getUserOpHash = async (
 
   const client = createBundlerClient({
     chain: ViemChain[chain],
-    transport: http(bundlerRPCUrl),
+    transport: bundlerHttp(bundlerRPCUrl),
     entryPoint: ENTRYPOINT_ADDRESS_V07,
   });
 
@@ -186,7 +186,7 @@ export const getPartialUserOp = async ({
 }: GetPartialUserOpParams): Promise<UserOperation<"v0.7">> => {
   const client = createBundlerClient({
     chain: ViemChain[chain],
-    transport: http(bundlerRPCUrl),
+    transport: bundlerHttp(bundlerRPCUrl),
     entryPoint: ENTRYPOINT_ADDRESS_V07,
   });
 
@@ -219,17 +219,18 @@ export const estimateUserOp = async ({
   userOp,
   numSigners,
   gasFeesMultiplier,
+  dummySignature,
 }: UserOpEstimateParams): Promise<UserOperation<"v0.7">> => {
 
   const client = createBundlerClient({
     chain: ViemChain[chain],
-    transport: http(bundlerRPCUrl),
+    transport: bundlerHttp(bundlerRPCUrl),
     entryPoint: ENTRYPOINT_ADDRESS_V07,
   });
 
   const publicClient = createPublicClient({
     chain: ViemChain[chain],
-    transport: http(bundlerRPCUrl),
+    transport: bundlerHttp(bundlerRPCUrl),
   });
 
   const feesPerGas = await publicClient.estimateFeesPerGas();
@@ -294,7 +295,8 @@ export const estimateUserOp = async ({
     maxFeePerGas: adjustedMaxFeePerGas,
     // Signature needs to include num of signers to get accurate gas estimates
     // Otherwise when broadcasting, you might end up with 'precheck failed: preVerificationGas is 45768 but must be at least 46680'
-    signature: '0x' + 'fffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c'.repeat(numSigners - 1) + 'fffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa3c' as `0x${string}`,
+    // BUFI: a caller may supply its own dummy (session keys sign a single 65-byte ECDSA chunk, no weighted packing)
+    signature: dummySignature ?? ('0x' + 'fffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c'.repeat(numSigners - 1) + 'fffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa3c' as `0x${string}`),
     callGasLimit: toBigInt(0),
     verificationGasLimit: toBigInt(0),
     preVerificationGas: toBigInt(0)

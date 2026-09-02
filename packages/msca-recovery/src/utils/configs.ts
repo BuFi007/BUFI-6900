@@ -19,6 +19,9 @@
 import {
   arbitrum,
   arbitrumSepolia,
+  arcTestnet,
+  avalancheFuji,
+  foundry,
   mainnet,
   polygon,
   polygonAmoy,
@@ -34,6 +37,10 @@ export const ViemChain: ViemChainMap = {
   "ETH-SEPOLIA": sepolia,
   ARB: arbitrum,
   "ARB-SEPOLIA": arbitrumSepolia,
+  // BUFI: chainId 31337 (anvil behind @bufi/mock-circle), 43113, 5042002. RPC always comes from BUNDLER_RPC_URL.
+  "LOCAL-SANDBOX": foundry,
+  "AVAX-FUJI": avalancheFuji,
+  "ARC-TESTNET": arcTestnet,
 };
 
 export const USDCTokenAddress: ChainAddressMap = {
@@ -43,6 +50,11 @@ export const USDCTokenAddress: ChainAddressMap = {
   "ETH-SEPOLIA": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238",
   ARB: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
   "ARB-SEPOLIA": "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d",
+  // BUFI: SandboxUSDC (CREATE2, sandbox salt — stable while its bytecode is; the live value is
+  // contracts/deployments/local.json `tokens.usdc`, TOKEN_ADDRESS overrides it), Circle USDC on Fuji, native USDC on Arc.
+  "LOCAL-SANDBOX": "0x38B45856e28E86985560f9c4B87113E8Eb86b0AD",
+  "AVAX-FUJI": "0x5425890298aed601595a70AB815c96711a31Bc65",
+  "ARC-TESTNET": "0x3600000000000000000000000000000000000000",
 };
 
 export const SafeListPluginContractAddress: ChainAddressMap = {
@@ -52,6 +64,10 @@ export const SafeListPluginContractAddress: ChainAddressMap = {
   "ETH-SEPOLIA": "0x3c95978Af08B6B2Fd82659B393be86AfB4bd3D6F",
   ARB: "0x3c95978Af08B6B2Fd82659B393be86AfB4bd3D6F",
   "ARB-SEPOLIA": "0x3c95978Af08B6B2Fd82659B393be86AfB4bd3D6F",
+  // BUFI: Circle's v0.7 ColdStorageAddressBookPlugin at its canonical address (mock-circle recreates it there).
+  "LOCAL-SANDBOX": "0x0000000d81083B16EA76dfab46B0315B0eDBF3d0",
+  "AVAX-FUJI": "0x0000000d81083B16EA76dfab46B0315B0eDBF3d0",
+  "ARC-TESTNET": "0x0000000d81083B16EA76dfab46B0315B0eDBF3d0",
 };
 
 export const SafeListPluginManifestHash: ChainAddressMap = {
@@ -61,4 +77,16 @@ export const SafeListPluginManifestHash: ChainAddressMap = {
   "ETH-SEPOLIA": "0x9d177c1c9573b10436b693b7a49f0face36b677c1606a2c579bba1415be349d8",
   ARB: "0x9d177c1c9573b10436b693b7a49f0face36b677c1606a2c579bba1415be349d8",
   "ARB-SEPOLIA": "0x9d177c1c9573b10436b693b7a49f0face36b677c1606a2c579bba1415be349d8",
+  "LOCAL-SANDBOX": "0x9d177c1c9573b10436b693b7a49f0face36b677c1606a2c579bba1415be349d8",
+  "AVAX-FUJI": "0x9d177c1c9573b10436b693b7a49f0face36b677c1606a2c579bba1415be349d8",
+  "ARC-TESTNET": "0x9d177c1c9573b10436b693b7a49f0face36b677c1606a2c579bba1415be349d8",
+};
+
+// BUFI: BufiSessionKeyPlugin per chain. Only chains that carry the plugin are listed; SESSION_KEY_PLUGIN_ADDRESS
+// overrides. Fuji/Arc: contracts/deployments/{avax-fuji,arc-testnet}.json (CREATE2, same address on both).
+// Sandbox: contracts/deployments/local.json `plugins.bufiSessionKey.address` (CREATE2 over the current bytecode).
+export const BufiSessionKeyPluginAddress: Partial<ChainAddressMap> = {
+  "LOCAL-SANDBOX": "0x7DBca5Fe40A037DCfb3fBd0b539D70CB71337EEA",
+  "AVAX-FUJI": "0x28504B34871Aa5a00269a960A9390187cbB5c070",
+  "ARC-TESTNET": "0x28504B34871Aa5a00269a960A9390187cbB5c070",
 };
