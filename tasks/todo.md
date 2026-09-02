@@ -75,7 +75,15 @@ to auditors and to Circle. Plus a fork of Circle's web SDK that speaks our plugi
 - [ ] mock-circle: raise passkey verification-gas tiers on anvil (no P-256 precompile) or run anvil `--odyssey`
 - [ ] CircleStackHarness `_lastUserOpRevertReason` drains recorded logs twice (v0.8 harness fixed its copy) — fix in v0.7 harness
 - [x] Codex adversarial pre-Tenderly pass: `reports/ADVERSARIAL_PRE_TENDERLY.md` — 7 confirmed (F-01 Medium nonce-lane, F-02..F-07 Low, F-08/F-09 info)
-- [ ] fixes: F-01 (nonce lane for every key, D10), F-06 (earn verifies shares/asset delta), F-08 (sorted configs); F-02..F-05/F-07/F-09 documented as accepted with mitigations
-- [ ] Tenderly defensive S4–S10 on vnet `bufi-6900-fuji-audit` → `reports/AUDIT_REPORT.md`, then the Codex-on-Tenderly adversarial pass
-- [ ] SDK agent-role grant presets (8183 buyer/provider, 8004 rater, float funder, gateway depositor)
-- [ ] Arc-testnet fork proof: agent MSCA funds an ERC-8183 job as a session key; provider submits; owners complete
+- [x] fixes: F-01 (nonce lane for every key, D10), F-06 (earn verifies shares/asset delta), F-08 (sorted configs); F-02..F-05/F-07/F-09 documented as accepted with mitigations
+- [x] Tenderly defensive (S1/S2 PASS post-fix; S3–S10 BLOCKED on plan quota — `reports/AUDIT_REPORT.md`); Codex-on-Tenderly pass not run: same quota. Was: S4–S10 on vnet `bufi-6900-fuji-audit` → `reports/AUDIT_REPORT.md`, then the Codex-on-Tenderly adversarial pass
+- [x] SDK agent-role grant presets (8183 buyer/provider, 8004 rater, float funder, gateway depositor)
+- [x] Arc-testnet fork proof: agent MSCA funds an ERC-8183 job as a session key; provider submits; owners complete
+
+## Open (2026-09-02, end of the /go run)
+
+- [ ] Tenderly: a plan with headroom, then S3–S10 + the Codex-on-Tenderly adversarial pass (`reports/AUDIT_REPORT.md` §Why S3–S10 are blocked)
+- [ ] Strict-bundler tracer classification of validation-phase storage access (Codex F-09)
+- [ ] Redeploy the recipient hook to Fuji/Arc (it exists only on the audit vnet and locally) and add it to the deployment records
+- [ ] mock-circle: raise passkey verification-gas tiers on anvil (no P-256 precompile) or run anvil `--odyssey`
+- [ ] Live Fuji canary: extend it with the over-budget and off-scope rejections (only forge/mock prove those today)
