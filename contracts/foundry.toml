@@ -74,4 +74,7 @@ sort_imports = true
 local = "http://127.0.0.1:8545"
 avax-fuji = "${AVAX_FUJI_RPC_URL}"
 arc-testnet = "${ARC_TESTNET_RPC_URL}"
+# Arc PRIVATE MAINNET (chainId 5042). Real network, USDC is the native gas token.
+# Access is permissioned: a whitelisted provider endpoint + Circle-approved gas funding.
+arc-private-mainnet = "${ARC_PRIVATE_MAINNET_RPC_URL}"
 base-sepolia = "${BASE_SEPOLIA_RPC_URL}"
