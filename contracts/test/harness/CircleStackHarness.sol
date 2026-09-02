@@ -126,7 +126,9 @@ abstract contract CircleStackHarness is TestUtils {
         for (uint256 i = 0; i < plugins.length; i++) {
             permissions[i] = true;
         }
-        vm.prank(CircleCanonical.FACTORY_OWNER);
+        // On live chains Circle has since transferred factory ownership (script 011.2), so prank whoever owns it NOW
+        // (== CircleCanonical.FACTORY_OWNER on a fresh local chain).
+        vm.prank(factory.owner());
         factory.setPlugins(plugins, permissions);
     }
 

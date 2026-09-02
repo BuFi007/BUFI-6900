@@ -23,8 +23,12 @@ no_match_coverage = "test/|script/|lib/"
 no_match_path = "test/fork/**"
 
 [profile.fork]
-no_match_path = ""
+# an empty no_match_path glob matches EVERYTHING in forge 1.5 — use a never-matching path instead
+no_match_path = "__never__/**"
 match_path = "test/fork/**"
+# live chains are on Cancun; third-party bytecode (Morpho Vault V2) uses opcodes Paris lacks. Circle's paris-built
+# contracts run unchanged under cancun.
+evm_version = "cancun"
 
 [profile.ci]
 fuzz = { runs = 1024 }
