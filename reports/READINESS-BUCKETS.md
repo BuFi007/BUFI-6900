@@ -86,6 +86,9 @@ Provisioned 2026-08-17 by the Arc admin against dRPC team
 | `eth_chainId` @ `.../arc-mainnet/<key>` | `code 35` (same) |
 | `eth_chainId` @ `lb.drpc.org/ethereum/<key>` | `0x1` — **key authenticates** |
 | `eth_chainId` @ `arc/<bogus key>` | `code 4 — token is invalid or expired` |
+| `Drpc-Key` **header** auth, no key in path | `code 35` — header accepted, same gate |
+| `Drpc-Key` + `Drpc-Team` headers | `code 35` |
+| no key at all | `Invalid request` |
 
 The two control probes settle it. The key is valid and the `arc` slug resolves;
 what is missing is the **Arc chain entitlement on the dRPC plan for this team**.
@@ -115,6 +118,68 @@ endpoint throttles under fork-test load. It is not an upgrade: it is ~2× slower
 through the load balancer and returns the same data. **The only thing the dRPC
 grant buys that we do not already have is `arc` (5042), and that is the gated
 one.** Do not let the working testnet slug be mistaken for working access.
+
+### What Circle's docs pin down (and the one thing they do not)
+
+From the private-mainnet and contract-address pages, 2026-09-02. Genesis was
+2026-05-15, so 5042 has been live ~3.5 months; the published timeline targeted
+public mainnet "late June 2026" and is now stale — confirm the current phase
+rather than quoting it.
+
+| | Arc mainnet (5042) | note |
+|---|---|---|
+| USDC ERC-20 | `0x3600000000000000000000000000000000000000` | same address as testnet |
+| EURC | `0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1` | differs from testnet |
+| CCTP TokenMessengerV2 | `0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d` | domain 26 |
+| CCTP MessageTransmitterV2 | `0x81D40F21F12A8F0E3252Bccb954D722d4c464B64` | domain 26 |
+| CCTP TokenMinterV2 | `0xfd78EE919681417d192449715b2594ab58f5D002` | domain 26 |
+| CCTP MessageV2 | `0xec546b6B005471ECf012e5aF77FBeC07e0FD8f78` | domain 26 |
+| **GatewayWallet** | `0x77777777Dcc4d5A8B6E418Fd04D8997ef11000eE` | domain 26 |
+| **GatewayMinter** | `0x2222222d7164433c4C09B0b0D809a9b52C04C205` | domain 26 |
+| StableFX FxEscrow | `0xe2E5F173576B513d994073CCbDaCBE027d43DFe6` | needs Permit2 allowance |
+
+Gateway being live on 5042 is the piece that matters most beyond this bucket: it
+is the chain where `docs/GATEWAY-1271-EVALUATION.md`'s two-face agent design
+would actually be exercised with real USDC.
+
+**Do not treat these as verified.** They are transcribed from Circle's docs, not
+read off the chain. Every one gets an `eth_getCode` before it enters a
+deployments file. Two tables in those docs — "Transaction extensions" (`Memo`,
+`Multicall3From`) and "Common Ethereum contracts" (CREATE2 factory, Multicall3,
+Permit2) — link only to `testnet.arcscan.app` and are **not** presented per-network,
+so their mainnet presence is unestablished. The Arachnid CREATE2 factory in
+particular is load-bearing: BUFI's plugins deploy at a shared salt and without it
+on 5042 the whole same-address property is gone.
+
+### The unknown that decides this bucket
+
+**Circle's docs list no ERC-4337 EntryPoint and no MSCA stack for Arc mainnet.**
+Not the factory, not the PluginManager, not `WeightedWebauthnMultisigPlugin`.
+Every fixture in this repo assumes Circle's production stack exists at its
+canonical addresses; on Arc testnet it does (`contracts/deployments/arc-testnet.json`).
+On 5042 that is simply unverified, and it is not the kind of thing to assume.
+
+First four calls once the RPC answers, in this order:
+
+```
+eth_getCode 0x0000000071727De22E5E9d8BAf0edAc6f37da032   # EntryPoint v0.7
+eth_getCode 0x0000000DF7E6c9Dc387cAFc5eCBfa6c3a6179AdD   # UpgradableMSCAFactory
+eth_getCode 0x00000005e69188224e4dEeF607801916DC0936d5   # PluginManager
+eth_getCode 0x4e59b44847b379578588920cA78FbF26c0B4956C   # Arachnid CREATE2
+```
+
+If EntryPoint or the factory returns `0x`, bucket 4 is not a deployment task —
+it is a conversation with Circle about when the MSCA stack lands on 5042, and
+nothing else in this bucket can proceed.
+
+### Decimals trap, same as testnet
+
+Native USDC carries 18 decimals; the ERC-20 interface at `0x3600…` carries 6,
+over **one shared balance**. This already bit the Arc testnet fork suite: `vm.deal`
+moved the native balance while `balanceOf` did not follow, and funding had to be
+written as `amount * 1e12`. Expect it again on 5042 and note that ERC-20
+`Transfer` logs alone under-report movement — native transfers emit EIP-7708
+`Transfer` events separately.
 
 ### Criteria for 100%
 
