@@ -1,0 +1,33 @@
+{
+  "network": "tenderly-fuji-vnet",
+  "chainId": 43113,
+  "tenderlyVnetId": "0607e56e-b577-46ad-85be-232b16703fe5",
+  "tenderlyVnetName": "BUFI-6900 Fuji audit v2 (post-fix plugins)",
+  "forkedFromBlock": "0x3771546",
+  "note": "Defensive audit environment. RPC URLs carry the vnet UUID and are intentionally not recorded; read VNET_RPC from the environment.",
+  "contracts": {
+    "bufiSessionKeyPlugin": "0xBd607dBAC82CF1351C352FB65fC29dE9D0095339",
+    "bufiEarnModule": "0xeb94A8b7412418B506b24dBeD4Aed0E9ba5453c2",
+    "bufiSessionRecipientHookPlugin": "0x2183C59d1B4f7480A006D970Ea7261FBbc447c1F",
+    "mscaUnderTest": "0x8da065C76cec7eE5e408D0e25F88a0F7EaEEa6f7",
+    "mockVaultA": "0x1d2e6b7a0e711d6f077f9fc0e65a6c8ddf9105f5",
+    "mockVaultB": "0xf2ae0f193f009832848a65c2b217cc856b06c3a9"
+  },
+  "external": {
+    "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+    "pluginManager": "0x00000005e69188224e4dEeF607801916DC0936d5",
+    "upgradableMscaFactory": "0x0000000DF7E6c9Dc387cAFc5eCBfa6c3a6179AdD",
+    "weightedWebauthnMultisigPlugin": "0x0000000C984AFf541D6cE86Bb697e68ec57873C8",
+    "coldStorageAddressBookPlugin": "0x0000000d81083B16EA76dfab46B0315B0eDBF3d0",
+    "usdc": "0x5425890298aed601595a70AB815c96711a31Bc65"
+  },
+  "personas": {
+    "owners": [
+      "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "0x90F79bf6EB2c4f870365E785982E1f101E93b906"
+    ],
+    "agent": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
+    "bundlerAndDeployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+  }
+}

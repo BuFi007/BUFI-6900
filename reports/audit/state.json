@@ -1,0 +1,19 @@
+{
+  "hook": "0x2183C59d1B4f7480A006D970Ea7261FBbc447c1F",
+  "hookDeployTx": "0x904989e18f7ceb696ab42d7b959ae607d1b7fdd253ac1e74fb725e9d933dd56e",
+  "vaultA": "0x1d2e6b7a0e711d6f077f9fc0e65a6c8ddf9105f5",
+  "msca": "0x8da065C76cec7eE5e408D0e25F88a0F7EaEEa6f7",
+  "owners": [
+    "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "0x90F79bf6EB2c4f870365E785982E1f101E93b906"
+  ],
+  "createTx": "0x7201bf9a1bcffb9d36773f4b53d2534fd02069432e4f01244d57c467061278a0",
+  "vaultB": "0xf2ae0f193f009832848a65c2b217cc856b06c3a9",
+  "grant": {
+    "limit": "500e6",
+    "refreshInterval": 86400,
+    "validAfter": 0,
+    "validUntil": 1788962247
+  }
+}
