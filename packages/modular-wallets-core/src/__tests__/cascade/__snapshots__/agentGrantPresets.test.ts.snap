@@ -1,0 +1,12 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`agent role grant presets describeGrant renders scope, budgets and expiry for an approval prompt 1`] = `
+[
+  "may call 0x095ea7b3, 0xa9059cbb on 0x5425890298aed601595a70AB815c96711a31Bc65",
+  "may call 0x41528812, 0xdd4ae9d4, 0xe25ba707, 0x41dd26f5 on 0x0747EEf0706327138c69792bF28Cd525089e4583",
+  "may spend up to 1000000000 of 0x5425890298aed601595a70AB815c96711a31Bc65 per 86400s",
+  "may consume up to 500000000000000000 wei of gas per 86400s",
+  "valid until 1800000000",
+  "must be sponsored by 0x0077777d7EBA4688BDeF3E311b846F25870A19B9",
+]
+`;

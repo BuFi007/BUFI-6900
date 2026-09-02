@@ -380,3 +380,80 @@ export type BufiSessionKeyAccountImplementation = SmartAccountImplementation<
 export type ToBufiSessionKeyAccountReturnType = Prettify<
   SmartAccount<BufiSessionKeyAccountImplementation>
 >
+
+/**
+ * Shared shape of every agent-role preset in `cascade/agentGrantPresets`.
+ */
+export interface AgentGrantPresetBase {
+  /** The validity window of the grant. */
+  expiry: BufiGrantExpiry
+  /** Gas budget override. Defaults to `DEFAULT_AGENT_GAS_BUDGET` (0.5 native / 24h). */
+  gas?: BufiGrantSpendBudget
+  /** Require every operation to be sponsored by this paymaster, making sponsorship a kill switch. */
+  requiredPaymaster?: Address
+}
+
+/** Parameters for {@link erc8183BuyerGrant}. */
+export interface Erc8183BuyerGrantParameters extends AgentGrantPresetBase {
+  /** The ERC-8183 jobs contract. Defaults to Circle's native Arc testnet deployment. */
+  jobContract?: Address
+  /** The settlement token (USDC). */
+  token: Address
+  /** How much of `token` the agent may commit per window. */
+  budget: BufiGrantSpendBudget
+  /** Also allow `complete` — the evaluator decision. Off by default; it belongs to the owner quorum. */
+  includeComplete?: boolean
+}
+
+/** Parameters for {@link erc8183ProviderGrant}. */
+export interface Erc8183ProviderGrantParameters extends AgentGrantPresetBase {
+  /** The ERC-8183 jobs contract. Defaults to Circle's native Arc testnet deployment. */
+  jobContract?: Address
+}
+
+/** Parameters for {@link erc8004RaterGrant}. */
+export interface Erc8004RaterGrantParameters extends AgentGrantPresetBase {
+  /** The ERC-8004 reputation registry. Defaults to the Arc testnet registry. */
+  reputationRegistry?: Address
+  /** Override the feedback signature if the registry version differs. */
+  giveFeedbackSignature?: string
+}
+
+/** Parameters for {@link floatFunderGrant}. */
+export interface FloatFunderGrantParameters extends AgentGrantPresetBase {
+  /** The token the hot wallet is funded in. */
+  token: Address
+  /** The hot wallets being funded. Each MUST also be on the account's AddressBook. */
+  recipients: readonly Address[]
+  /** How much the agent may move per window. */
+  budget: BufiGrantSpendBudget
+}
+
+/** Parameters for {@link gatewayDepositorGrant}. */
+export interface GatewayDepositorGrantParameters extends AgentGrantPresetBase {
+  /** The Circle GatewayWallet on this chain. */
+  gatewayWallet: Address
+  /** The deposited token (USDC). */
+  token: Address
+  /** How much the agent may deposit per window. */
+  budget: BufiGrantSpendBudget
+}
+
+/** An agent role, its plugin requirements and the AddressBook entries the grant depends on. */
+export interface AgentRolePresetMeta {
+  role:
+    | 'erc8183-buyer'
+    | 'erc8183-provider'
+    | 'erc8004-rater'
+    | 'float-funder'
+    | 'gateway-depositor'
+  description: string
+  plugins: readonly (
+    | 'bufiSessionKey'
+    | 'coldStorageAddressBook'
+    | 'recipientHook'
+    | 'bufiEarnModule'
+  )[]
+  /** Names of the parameters whose addresses must be allowlisted on the account. */
+  addressBookRecipients: readonly string[]
+}

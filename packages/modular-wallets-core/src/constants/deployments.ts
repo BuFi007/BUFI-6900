@@ -146,3 +146,20 @@ export const ARC_TESTNET_DEPLOYMENT: StackDeployment = {
   ...BUFI_TESTNET_PLUGINS,
   tokens: { usdc: '0x3600000000000000000000000000000000000000' },
 }
+
+/**
+ * Circle's native ERC-8183 agentic-commerce contract on Arc testnet (5042002). BUFI's workspace-to-workspace jobs
+ * settle here; see `docs/AGENTIC-WALLET.md`.
+ */
+export const ARC_TESTNET_ERC8183_JOBS =
+  '0x0747EEf0706327138c69792bF28Cd525089e4583' as Hex
+
+/**
+ * ERC-8004 registries on Arc testnet (5042002). Identity minting is an owner operation performed when an agent
+ * face is created; only `giveFeedback` on the reputation registry is ever granted to a session key.
+ */
+export const ARC_TESTNET_ERC8004_REGISTRIES = {
+  identity: '0x8004A818BFB912233c491871b3d84c89A494BD9e' as Hex,
+  reputation: '0x8004B663056A597Dffe9eCcC1965A193B7388713' as Hex,
+  validation: '0x8004Cb1BF31DAf7788923b405b754f57acEB4272' as Hex,
+} as const

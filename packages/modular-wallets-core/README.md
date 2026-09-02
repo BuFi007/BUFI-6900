@@ -106,3 +106,34 @@ const account = await toCircleSmartAccount({ client, owner, deployment })
 ```
 
 See `packages/mock-circle` for the mock server and `apps/playground` for an end-to-end walk through the treasury, operations and agent faces.
+
+## Agent role presets
+
+`src/cascade/agentGrantPresets.ts` turns BUFI's agent roles into `BufiGrant`s, so a caller never hand-assembles
+selectors. Feed the result to `buildBufiGrant` (raw permission updates) or `buildAgentFaceCalls` (install + seed).
+
+| Preset | Scope | Budget | AddressBook entries required |
+| --- | --- | --- | --- |
+| `erc8183BuyerGrant` | USDC `approve`/`transfer`; jobs `createJob`/`setBudget`/`fund`/`reject` (`complete` opt-in) | ERC-20 per window | jobs contract, provider account |
+| `erc8183ProviderGrant` | jobs `setBudget`/`submit` | gas only | — |
+| `erc8004RaterGrant` | reputation registry `giveFeedback` | gas only | — |
+| `floatFunderGrant` | token `transfer` | ERC-20 per window | the hot wallet being funded |
+| `gatewayDepositorGrant` | token `approve`; GatewayWallet `deposit`/`depositFor` | ERC-20 per window | GatewayWallet |
+
+```ts
+const grant = erc8183BuyerGrant({
+  token: usdc,
+  budget: { limit: 1_000_000_000n, refreshIntervalSeconds: 86_400 }, // 1,000 USDC / 24h
+  expiry: { validUntil: now + 7 * 86_400 },
+  requiredPaymaster: circlePaymaster, // sponsorship becomes a kill switch
+})
+const face = buildAgentFaceCalls({ account, deployment, agents: [{ sessionKey, grant }] })
+```
+
+Two rails are deliberately absent: **x402** (EIP-3009) authorizations and **Gateway burn intents** are ERC-1271
+signatures, and ERC-1271 on a Circle account routes to the ownership plugin — a session key cannot produce them.
+The agent funds a hot wallet (`floatFunderGrant`) or a Gateway position (`gatewayDepositorGrant`) instead, and the
+owners sign the movement. See `docs/AGENTIC-WALLET.md` and `docs/GATEWAY-1271-EVALUATION.md`.
+
+`AGENT_ROLE_PRESETS` carries the same information as data (role, description, required plugins, AddressBook
+entries) for provisioning services and approval UIs; `describeGrant(grant)` renders a grant as prompt lines.
