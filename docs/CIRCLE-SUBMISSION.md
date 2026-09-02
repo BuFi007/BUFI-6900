@@ -26,6 +26,14 @@ Circle Modular Wallets on the ERC-6900 v0.7 account generation; guidance on the 
    **`@bufi/mock-circle`**, a Modular Wallets API stand-in (bundler + ERC-7677 paymaster) so the whole flow runs
    without credentials. Both are offered upstream if useful.
 
+## Testnet addresses (identical on Avalanche Fuji 43113 and Arc testnet 5042002)
+
+- `BufiSessionKeyPlugin` — `0x28504B34871Aa5a00269a960A9390187cbB5c070`, manifest `0xa32b3449ba437645e2386051ad0fcb64b0c2a9fed66b2eb4349505a2cb11ff5d`
+- `BufiEarnModule` — `0x57D446a9A9c23d939035a924F7D3643B6eedE4Cf`, manifest `0x5adab6895bc4f41df3405079667ae5103316a130ce3ebe225402958a96652e53`
+
+Both install on your production `UpgradableMSCA` on those chains with `dependencies =
+[FunctionReference(WeightedWebauthnMultisigPlugin, 1), FunctionReference(WeightedWebauthnMultisigPlugin, 0)]`.
+
 ## Questions for Circle
 
 1. Does `PluginManager.install`'s ERC-165 check intentionally exclude v0.6-shaped plugins (we hit

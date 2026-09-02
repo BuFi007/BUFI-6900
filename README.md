@@ -69,6 +69,23 @@ Composition target: **WeightedWebauthnMultisigPlugin (owners) + ColdStorageAddre
 BufiSessionKeyPlugin (agent authority) + BufiEarnModule (yield)** on one account. Findings live in
 `docs/PLUGIN-COMPOSITION.md`.
 
+## Testnet deployments (2026-09-01)
+
+Deployed with `script/DeployBufiPlugins.s.sol` through the Arachnid CREATE2 deployer (salt
+`keccak256("bufi-6900-plugins-v0.1.0")`), so the addresses are identical on every chain. Circle's canonical stack
+is Circle's own production deployment on these chains. Records: `contracts/deployments/{avax-fuji,arc-testnet}.json`,
+receipts under `contracts/broadcast/DeployBufiPlugins.s.sol/{43113,5042002}/`. SDK constants:
+`AVAX_FUJI_DEPLOYMENT`, `ARC_TESTNET_DEPLOYMENT`.
+
+| Plugin | Avalanche Fuji (43113) + Arc testnet (5042002) | Manifest hash |
+| --- | --- | --- |
+| `BufiSessionKeyPlugin` | `0x28504B34871Aa5a00269a960A9390187cbB5c070` | `0xa32b3449…cb11ff5d` |
+| `BufiEarnModule` (owner + relayer = testnet deployer placeholder `0x09Ce8E2B…`, rotate before shared use) | `0x57D446a9A9c23d939035a924F7D3643B6eedE4Cf` | `0x5adab689…a96652e53` |
+
+The 2026-08-02 earn build at `0xA9a9251f…` (both chains) is superseded and must never be installed (finding 2).
+Explorer verification is not done (no API keys in the sandbox); `forge verify-contract` with the pinned profile
+reproduces the bytecode.
+
 ## Findings surfaced by the sandbox
 
 1. **Stock Alchemy `SessionKeyPlugin` cannot be installed on a Circle MSCA.** It targets ERC-4337 v0.6

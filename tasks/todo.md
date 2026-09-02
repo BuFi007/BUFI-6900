@@ -56,3 +56,14 @@ to auditors and to Circle. Plus a fork of Circle's web SDK that speaks our plugi
 - Follow-ups: Vite UI for the playground; v0.8 account harness (Circle `UpgradableMSCA` v0.8 + modules) for the
   Gateway module; ERC-20 recipient hook plugin (after Circle answers submission Q3); testnet deploy of the fixed
   plugins via `script/DeployBufiPlugins.s.sol`; `packages/msca-recovery` session-key scenario.
+
+## Follow-ups — execution plan (2026-09-01, /go)
+
+- [ ] H1 `BufiSessionRecipientHookPlugin` — SELF pre-userOp hook on `executeWithSessionKey` that resolves recipients
+      with Circle's `RecipientAddressLib` and enforces the AddressBook set → closes the ERC-20 recipient gap
+- [ ] H2 v0.8 harness — Circle `UpgradableMSCA` v0.8 + `SingleSignerValidationModule`; `GatewayExecutionModule`
+      installed as an execution module; msg.sender finding reproduced on a real v0.8 account
+- [ ] H3 Vite playground UI — fork of Circle's `examples/circle-smart-account` against the mock (passkey owner),
+      + BUFI panels (address book, agent grant, agent spend, earn)
+- [ ] H4 `@bufi/msca-recovery` — BUFI plugin ABIs + `session-key-transfer` scenario
+- [x] testnet redeploy — Fuji + Arc: SessionKey 0x28504B34…, Earn 0x57D446a9… (same on both); `contracts/deployments/*.json`, SDK `AVAX_FUJI_DEPLOYMENT` / `ARC_TESTNET_DEPLOYMENT`, README table

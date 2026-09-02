@@ -75,7 +75,7 @@ export async function toBufiSessionKeyAccount(
     /**
      * BufiSessionKeyPlugin requires a gas-limited session key to use its own address as the 192-bit nonce KEY
      * (`SessionKeyPermissions._checkUserOpPermissions`: `uint192(nonce >> 64) == uint192(uint160(sessionKey))`),
-     * so gas-limit accounting cannot be bypassed by nonce-key hopping. viem's `toSmartAccount` always supplies a
+     * so gas-limit accounting cannot be bypassed by nonce-key hopping. Viem's `toSmartAccount` always supplies a
      * time-derived key of its own, so the key parameter is deliberately ignored here: a session-key account has
      * exactly one valid nonce lane.
      */

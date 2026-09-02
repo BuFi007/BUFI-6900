@@ -1,0 +1,37 @@
+{
+  "chainId": 43113,
+  "rpcUrl": "https://api.avax-test.network/ext/bc/C/rpc",
+  "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+  "create2Deployer": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+  "pluginManager": "0x00000005e69188224e4dEeF607801916DC0936d5",
+  "upgradableMscaFactory": "0x0000000DF7E6c9Dc387cAFc5eCBfa6c3a6179AdD",
+  "upgradableMscaImpl": "0xA70F1296869DA9D7CB69578123F21888E6dB2B62",
+  "plugins": {
+    "weightedWebauthnMultisig": {
+      "address": "0x0000000C984AFf541D6cE86Bb697e68ec57873C8",
+      "manifestHash": "0xa043327d77a74c1c55cfa799284b831fe09535a88b9f5fa4173d334e5ba0fd91"
+    },
+    "coldStorageAddressBook": {
+      "address": "0x0000000d81083B16EA76dfab46B0315B0eDBF3d0",
+      "manifestHash": "0x9d177c1c9573b10436b693b7a49f0face36b677c1606a2c579bba1415be349d8"
+    },
+    "bufiSessionKey": {
+      "address": "0x28504B34871Aa5a00269a960A9390187cbB5c070",
+      "manifestHash": "0xa32b3449ba437645e2386051ad0fcb64b0c2a9fed66b2eb4349505a2cb11ff5d"
+    },
+    "bufiEarnModule": {
+      "address": "0x57D446a9A9c23d939035a924F7D3643B6eedE4Cf",
+      "manifestHash": "0x5adab6895bc4f41df3405079667ae5103316a130ce3ebe225402958a96652e53"
+    }
+  },
+  "paymaster": null,
+  "tokens": {
+    "usdc": "0x5425890298aed601595a70AB815c96711a31Bc65"
+  },
+  "accounts": {
+    "deployer": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
+    "bundler": "0x0000000000000000000000000000000000000000",
+    "factoryOwner": "0x0166EA90E565476f13c6a0D25ED2C35599E58785"
+  },
+  "notes": "BUFI plugins deployed 2026-09-01 via script/DeployBufiPlugins.s.sol (CREATE2 salt keccak256('bufi-6900-plugins-v0.1.0'), same address on every chain). Earn module owner+relayer = testnet deployer placeholder; rotate before shared use. Circle addresses are Circle's production deployment on this chain (verified by code presence). Not verified on explorers."
+}

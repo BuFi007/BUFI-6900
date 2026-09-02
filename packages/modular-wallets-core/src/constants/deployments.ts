@@ -97,3 +97,41 @@ export const EARN_MODULE_OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX = 1
  */
 export const SESSION_KEY_STUB_SIGNATURE =
   '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000077aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c' as Hex
+
+/**
+ * BUFI plugins as deployed on public testnets on 2026-09-01 (`contracts/deployments/avax-fuji.json`,
+ * `arc-testnet.json`). Same CREATE2 salt on every chain, so the plugin addresses are identical. The Circle
+ * addresses are Circle's production deployment on those chains.
+ */
+export const BUFI_TESTNET_PLUGINS = {
+  bufiSessionKey: {
+    address: '0x28504B34871Aa5a00269a960A9390187cbB5c070' as Hex,
+    manifestHash:
+      '0xa32b3449ba437645e2386051ad0fcb64b0c2a9fed66b2eb4349505a2cb11ff5d' as Hex,
+  },
+  bufiEarnModule: {
+    address: '0x57D446a9A9c23d939035a924F7D3643B6eedE4Cf' as Hex,
+    manifestHash:
+      '0x5adab6895bc4f41df3405079667ae5103316a130ce3ebe225402958a96652e53' as Hex,
+  },
+} as const
+
+/**
+ * Avalanche Fuji (43113): Circle's canonical stack + BUFI testnet plugins.
+ */
+export const AVAX_FUJI_DEPLOYMENT: StackDeployment = {
+  ...CIRCLE_CANONICAL_DEPLOYMENT,
+  chainId: 43113,
+  ...BUFI_TESTNET_PLUGINS,
+  tokens: { usdc: '0x5425890298aed601595a70AB815c96711a31Bc65' },
+}
+
+/**
+ * Arc testnet (5042002): Circle's canonical stack + BUFI testnet plugins.
+ */
+export const ARC_TESTNET_DEPLOYMENT: StackDeployment = {
+  ...CIRCLE_CANONICAL_DEPLOYMENT,
+  chainId: 5042002,
+  ...BUFI_TESTNET_PLUGINS,
+  tokens: { usdc: '0x3600000000000000000000000000000000000000' },
+}
