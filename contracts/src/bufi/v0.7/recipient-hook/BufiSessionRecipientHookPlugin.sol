@@ -28,6 +28,7 @@ import {IAddressBookPlugin} from "@circle/msca/6900/v0.7/plugins/v1_0_0/addressb
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
 /// @title BufiSessionRecipientHookPlugin
+/// @author BUFI
 /// @notice Pre-validation hook that closes the ERC-20 recipient gap of agent session keys on a Circle ERC-6900
 ///         v0.7 account: every `Call` inside `BufiSessionKeyPlugin.executeWithSessionKey(calls, sessionKey)` must
 ///         name a recipient that is in the account's `ColdStorageAddressBookPlugin` set, exactly as the owners'
@@ -230,6 +231,9 @@ contract BufiSessionRecipientHookPlugin is BasePlugin, IBufiSessionRecipientHook
     // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
     /// @inheritdoc BasePlugin
+    /// @notice Whether `account` has installed this hook, i.e. bound an AddressBook to it.
+    /// @param account The account to check.
+    /// @return True when a non-zero AddressBook is bound for `account`.
     function _isInitialized(address account) internal view override returns (bool) {
         return _addressBookOf[account] != address(0);
     }

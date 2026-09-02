@@ -10,17 +10,22 @@
     "tooling/*"
   ],
   "scripts": {
-    "build": "turbo run build",
-    "test": "turbo run test",
-    "check:type": "turbo run check:type",
-    "lint": "turbo run lint",
-    "contracts:build": "cd contracts && forge build",
-    "contracts:test": "cd contracts && forge test -vv",
-    "contracts:fmt": "cd contracts && forge fmt",
     "anvil": "anvil --chain-id 31337 --code-size-limit 250000 --balance 1000000 --host 127.0.0.1 --port 8545",
-    "stack:deploy": "cd contracts && forge script script/DeployStack.s.sol --rpc-url http://127.0.0.1:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 -vv",
+    "build": "turbo run build",
+    "check:type": "turbo run check:type",
+    "contracts:build": "cd contracts && forge build",
+    "contracts:coverage": "cd contracts && FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report summary",
+    "contracts:fmt": "cd contracts && forge fmt",
+    "contracts:lint": "cd contracts && solhint --config .solhint-src.json 'src/**/*.sol'",
+    "contracts:lint:test": "cd contracts && solhint --config .solhint-test.json 'test/**/*.sol'",
+    "contracts:slither": "cd contracts && slither . --filter-paths 'lib/|test/|script/' --exclude-dependencies --checklist",
+    "contracts:snapshot": "cd contracts && forge snapshot --no-match-contract GhostShieldAddressBookTest",
+    "contracts:test": "cd contracts && forge test -vv",
+    "lint": "turbo run lint",
     "mock:circle": "bun run --cwd packages/mock-circle dev",
-    "sandbox:e2e": "bun run --cwd apps/playground e2e"
+    "sandbox:e2e": "bun run --cwd apps/playground e2e",
+    "stack:deploy": "cd contracts && forge script script/DeployStack.s.sol --rpc-url http://127.0.0.1:8545 --broadcast --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 -vv",
+    "test": "turbo run test"
   },
   "devDependencies": {
     "turbo": "2.9.16",

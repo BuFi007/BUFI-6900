@@ -4,12 +4,17 @@
 pragma solidity 0.8.24;
 
 /// @title IBufiSessionRecipientHookPlugin
+/// @author BUFI
 /// @notice ABI of the hook plugin that gates `BufiSessionKeyPlugin.executeWithSessionKey` recipients against the
 ///         account's `ColdStorageAddressBookPlugin` set. See `BufiSessionRecipientHookPlugin` for the mechanism.
 interface IBufiSessionRecipientHookPlugin {
     /// @notice Emitted when an account binds the hook to its AddressBook plugin (install).
+    /// @param account The account that installed the hook — always `msg.sender` of `onInstall`.
+    /// @param addressBook The `ColdStorageAddressBookPlugin` whose set this account's agent path will be gated by.
     event AddressBookBound(address indexed account, address indexed addressBook);
     /// @notice Emitted when the binding is cleared (uninstall).
+    /// @param account The account that uninstalled the hook.
+    /// @param addressBook The AddressBook it had been bound to.
     event AddressBookUnbound(address indexed account, address indexed addressBook);
 
     /// @notice The install data named the zero address, an address without code, or a contract that does not
@@ -30,5 +35,7 @@ interface IBufiSessionRecipientHookPlugin {
     error InvalidTargetCodeLength(address account, address target, uint256 value, bytes data);
 
     /// @notice The AddressBook plugin the hook reads for `account`; `address(0)` when the hook is not installed.
+    /// @param account The account to read the binding for.
+    /// @return The bound `ColdStorageAddressBookPlugin`, or `address(0)` if this account has not installed the hook.
     function addressBookOf(address account) external view returns (address);
 }

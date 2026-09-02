@@ -96,7 +96,46 @@ returns a `validAfter` for the EntryPoint to enforce, which is what keeps the op
 
 ---
 
-## Not yet run
+---
 
-`solhint` is not wired up. Circle ships three solhint configs in `buidl-wallet-contracts`; adopting theirs rather
-than inventing one is the obvious move and is tracked as remaining work.
+# solhint
+
+```
+bun run contracts:lint        # src, Circle's .solhint-src.json
+bun run contracts:lint:test   # test, Circle's .solhint-test.json
+```
+
+Circle's three configs (`.solhint-src.json`, `.solhint-test.json`, `.solhint-script.json`) and `.solhintignore`
+are copied **verbatim** from `buidl-wallet-contracts` rather than invented here, so the plugins are linted against
+the same bar as the account they install on.
+
+**0 errors, 207 warnings** on `src/`. Circle sets exactly two rules to error level — `compiler-version` pinned to
+0.8.24, and `func-visibility` — and both pass.
+
+The warnings break down into three groups, and only one of them was worth acting on:
+
+| group | n | action |
+| --- | --- | --- |
+| `import-path-check` on remapped imports (`@circle/…`, `@account-abstraction/…`) | many | **False positives.** solhint does not read `foundry.toml` remappings. Not fixable, not real. |
+| `use-natspec` / `gas-*` in **ported** files | most of the rest | **Deliberately not fixed** — see below. |
+| `use-natspec` in the **new** recipient hook | 11 | **Fixed.** |
+
+## Why the ported files keep their warnings
+
+`docs/AUDIT-SCOPE.md` asks reviewers to *diff the session-key and earn plugins against their upstreams rather than
+read them from scratch*, because both are ports of audited code and the deviations are what matter. Adding natspec
+those upstreams do not have would inflate that diff with noise and make the one thing we want an auditor to do
+harder. `BufiEarnModule` alone accounts for 83 warnings and is a near-verbatim AGPL port.
+
+So: cosmetic warnings in ported files are left alone on purpose. If a future maintainer "cleans" them, the
+diff-against-upstream instruction stops being practical.
+
+## What was fixed
+
+`BufiSessionRecipientHookPlugin` and its interface are **new BUFI code with no upstream**, so an auditor reads them
+cold and natspec is load-bearing rather than noise. All 11 real gaps closed: `@author` on both the contract and the
+interface, `@param` on the two events, and `@param`/`@return`/`@notice` on `addressBookOf` and `_isInitialized`.
+
+The hook now reports 11 warnings, all of them either the remapping false positive (10) or
+`gas-small-strings` on the plugin's own `_NAME` constant (1) — a string ERC-6900 requires in the metadata, where
+exceeding 32 bytes is the cost of a readable plugin name.
