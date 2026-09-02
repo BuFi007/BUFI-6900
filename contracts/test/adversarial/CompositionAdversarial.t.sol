@@ -111,7 +111,7 @@ contract CompositionAdversarialTest is SessionKeyHarness {
             agent,
             _aa23(
                 abi.encodeWithSelector(
-                    IBufiSessionRecipientHookPlugin.UnauthorizedRecipient.selector, address(account), address(0)
+                    IBufiSessionRecipientHookPlugin.UnauthorizedRecipient.selector, address(account), address(account)
                 )
             )
         );

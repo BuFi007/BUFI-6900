@@ -386,6 +386,23 @@ abstract contract SessionKeyHarness is CircleStackHarness {
 
     /// @dev Submits one op through `handleOps` and reads back (success, revert reason) from the EntryPoint events
     ///      in a single log pass.
+    /// @dev Logs of the most recent `_runOp`/`_runOps` batch, kept because `vm.getRecordedLogs()` drains.
+    Vm.Log[] internal _lastOpLogs;
+
+    /// @notice The first `topics[1]` of an event emitted by `emitter` with signature `topic0` in the last batch,
+    ///         or zero. Used to read an application event (e.g. an ERC-8183 job id) out of a user operation.
+    function _lastOpIndexedTopic(address emitter, bytes32 topic0) internal view returns (uint256) {
+        for (uint256 i; i < _lastOpLogs.length; i++) {
+            if (
+                _lastOpLogs[i].emitter == emitter && _lastOpLogs[i].topics.length > 1
+                    && _lastOpLogs[i].topics[0] == topic0
+            ) {
+                return uint256(_lastOpLogs[i].topics[1]);
+            }
+        }
+        return 0;
+    }
+
     function _runOp(PackedUserOperation memory op) internal returns (bool success, bytes memory reason) {
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         ops[0] = op;
@@ -401,7 +418,10 @@ abstract contract SessionKeyHarness is CircleStackHarness {
     {
         vm.recordLogs();
         entryPoint.handleOps(ops, beneficiary);
+        // `getRecordedLogs` DRAINS the recorder, so stash the batch: a caller that needs an application event from
+        // the same operation (a job id, say) has no other way to read it after this returns.
         Vm.Log[] memory logs = vm.getRecordedLogs();
+        _lastOpLogs = logs;
         successes = new bool[](ops.length);
         reasons = new bytes[](ops.length);
         uint256 eventIndex;

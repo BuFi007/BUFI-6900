@@ -34,6 +34,16 @@ import {Vm} from "forge-std/src/Vm.sol";
 ///         (`test_erc20RecipientIsNotGatedBySessionKeyAccessList`): a key scoped to `USDC.transfer` could name ANY
 ///         recipient. With the hook installed, the SAME grant is gated by the SAME AddressBook set the owners'
 ///         `execute` path is gated by — no mirrored list, no re-sync.
+/// @dev A contract an agent does WORK with: no token semantics, so its calldata carries no recipient. Stands in
+///      for the ERC-8183 jobs contract in the unit suite (the real one is exercised on an Arc fork).
+contract WorkContract {
+    uint256 public calls;
+
+    function doWork(uint256, string calldata) external {
+        calls += 1;
+    }
+}
+
 contract BufiSessionRecipientHookPluginTest is SessionKeyHarness {
     BufiSessionRecipientHookPlugin internal hook;
     SandboxUSDC internal usdc;
@@ -44,6 +54,8 @@ contract BufiSessionRecipientHookPluginTest is SessionKeyHarness {
 
     address internal allowed;
     address internal stranger;
+    WorkContract internal businessContract;
+    WorkContract internal unlistedContract;
 
     uint256 internal constant AGENT_BUDGET = 100e6;
     /// Informational bound for the hook's validation-phase overhead with a 5-entry allowlist.
@@ -59,8 +71,13 @@ contract BufiSessionRecipientHookPluginTest is SessionKeyHarness {
         allowed = makeAddr("allowed-recipient");
         stranger = makeAddr("stranger");
         agent = _signerFrom("agent");
+        businessContract = new WorkContract();
+        unlistedContract = new WorkContract();
 
-        (UpgradableMSCA msca, Signer[] memory q) = _newAccount("owner", bytes32(uint256(41)), _one(allowed), true);
+        address[] memory recipients = new address[](2);
+        recipients[0] = allowed;
+        recipients[1] = address(businessContract);
+        (UpgradableMSCA msca, Signer[] memory q) = _newAccount("owner", bytes32(uint256(41)), recipients, true);
         account = msca;
         quorum.push(q[0]);
         quorum.push(q[1]);
@@ -424,31 +441,62 @@ contract BufiSessionRecipientHookPluginTest is SessionKeyHarness {
     }
 
     /// @dev Every branch that cannot produce an allowed recipient rejects; nothing falls through to "allow".
+    /// @notice An agent must be able to do WORK, not only move tokens: a zero-value call to an allowlisted
+    ///         business contract whose calldata carries no token recipient passes, while the same call to an
+    ///         unlisted contract is rejected. This is what makes the hook compatible with the ERC-8183 /
+    ///         ERC-8004 rails (see `docs/AGENTIC-WALLET.md`); it was proved on an Arc fork.
+    function test_allowsNonTokenCallsToAnAllowlistedContract() public {
+        assertTrue(_addSessionKey(account, agent.addr, bytes32("agent"), _permUnrestricted(), quorum));
+
+        // `businessContract` is on the AddressBook; `unlistedContract` is not. Neither call decodes as a transfer.
+        bytes memory work = abi.encodeWithSignature("doWork(uint256,string)", uint256(1), "job");
+        assertTrue(
+            _executeSessionKeyUserOp(account, _calls(_call(address(businessContract), 0, work)), agent),
+            "an allowlisted business contract may be called"
+        );
+        _expectSessionKeyValidationRevert(
+            account,
+            _calls(_call(address(unlistedContract), 0, work)),
+            agent,
+            _aa23UnauthorizedRecipient(address(account), address(unlistedContract))
+        );
+
+        // Token policy is unchanged: a DECODABLE transfer is judged by its recipient, never by its target.
+        _expectSessionKeyValidationRevert(
+            account,
+            _calls(_erc20Transfer(address(usdc), stranger, 1e6)),
+            agent,
+            _aa23UnauthorizedRecipient(address(account), stranger)
+        );
+    }
+
     function test_failsClosed_onUndecodableOrUnsupportedCalls() public {
         assertTrue(_addSessionKey(account, agent.addr, bytes32("agent"), _permUnrestricted(), quorum));
 
-        // Token call with a selector the library does not decode → recipient address(0) → rejected.
+        // A zero-value call whose calldata is not a recognised token transfer is judged by its TARGET (see the
+        // contract NatSpec: an agent must be able to call business contracts). USDC is not on the AddressBook, so
+        // all three of these are still rejected — but the reported recipient is now the target, not address(0).
         _expectSessionKeyValidationRevert(
             account,
             _calls(_call(address(usdc), 0, abi.encodeCall(usdc.decimals, ()))),
             agent,
-            _aa23UnauthorizedRecipient(address(account), address(0))
+            _aa23UnauthorizedRecipient(address(account), address(usdc))
         );
-        // `transfer` selector with truncated arguments (36 bytes < 68) → address(0) → rejected.
+        // `transfer` selector with truncated arguments (36 bytes < 68) → not decodable → judged by target.
         _expectSessionKeyValidationRevert(
             account,
             _calls(
                 _call(address(usdc), 0, abi.encodePacked(IERC20.transfer.selector, bytes32(uint256(uint160(allowed)))))
             ),
             agent,
-            _aa23UnauthorizedRecipient(address(account), address(0))
+            _aa23UnauthorizedRecipient(address(account), address(usdc))
         );
-        // Zero-value call with EMPTY calldata to a contract → selector 0 → rejected.
+        // Zero-value call with EMPTY calldata to a contract → selector 0 → judged by target.
         _expectSessionKeyValidationRevert(
             account,
             _calls(_call(address(usdc), 0, "")),
             agent,
-            _aa23UnauthorizedRecipient(address(account), address(0))
+            _aa23UnauthorizedRecipient(address(account), address(usdc))
         );
         // Native value AND calldata → CallDataIsNotEmpty (a payable contract call can never pass).
         bytes memory transferData = abi.encodeCall(IERC20.transfer, (allowed, 1e6));
@@ -517,7 +565,11 @@ contract BufiSessionRecipientHookPluginTest is SessionKeyHarness {
 
         // Owners promote the stranger through the AddressBook's own userOp path. No key update, no re-sync.
         assertTrue(_addRecipients(account, _one(stranger), quorum));
-        assertEq(addressBookPlugin.getAllowedRecipients(address(account)).length, 2);
+        assertEq(
+            addressBookPlugin.getAllowedRecipients(address(account)).length,
+            3,
+            "allowed + businessContract + the new one"
+        );
         assertTrue(_executeSessionKeyUserOp(account, _calls(_erc20Transfer(address(usdc), stranger, 5e6)), agent));
         assertEq(usdc.balanceOf(stranger), 5e6, "paid immediately after the owners' add");
 

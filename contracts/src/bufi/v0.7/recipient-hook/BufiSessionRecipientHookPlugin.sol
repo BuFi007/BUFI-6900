@@ -281,10 +281,25 @@ contract BufiSessionRecipientHookPlugin is BasePlugin, IBufiSessionRecipientHook
         if (recipient == address(0)) {
             recipient = data.getERC721TokenRecipient();
         }
-        if (recipient == address(0)) {
-            revert UnauthorizedRecipient(msg.sender, recipient);
-        }
-        return recipient;
+        // DELIBERATE DIVERGENCE from `ColdStorageAddressBookPlugin`, which reverts here.
+        //
+        // Circle's plugin guards the owners' `execute` path, where every call is expected to be a transfer, so
+        // "no decodable recipient" can safely mean "reject". An agent face is not like that: a session key's whole
+        // purpose is calling business contracts — `createJob` / `setBudget` / `fund` on an ERC-8183 escrow,
+        // `giveFeedback` on a reputation registry — whose calldata carries no token recipient at all. Reverting
+        // here made the hook and the agentic rails mutually exclusive: with the hook installed, an agent could
+        // only ever move tokens, never do work (proved on an Arc fork before this branch existed).
+        //
+        // So for a zero-value call whose calldata is not a recognised token transfer, the CALL TARGET itself must
+        // be on the AddressBook. That is still fail-closed — an unlisted contract is rejected — and it is the same
+        // trust statement the list already makes: "this account may send value to this address". What it does not
+        // do is turn the AddressBook into a firewall against a contract the owners allowlisted; that contract may
+        // interpret its own calldata however it likes (adversarial findings F-02 / F-03).
+        //
+        // Note the asymmetry that keeps token policy intact: a *decodable* transfer is always judged by its
+        // recipient, never by its target. `USDC.transfer(stranger, …)` is rejected even though USDC has code, and
+        // is rejected whether or not USDC is on the list.
+        return recipient == address(0) ? target : recipient;
     }
 
     /// @dev Linear membership scan (see the contract NatSpec for the cost note).

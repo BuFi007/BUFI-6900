@@ -31,6 +31,11 @@ contract AllowanceRedirector {
     }
 }
 
+/// @dev A contract nobody allowlisted, used to show the target-based branch still fails closed.
+contract WorkTarget {
+    function work() external {}
+}
+
 contract RecipientHookAdversarialTest is SessionKeyHarness {
     BufiSessionRecipientHookPlugin internal hook;
     SandboxUSDC internal usdc;
@@ -128,15 +133,18 @@ contract RecipientHookAdversarialTest is SessionKeyHarness {
 
     function test_unsupportedProxySelectorAndDirectOffListTransferStillFailClosed() public {
         assertTrue(_addSessionKey(account, agent.addr, bytes32(0), _permUnrestricted(), quorum));
+        // `pullFrom` carries no token recipient, so the hook judges the call by its TARGET. The redirector IS on
+        // the AddressBook here (that is what F-02/F-03 are about), so the hook lets it through and the loss is
+        // bounded by what the owners allowlisted — exactly the trust statement the list makes. What still fails
+        // closed is the same call to a contract nobody allowlisted.
+        WorkTarget unlisted = new WorkTarget();
         _expectSessionKeyValidationRevert(
             account,
-            _calls(
-                _call(address(redirector), 0, abi.encodeCall(AllowanceRedirector.pullFrom, (address(account), 1e6)))
-            ),
+            _calls(_call(address(unlisted), 0, abi.encodeCall(WorkTarget.work, ()))),
             agent,
             _aa23(
                 abi.encodeWithSelector(
-                    IBufiSessionRecipientHookPlugin.UnauthorizedRecipient.selector, address(account), address(0)
+                    IBufiSessionRecipientHookPlugin.UnauthorizedRecipient.selector, address(account), address(unlisted)
                 )
             )
         );

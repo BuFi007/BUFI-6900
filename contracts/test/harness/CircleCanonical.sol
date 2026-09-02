@@ -32,8 +32,7 @@ library CircleCanonical {
     /// then impersonate it (vm.prank / anvil_impersonateAccount) to allowlist plugins.
     address internal constant FACTORY_OWNER = 0x0166EA90E565476f13c6a0D25ED2C35599E58785;
 
-    bytes32 internal constant PLUGIN_MANAGER_SALT =
-        0x20828f442f63e502375f253988ec6578620f09b1c00bbcc237edb6838323dba1;
+    bytes32 internal constant PLUGIN_MANAGER_SALT = 0x20828f442f63e502375f253988ec6578620f09b1c00bbcc237edb6838323dba1;
     bytes32 internal constant UPGRADABLE_MSCA_FACTORY_SALT =
         0xda9f7ba8ec86b458ea272ecf44962d37f768e4d6f254dd2a82d5724b934b72d5;
     bytes32 internal constant COLD_STORAGE_ADDRESS_BOOK_PLUGIN_SALT =

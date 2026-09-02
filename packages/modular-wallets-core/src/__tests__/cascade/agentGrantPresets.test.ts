@@ -69,10 +69,11 @@ describe('agent role grant presets', () => {
       expect(selectorsFor(g, USDC)).toEqual([SEL.approve, SEL.transfer])
       expect(selectorsFor(g, ARC_TESTNET_ERC8183_JOBS)).toEqual([
         SEL.createJob,
-        SEL.setBudget,
         SEL.fund,
         SEL.reject,
       ])
+      // The provider states the price, so the buyer never calls setBudget (proved on Arc: job 182422).
+      expect(selectorsFor(g, ARC_TESTNET_ERC8183_JOBS)).not.toContain(SEL.setBudget)
     })
 
     it('excludes complete unless explicitly requested', () => {

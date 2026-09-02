@@ -96,7 +96,11 @@ function grant(
 }
 
 /**
- * The buyer side of an ERC-8183 job: create, budget, fund and reject, plus the ERC-20 legs those need.
+ * The buyer side of an ERC-8183 job: create, fund and reject, plus the ERC-20 legs those need.
+ *
+ * `setBudget` is deliberately NOT here: on Circle's native Arc contract the PROVIDER states the price it will work
+ * for, and the buyer funds it. Confirmed against job 182422 on Arc testnet, whose `setBudget` and `submit`
+ * operations were both sent by the provider account.
  *
  * `complete` is deliberately excluded by default — it is the evaluator's decision to release escrowed funds, which
  * belongs to the owner quorum rather than to the agent. Pass `includeComplete` only for an agent you are willing to
@@ -118,7 +122,6 @@ export function erc8183BuyerGrant({
 }: Erc8183BuyerGrantParameters): BufiGrant {
   const jobSelectors: Hex[] = [
     ERC8183_SELECTORS.createJob,
-    ERC8183_SELECTORS.setBudget,
     ERC8183_SELECTORS.fund,
     ERC8183_SELECTORS.reject,
     ...(includeComplete ? [ERC8183_SELECTORS.complete] : []),

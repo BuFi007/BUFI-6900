@@ -3,8 +3,12 @@ pragma solidity 0.8.24;
 
 import {CircleCanonical} from "./CircleCanonical.sol";
 
-import {EMPTY_HASH, ZERO_BYTES32} from "@circle/common/Constants.sol";
+import {EntryPoint} from "@account-abstraction/contracts/core/EntryPoint.sol";
+import {IEntryPoint} from "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import {PackedUserOperation} from "@account-abstraction/contracts/interfaces/PackedUserOperation.sol";
+import {TestUtils} from "@circle-test/util/TestUtils.sol";
 import {PublicKey} from "@circle/common/CommonStructs.sol";
+import {EMPTY_HASH, ZERO_BYTES32} from "@circle/common/Constants.sol";
 import {UpgradableMSCA} from "@circle/msca/6900/v0.7/account/UpgradableMSCA.sol";
 import {FunctionReference} from "@circle/msca/6900/v0.7/common/Structs.sol";
 import {UpgradableMSCAFactory} from "@circle/msca/6900/v0.7/factories/UpgradableMSCAFactory.sol";
@@ -13,14 +17,12 @@ import {IPlugin} from "@circle/msca/6900/v0.7/interfaces/IPlugin.sol";
 import {IPluginManager} from "@circle/msca/6900/v0.7/interfaces/IPluginManager.sol";
 import {IStandardExecutor} from "@circle/msca/6900/v0.7/interfaces/IStandardExecutor.sol";
 import {PluginManager} from "@circle/msca/6900/v0.7/managers/PluginManager.sol";
-import {ColdStorageAddressBookPlugin} from
-    "@circle/msca/6900/v0.7/plugins/v1_0_0/addressbook/ColdStorageAddressBookPlugin.sol";
-import {WeightedWebauthnMultisigPlugin} from
-    "@circle/msca/6900/v0.7/plugins/v1_0_0/multisig/WeightedWebauthnMultisigPlugin.sol";
-import {TestUtils} from "@circle-test/util/TestUtils.sol";
-import {EntryPoint} from "@account-abstraction/contracts/core/EntryPoint.sol";
-import {IEntryPoint} from "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import {PackedUserOperation} from "@account-abstraction/contracts/interfaces/PackedUserOperation.sol";
+import {
+    ColdStorageAddressBookPlugin
+} from "@circle/msca/6900/v0.7/plugins/v1_0_0/addressbook/ColdStorageAddressBookPlugin.sol";
+import {
+    WeightedWebauthnMultisigPlugin
+} from "@circle/msca/6900/v0.7/plugins/v1_0_0/multisig/WeightedWebauthnMultisigPlugin.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {Vm} from "forge-std/src/Vm.sol";
 
@@ -77,9 +79,7 @@ abstract contract CircleStackHarness is TestUtils {
         }
         vm.label(CircleCanonical.CREATE2_DEPLOYER, "CREATE2 deployer");
 
-        _create2Circle(
-            "PluginManager.json", CircleCanonical.PLUGIN_MANAGER_SALT, "", CircleCanonical.PLUGIN_MANAGER
-        );
+        _create2Circle("PluginManager.json", CircleCanonical.PLUGIN_MANAGER_SALT, "", CircleCanonical.PLUGIN_MANAGER);
         _create2Circle(
             "UpgradableMSCAFactory.json",
             CircleCanonical.UPGRADABLE_MSCA_FACTORY_SALT,
@@ -212,11 +212,7 @@ abstract contract CircleStackHarness is TestUtils {
     // ┃  UserOps                                                                        ┃
     // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-    function _buildUserOp(address sender, bytes memory callData)
-        internal
-        view
-        returns (PackedUserOperation memory op)
-    {
+    function _buildUserOp(address sender, bytes memory callData) internal view returns (PackedUserOperation memory op) {
         op.sender = sender;
         op.nonce = entryPoint.getNonce(sender, 0);
         op.initCode = "";
@@ -296,9 +292,7 @@ abstract contract CircleStackHarness is TestUtils {
     /// @dev Asserts the EntryPoint rejects the op during validation (signature below threshold, hook denial,
     ///      expired key …). Use instead of `vm.expectRevert()` + `_executeUserOp`, whose first external call
     ///      is a view read and would swallow the expectation.
-    function _expectValidationRevert(UpgradableMSCA msca, bytes memory callData, Signer[] memory signers)
-        internal
-    {
+    function _expectValidationRevert(UpgradableMSCA msca, bytes memory callData, Signer[] memory signers) internal {
         PackedUserOperation memory op = _prepareUserOp(msca, callData, signers);
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         ops[0] = op;
@@ -331,11 +325,11 @@ abstract contract CircleStackHarness is TestUtils {
     // ┃  Plugin install helpers                                                         ┃
     // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-    function _installPluginCalldata(
-        address plugin,
-        bytes memory installData,
-        FunctionReference[] memory dependencies
-    ) internal view returns (bytes memory) {
+    function _installPluginCalldata(address plugin, bytes memory installData, FunctionReference[] memory dependencies)
+        internal
+        view
+        returns (bytes memory)
+    {
         bytes32 manifestHash = keccak256(abi.encode(IPlugin(plugin).pluginManifest()));
         return abi.encodeCall(IPluginManager.installPlugin, (plugin, manifestHash, installData, dependencies));
     }
@@ -365,7 +359,9 @@ abstract contract CircleStackHarness is TestUtils {
         internal
         returns (bool)
     {
-        return _installPlugin(msca, address(addressBookPlugin), abi.encode(recipients), _addressBookDependencies(), signers);
+        return _installPlugin(
+            msca, address(addressBookPlugin), abi.encode(recipients), _addressBookDependencies(), signers
+        );
     }
 
     function _executeCalldata(address target, uint256 value, bytes memory data) internal pure returns (bytes memory) {
