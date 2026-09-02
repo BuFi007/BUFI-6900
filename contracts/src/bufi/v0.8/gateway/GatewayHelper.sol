@@ -77,95 +77,90 @@ contract GatewayHelper is IGatewayHelper {
     /**
      * @inheritdoc IGatewayHelper
      */
-    function encodeAuthorizeDelegate(
-        address token,
-        address delegate
-    ) external view override returns (address target, bytes memory data) {
+    function encodeAuthorizeDelegate(address token, address delegate)
+        external
+        view
+        override
+        returns (address target, bytes memory data)
+    {
         if (delegate == address(0)) revert InvalidDelegate();
         if (token == address(0)) revert InvalidToken();
 
-        return (
-            address(_gatewayWallet),
-            abi.encodeCall(IGatewayWallet.addDelegate, (token, delegate))
-        );
+        return (address(_gatewayWallet), abi.encodeCall(IGatewayWallet.addDelegate, (token, delegate)));
     }
 
     /**
      * @inheritdoc IGatewayHelper
      */
-    function encodeRevokeDelegate(
-        address token,
-        address delegate
-    ) external view override returns (address target, bytes memory data) {
+    function encodeRevokeDelegate(address token, address delegate)
+        external
+        view
+        override
+        returns (address target, bytes memory data)
+    {
         if (delegate == address(0)) revert InvalidDelegate();
         if (token == address(0)) revert InvalidToken();
 
-        return (
-            address(_gatewayWallet),
-            abi.encodeCall(IGatewayWallet.removeDelegate, (token, delegate))
-        );
+        return (address(_gatewayWallet), abi.encodeCall(IGatewayWallet.removeDelegate, (token, delegate)));
     }
 
     /**
      * @inheritdoc IGatewayHelper
      */
-    function encodeDeposit(
-        address token,
-        uint256 amount
-    ) external view override returns (address target, bytes memory data) {
+    function encodeDeposit(address token, uint256 amount)
+        external
+        view
+        override
+        returns (address target, bytes memory data)
+    {
         if (token == address(0)) revert InvalidToken();
         if (amount == 0) revert InvalidAmount();
 
-        return (
-            address(_gatewayWallet),
-            abi.encodeCall(IGatewayWallet.deposit, (token, amount))
-        );
+        return (address(_gatewayWallet), abi.encodeCall(IGatewayWallet.deposit, (token, amount)));
     }
 
     /**
      * @inheritdoc IGatewayHelper
      */
-    function encodeInitiateWithdrawal(
-        address token,
-        uint256 amount
-    ) external view override returns (address target, bytes memory data) {
+    function encodeInitiateWithdrawal(address token, uint256 amount)
+        external
+        view
+        override
+        returns (address target, bytes memory data)
+    {
         if (token == address(0)) revert InvalidToken();
         if (amount == 0) revert InvalidAmount();
 
-        return (
-            address(_gatewayWallet),
-            abi.encodeCall(IGatewayWallet.initiateWithdrawal, (token, amount))
-        );
+        return (address(_gatewayWallet), abi.encodeCall(IGatewayWallet.initiateWithdrawal, (token, amount)));
     }
 
     /**
      * @inheritdoc IGatewayHelper
      */
-    function encodeCompleteWithdrawal(
-        address token
-    ) external view override returns (address target, bytes memory data) {
+    function encodeCompleteWithdrawal(address token)
+        external
+        view
+        override
+        returns (address target, bytes memory data)
+    {
         if (token == address(0)) revert InvalidToken();
 
-        return (
-            address(_gatewayWallet),
-            abi.encodeCall(IGatewayWallet.withdraw, (token))
-        );
+        return (address(_gatewayWallet), abi.encodeCall(IGatewayWallet.withdraw, (token)));
     }
 
     /**
      * @inheritdoc IGatewayHelper
      */
-    function encodeApproveGateway(
-        address token,
-        uint256 amount
-    ) external view override returns (address target, bytes memory data) {
+    function encodeApproveGateway(address token, uint256 amount)
+        external
+        view
+        override
+        returns (address target, bytes memory data)
+    {
         if (token == address(0)) revert InvalidToken();
         if (amount == 0) revert InvalidAmount();
 
-        return (
-            token,
-            abi.encodeCall(IERC20.approve, (address(_gatewayWallet), amount))
-        );
+        return (token, abi.encodeCall(IERC20.approve, (address(_gatewayWallet), amount)));
     }
 
     // =========================================================================
@@ -175,41 +170,33 @@ contract GatewayHelper is IGatewayHelper {
     /**
      * @inheritdoc IGatewayHelper
      */
-    function isDelegateAuthorized(
-        address token,
-        address depositor,
-        address delegate
-    ) external view override returns (bool) {
+    function isDelegateAuthorized(address token, address depositor, address delegate)
+        external
+        view
+        override
+        returns (bool)
+    {
         return _gatewayWallet.isAuthorizedForBalance(token, depositor, delegate);
     }
 
     /**
      * @inheritdoc IGatewayHelper
      */
-    function getAvailableBalance(
-        address token,
-        address depositor
-    ) external view override returns (uint256) {
+    function getAvailableBalance(address token, address depositor) external view override returns (uint256) {
         return _gatewayWallet.availableBalance(token, depositor);
     }
 
     /**
      * @inheritdoc IGatewayHelper
      */
-    function getTotalBalance(
-        address token,
-        address depositor
-    ) external view override returns (uint256) {
+    function getTotalBalance(address token, address depositor) external view override returns (uint256) {
         return _gatewayWallet.totalBalance(token, depositor);
     }
 
     /**
      * @inheritdoc IGatewayHelper
      */
-    function getWithdrawableBalance(
-        address token,
-        address depositor
-    ) external view override returns (uint256) {
+    function getWithdrawableBalance(address token, address depositor) external view override returns (uint256) {
         return _gatewayWallet.withdrawableBalance(token, depositor);
     }
 

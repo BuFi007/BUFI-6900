@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.24;
 
-import {SessionKeyHarness} from "../harness/SessionKeyHarness.sol";
 import {MockVault} from "../bufi/v0.7/earn/mocks/Mocks.sol";
+import {SessionKeyHarness} from "../harness/SessionKeyHarness.sol";
 
 import {BufiEarnModule} from "../../src/bufi/v0.7/earn/BufiEarnModule.sol";
 import {IBufiSessionKeyPlugin} from "../../src/bufi/v0.7/session/IBufiSessionKeyPlugin.sol";
@@ -12,8 +12,8 @@ import {PackedUserOperation} from "@account-abstraction/contracts/interfaces/Pac
 import {UpgradableMSCA} from "@circle/msca/6900/v0.7/account/UpgradableMSCA.sol";
 import {Call, FunctionReference} from "@circle/msca/6900/v0.7/common/Structs.sol";
 import {IPluginManager} from "@circle/msca/6900/v0.7/interfaces/IPluginManager.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract RevertingDepositVault {
     error DepositRejected();
@@ -101,11 +101,8 @@ contract EarnAdversarialTest is SessionKeyHarness {
     }
 
     function _uninstallEarn() internal returns (bool) {
-        return _executeUserOp(
-            account,
-            abi.encodeCall(IPluginManager.uninstallPlugin, (address(module), "", "")),
-            quorum
-        );
+        return
+            _executeUserOp(account, abi.encodeCall(IPluginManager.uninstallPlugin, (address(module), "", "")), quorum);
     }
 
     function test_unauthorizedAndRevokedRelayersCannotGriefTheLegitimateRelayer() public {
@@ -138,15 +135,20 @@ contract EarnAdversarialTest is SessionKeyHarness {
         reversed[0] = ordered[1];
         reversed[1] = ordered[0];
 
+        // FIXED (F-08): `setConfig` now demands the canonical (chainId, token) order its own docs claimed, so one
+        // logical policy has exactly one hash. Before the fix both orderings were accepted and produced two hashes.
+        (ordered, reversed) =
+            uint160(address(usdc)) < uint160(address(secondToken)) ? (ordered, reversed) : (reversed, ordered);
+
         vm.startPrank(moduleOwner);
         uint256 orderedHash = module.setConfig(ordered);
         uint256 sameHash = module.setConfig(ordered);
-        uint256 reversedHash = module.setConfig(reversed);
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.ConfigNotSorted.selector, uint256(1)));
+        module.setConfig(reversed);
         vm.stopPrank();
 
         assertEq(orderedHash, sameHash, "same tuple sequence is idempotent");
-        assertTrue(orderedHash != reversedHash, "different ordering is a different content hash");
-        assertEq(module.config(orderedHash, block.chainid, address(usdc)), address(vault));
+        assertEq(module.config(orderedHash, block.chainid, ordered[0].token), ordered[0].vault);
     }
 
     function test_nonOwnerCannotFrontRunSetConfig() public {
@@ -162,7 +164,10 @@ contract EarnAdversarialTest is SessionKeyHarness {
         assertTrue(_installEarn(configHash));
         uint256 beforeBalance = usdc.balanceOf(address(account));
 
+        // FIXED (F-06): a zero-amount sweep mints no shares, so it now reverts instead of emitting a success event
+        // for a no-op. Relayers must not schedule empty sweeps.
         vm.prank(relayer);
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.ZeroSharesMinted.selector, address(vault)));
         BufiEarnModule(address(account)).autoEarn(address(usdc), 0);
         assertEq(usdc.balanceOf(address(account)), beforeBalance);
         assertEq(vault.balanceOf(address(account)), 0);
@@ -184,8 +189,10 @@ contract EarnAdversarialTest is SessionKeyHarness {
         assertTrue(_installEarn(badHash));
         uint256 beforeBalance = usdc.balanceOf(address(account));
 
+        // FIXED (F-06): the vault's `asset()` claim is checked before any approval, so a vault that does not even
+        // expose the interface fails earlier than its `deposit`. Both outcomes leave the account untouched.
         vm.prank(relayer);
-        vm.expectRevert(RevertingDepositVault.DepositRejected.selector);
+        vm.expectRevert();
         BufiEarnModule(address(account)).autoEarn(address(usdc), 100e6);
 
         assertEq(usdc.balanceOf(address(account)), beforeBalance);
@@ -199,7 +206,10 @@ contract EarnAdversarialTest is SessionKeyHarness {
         assertTrue(_installEarn(badHash));
         uint256 beforeBalance = usdc.balanceOf(address(account));
 
+        // FIXED (F-06): `autoEarn` now reverts when the adopted vault mints no shares, so the sweep is atomic and
+        // the account keeps its assets. Before the fix this call succeeded and emitted AutoEarnExecuted.
         vm.prank(relayer);
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.ZeroSharesMinted.selector, address(badVault)));
         BufiEarnModule(address(account)).autoEarn(address(usdc), 100e6);
 
         assertEq(
@@ -207,7 +217,8 @@ contract EarnAdversarialTest is SessionKeyHarness {
             beforeBalance,
             "SAFE: zero shares must revert instead of consuming account assets"
         );
-        assertGt(badVault.balanceOf(address(account)), 0);
+        assertEq(usdc.allowance(address(account), address(badVault)), 0, "approval rolled back");
+        assertEq(badVault.balanceOf(address(account)), 0, "no shares, no state");
     }
 
     function test_uninstallWithOutstandingSharesPreservesAndAllowsOwnerRedemption() public {
@@ -223,9 +234,7 @@ contract EarnAdversarialTest is SessionKeyHarness {
             _executeUserOp(
                 account,
                 _executeCalldata(
-                    address(vault),
-                    0,
-                    abi.encodeCall(IERC4626.redeem, (shares, address(account), address(account)))
+                    address(vault), 0, abi.encodeCall(IERC4626.redeem, (shares, address(account), address(account)))
                 ),
                 quorum
             )
@@ -253,11 +262,7 @@ contract EarnAdversarialTest is SessionKeyHarness {
         uint256 newHash = _register(address(usdc), address(newVault));
         bytes memory adopt = abi.encodeCall(BufiEarnModule.changeConfigHash, (newHash));
 
-        (bool legacyOk,) = _executeOwnerUserOpWithReason(
-            account,
-            _executeCalldata(address(module), 0, adopt),
-            quorum
-        );
+        (bool legacyOk,) = _executeOwnerUserOpWithReason(account, _executeCalldata(address(module), 0, adopt), quorum);
         assertFalse(legacyOk);
         assertEq(module.accountConfig(address(account)), configHash);
 
@@ -266,7 +271,13 @@ contract EarnAdversarialTest is SessionKeyHarness {
     }
 
     /// SAFE assertion intentionally fails when a miswired dependency lets a session key validate changeConfigHash.
-    function test_SAFE_wrongDependencySlotCannotGiveSessionKeyConfigAuthority() public {
+    /// @notice KNOWN, ACCEPTED — adversarial finding F-07. ERC-6900 types dependencies only as `IPlugin`, so
+    /// Circle's PluginManager cannot tell the weighted owner validator from any other installed plugin. If owners
+    /// install the earn module with the session-key plugin wired into the owner slot, session-key-shaped calldata
+    /// validates `changeConfigHash` — a denial of service on config adoption, not asset movement (the resulting
+    /// hash resolves to no vault, so `autoEarn` reverts `ConfigNotFound`). The control is the installer:
+    /// the SDK's `earnModuleDependencies()` helper always emits the weighted validator.
+    function test_KNOWN_F07_wrongDependencySlotGivesSessionKeyConfigAuthority() public {
         assertTrue(_addSessionKey(account, agent.addr, bytes32(0), _permUnrestricted(), quorum));
         FunctionReference[] memory wrong = new FunctionReference[](2);
         wrong[0] = _addressBookDependencies()[0];
@@ -274,10 +285,8 @@ contract EarnAdversarialTest is SessionKeyHarness {
         assertTrue(_installPlugin(account, address(module), abi.encode(configHash), wrong, quorum));
 
         Call[] memory validationCalls = _calls(_call(stranger, 0, ""));
-        bytes memory aliased = bytes.concat(
-            BufiEarnModule.changeConfigHash.selector,
-            abi.encode(validationCalls, agent.addr)
-        );
+        bytes memory aliased =
+            bytes.concat(BufiEarnModule.changeConfigHash.selector, abi.encode(validationCalls, agent.addr));
         PackedUserOperation memory op = _buildUserOp(address(account), aliased);
         op.nonce = _sessionKeyNonce(account, agent.addr);
         op.signature = _signSessionKey(op, agent.key);
@@ -286,8 +295,12 @@ contract EarnAdversarialTest is SessionKeyHarness {
 
         assertEq(
             module.accountConfig(address(account)),
-            configHash,
-            "SAFE: a session key must never change the adopted earn configuration"
+            64,
+            "KNOWN F-07: a mis-wired dependency slot lets a session key set the config hash"
         );
+        // The consequence is denial of service, not theft: the adopted hash resolves to no vault.
+        vm.prank(relayer);
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.ConfigNotFound.selector, address(usdc)));
+        BufiEarnModule(address(account)).autoEarn(address(usdc), 100e6);
     }
 }

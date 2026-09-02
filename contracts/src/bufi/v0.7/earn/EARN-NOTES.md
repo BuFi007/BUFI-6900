@@ -140,3 +140,22 @@ path such an account has.
   `InvalidValidationFunctionId(0)`; a `changeConfigHash` userOp is rejected at validation),
   clears the adopted hash, and leaves the account able to reinstall. Install and uninstall
   both require the quorum; a single owner is rejected at validation.
+
+## Hardening from the adversarial pass (2026-09-02)
+
+`reports/ADVERSARIAL_PRE_TENDERLY.md` (Codex) produced two changes to this module, both narrowing:
+
+- **F-06 — `autoEarn` now proves the deposit happened.** It checks the vault's `asset()` equals the swept token,
+  then reads the account's token and share balances either side of the two external calls: `ZeroSharesMinted` if
+  no shares arrived, `UnexpectedAssetDelta` if the token debit is not exactly `amountToSave`, `VaultAssetMismatch`
+  if the vault claims a different underlying. Before this, an adopted vault could take the assets and mint nothing
+  while `AutoEarnExecuted` still fired. Adoption authorises a DESTINATION, never a silent loss. Consequence for
+  operators: a zero-amount sweep now reverts instead of emitting a no-op success — relayers must not schedule them.
+- **F-08 — `setConfig` requires canonical ordering** (strictly increasing by `(chainId, token)`, `ConfigNotSorted`
+  otherwise). The hash commits to the ABI encoding, so the same logical policy submitted in two orders used to
+  produce two different config hashes; a quorum reviewing an adoption could not tell them apart. Duplicates are
+  rejected by the same predicate.
+
+Accepted without code change: **F-07** (ERC-6900 types dependencies only as `IPlugin`, so a mis-wired owner slot
+lets session-key-shaped calldata validate `changeConfigHash` — a denial of service on adoption, no asset movement;
+the installer is the control, and the SDK's `earnModuleDependencies()` always emits the weighted validator).

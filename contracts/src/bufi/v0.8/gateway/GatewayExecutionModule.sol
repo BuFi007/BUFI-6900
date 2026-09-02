@@ -20,16 +20,16 @@ pragma solidity 0.8.24;
 
 import {IGatewayExecutionModule} from "./interfaces/IGatewayExecutionModule.sol";
 import {IGatewayWallet} from "./interfaces/IGatewayWallet.sol";
-import {IERC6900Module} from "@erc6900/reference-implementation-v0.8.1/interfaces/IERC6900Module.sol";
 import {
     ExecutionManifest,
-    ManifestExecutionFunction,
-    IERC6900ExecutionModule
+    IERC6900ExecutionModule,
+    ManifestExecutionFunction
 } from "@erc6900/reference-implementation-v0.8.1/interfaces/IERC6900ExecutionModule.sol";
+import {IERC6900Module} from "@erc6900/reference-implementation-v0.8.1/interfaces/IERC6900Module.sol";
 import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
-import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 /**
  * @title GatewayExecutionModule
@@ -149,9 +149,7 @@ contract GatewayExecutionModule is IGatewayExecutionModule, ERC165 {
 
         // revokeDelegate - requires validation (multi-sig), allow global validation
         manifest.executionFunctions[1] = ManifestExecutionFunction({
-            executionSelector: this.revokeDelegate.selector,
-            skipRuntimeValidation: false,
-            allowGlobalValidation: true
+            executionSelector: this.revokeDelegate.selector, skipRuntimeValidation: false, allowGlobalValidation: true
         });
 
         // depositToGateway - requires validation (multi-sig), no global validation
@@ -265,11 +263,12 @@ contract GatewayExecutionModule is IGatewayExecutionModule, ERC165 {
     /**
      * @inheritdoc IGatewayExecutionModule
      */
-    function isDelegateAuthorized(
-        address token,
-        address account,
-        address delegate
-    ) external view override returns (bool) {
+    function isDelegateAuthorized(address token, address account, address delegate)
+        external
+        view
+        override
+        returns (bool)
+    {
         return _gatewayWallet.isAuthorizedForBalance(token, account, delegate);
     }
 
@@ -303,9 +302,7 @@ contract GatewayExecutionModule is IGatewayExecutionModule, ERC165 {
      * @dev Advertises support for IModule, IExecutionModule, and IGatewayExecutionModule
      */
     function supportsInterface(bytes4 interfaceId) public view override(ERC165, IERC165) returns (bool) {
-        return
-            interfaceId == type(IERC6900Module).interfaceId ||
-            interfaceId == type(IGatewayExecutionModule).interfaceId ||
-            super.supportsInterface(interfaceId);
+        return interfaceId == type(IERC6900Module).interfaceId
+            || interfaceId == type(IGatewayExecutionModule).interfaceId || super.supportsInterface(interfaceId);
     }
 }

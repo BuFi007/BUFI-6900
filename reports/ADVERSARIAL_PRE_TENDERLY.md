@@ -210,3 +210,29 @@ Foundry fully resolved deterministic authorization, storage-state, reentrancy, b
 4. **Public-mempool ordering for incident response.** Reproduce F-01 with an owner revocation and agent lane-zero userOp simultaneously visible to a bundler, including replacement/priority behavior and repeated agent submissions. Local chain ordering proves the state transition; a vnet measures whether the production SDK/bundler makes the race practical and validates the operational mitigation of a distinct owner management lane.
 
 No local scenario remained unconstructed for access-list modes, batch atomicity, plugin reentrancy, D7 codeless installation, uninstall/dependency cleanup, relayer revocation, or Circle validation-data packing. Their adversarial attempts are executable in the added suites and held.
+
+
+---
+
+## Disposition (BUFI)
+
+Applied 2026-09-02 by the BUFI team on top of Codex's review. The PoC suites in `contracts/test/adversarial/` were
+kept as permanent regressions: findings that were FIXED keep their `test_SAFE_…` name and now pass; findings that
+were ACCEPTED were renamed `test_KNOWN_F0N_…`, assert the current behaviour explicitly, and carry the mitigation in
+NatSpec so nobody "repairs" them by accident. `forge test` (default profile): **263 passed, 0 failed**.
+
+| Finding | Decision | Change | Test |
+| --- | --- | --- | --- |
+| F-01 nonce-lane liveness (Medium) | **Fixed** | `SessionKeyPermissions.sol` — the lane rule now applies to every session key, not only gas-limited ones. Recorded as port deviation **D10** in `PORT-NOTES.md`; strictly narrowing, no caller change (the SDK already pins the lane). | `SessionKeyAdversarial.t.sol::test_SAFE_pendingOwnerRevocationSurvivesAgentNonceLaneCollision` — the lane-0 agent op is now rejected and the pending owner revocation lands |
+| F-02 approve-spender delegation (Low) | **Accepted, documented** | The hook enforces the syntactic recipient; an allowlisted spender can forward later. Mitigation is AddressBook discipline: only escrow-style spenders (e.g. the ERC-8183 jobs contract), never routers. | `test_KNOWN_F02_allowlistedSpenderCanForwardToAnOffListRecipient` |
+| F-03 selector-semantic confusion (Low) | **Accepted, documented** | Same root cause: `RecipientAddressLib` answers "which address is in these bytes", not "where does this end up". | `test_KNOWN_F03_allowlistedProxyReinterpretsTransferArguments` |
+| F-04 fee-on-transfer accounting (Low) | **Accepted, documented** | Budgets count the calldata amount. Enforcing an actual delta is not generalisable (a hostile token can lie in `balanceOf`). Mitigation: supported-token policy (USDC/EURC) at grant issuance. | `test_KNOWN_F04_feeOnTransferDebitsMoreThanTheNominalBudget` |
+| F-05 ERC-20 boolean return (Low) | **Accepted, documented** | Audited upstream behaviour kept. SafeERC20-style checking would be deviation D11 and is **not** applied. Same token-policy mitigation. | `test_KNOWN_F05_falseReturningTokenIsReportedAsSuccess` |
+| F-06 vault output not validated (Low) | **Fixed** | `BufiEarnModule.autoEarn` verifies `asset()`, shares minted > 0, and an exact token debit (`ZeroSharesMinted`, `UnexpectedAssetDelta`, `VaultAssetMismatch`). | `test_SAFE_zeroShareVaultCannotCauseSilentValueLoss` (now expects the revert) |
+| F-07 dependency-slot type confusion (Low) | **Accepted, documented** | Circle's PluginManager cannot type-check which plugin is the owner validator. Effect is DoS on config adoption, not theft. The installer is the control. | `test_KNOWN_F07_wrongDependencySlotGivesSessionKeyConfigAuthority` (also pins that the resulting hash resolves to no vault) |
+| F-08 config not canonical (Informational) | **Fixed** | `setConfig` enforces strictly increasing `(chainId, token)` (`ConfigNotSorted`), so one policy has one hash. | `test_configHashHasNoAbiPackingCollision_butOrderingIsNotCanonical` (now asserts the rejection) |
+| F-09 ERC-7562 strictness (Informational) | **Accepted** | The plugin uses the audited ERC-6900 reference libraries Circle's own plugins use, and Circle's live bundler accepts the operations (see the Fuji canary in the repo README). Raised as a question for Circle rather than a change. | — |
+
+**Note on deployed bytecode:** the Fuji/Arc plugins at `0x28504B34…` and `0x57D446a9…` were deployed 2026-09-01,
+i.e. **before** these fixes. They must be redeployed before any further live use; the addresses will change because
+the CREATE2 salt hashes the init code.

@@ -65,10 +65,10 @@ interface IGatewayHelper {
      * @return data The encoded calldata for addDelegate(token, delegate)
      * @dev MSCA should execute: msca.execute(target, 0, data)
      */
-    function encodeAuthorizeDelegate(
-        address token,
-        address delegate
-    ) external view returns (address target, bytes memory data);
+    function encodeAuthorizeDelegate(address token, address delegate)
+        external
+        view
+        returns (address target, bytes memory data);
 
     /**
      * @notice Encode calldata to revoke a delegate's authorization
@@ -77,10 +77,10 @@ interface IGatewayHelper {
      * @return target The Gateway Wallet address to call
      * @return data The encoded calldata for removeDelegate(token, delegate)
      */
-    function encodeRevokeDelegate(
-        address token,
-        address delegate
-    ) external view returns (address target, bytes memory data);
+    function encodeRevokeDelegate(address token, address delegate)
+        external
+        view
+        returns (address target, bytes memory data);
 
     /**
      * @notice Encode calldata to deposit tokens into Gateway
@@ -90,10 +90,7 @@ interface IGatewayHelper {
      * @return data The encoded calldata for deposit(token, amount)
      * @dev MSCA must approve Gateway to spend tokens BEFORE executing this call
      */
-    function encodeDeposit(
-        address token,
-        uint256 amount
-    ) external view returns (address target, bytes memory data);
+    function encodeDeposit(address token, uint256 amount) external view returns (address target, bytes memory data);
 
     /**
      * @notice Encode calldata to initiate a withdrawal from Gateway
@@ -103,10 +100,10 @@ interface IGatewayHelper {
      * @return data The encoded calldata for initiateWithdrawal(token, amount)
      * @dev Starts the withdrawal delay period (typically 7 days)
      */
-    function encodeInitiateWithdrawal(
-        address token,
-        uint256 amount
-    ) external view returns (address target, bytes memory data);
+    function encodeInitiateWithdrawal(address token, uint256 amount)
+        external
+        view
+        returns (address target, bytes memory data);
 
     /**
      * @notice Encode calldata to complete a withdrawal after delay
@@ -114,9 +111,7 @@ interface IGatewayHelper {
      * @return target The Gateway Wallet address to call
      * @return data The encoded calldata for withdraw(token)
      */
-    function encodeCompleteWithdrawal(
-        address token
-    ) external view returns (address target, bytes memory data);
+    function encodeCompleteWithdrawal(address token) external view returns (address target, bytes memory data);
 
     /**
      * @notice Encode calldata to approve Gateway to spend tokens
@@ -126,10 +121,10 @@ interface IGatewayHelper {
      * @return data The encoded calldata for approve(gateway, amount)
      * @dev Call this BEFORE encodeDeposit. MSCA executes both in sequence.
      */
-    function encodeApproveGateway(
-        address token,
-        uint256 amount
-    ) external view returns (address target, bytes memory data);
+    function encodeApproveGateway(address token, uint256 amount)
+        external
+        view
+        returns (address target, bytes memory data);
 
     // =========================================================================
     // View Functions (No msg.sender dependency)
@@ -142,11 +137,7 @@ interface IGatewayHelper {
      * @param delegate The potential delegate address
      * @return True if the delegate is authorized for the depositor's balance
      */
-    function isDelegateAuthorized(
-        address token,
-        address depositor,
-        address delegate
-    ) external view returns (bool);
+    function isDelegateAuthorized(address token, address depositor, address delegate) external view returns (bool);
 
     /**
      * @notice Get the available Gateway balance for a depositor
@@ -154,10 +145,7 @@ interface IGatewayHelper {
      * @param depositor The depositor (MSCA) address
      * @return The available balance in Gateway
      */
-    function getAvailableBalance(
-        address token,
-        address depositor
-    ) external view returns (uint256);
+    function getAvailableBalance(address token, address depositor) external view returns (uint256);
 
     /**
      * @notice Get the total Gateway balance for a depositor
@@ -165,10 +153,7 @@ interface IGatewayHelper {
      * @param depositor The depositor (MSCA) address
      * @return The total balance in Gateway
      */
-    function getTotalBalance(
-        address token,
-        address depositor
-    ) external view returns (uint256);
+    function getTotalBalance(address token, address depositor) external view returns (uint256);
 
     /**
      * @notice Get the withdrawable balance for a depositor
@@ -176,10 +161,7 @@ interface IGatewayHelper {
      * @param depositor The depositor (MSCA) address
      * @return The withdrawable balance (after delay period)
      */
-    function getWithdrawableBalance(
-        address token,
-        address depositor
-    ) external view returns (uint256);
+    function getWithdrawableBalance(address token, address depositor) external view returns (uint256);
 
     /**
      * @notice Get the Gateway withdrawal delay

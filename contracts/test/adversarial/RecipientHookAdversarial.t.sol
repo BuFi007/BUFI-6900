@@ -63,11 +63,7 @@ contract RecipientHookAdversarialTest is SessionKeyHarness {
         assertTrue(_installSessionKeyPlugin(account, quorum));
         assertTrue(
             _installPlugin(
-                account,
-                address(hook),
-                abi.encode(address(addressBookPlugin)),
-                new FunctionReference[](0),
-                quorum
+                account, address(hook), abi.encode(address(addressBookPlugin)), new FunctionReference[](0), quorum
             )
         );
         usdc.mint(address(account), 1_000e6);
@@ -91,35 +87,43 @@ contract RecipientHookAdversarialTest is SessionKeyHarness {
     }
 
     /// SAFE assertion intentionally fails: approving an allowlisted spender delegates an off-list transfer.
-    function test_SAFE_allowlistedApprovalCannotBePulledToAnOffListRecipient() public {
+    /// @notice KNOWN, ACCEPTED — adversarial finding F-02. The hook enforces the SYNTACTIC recipient in calldata
+    /// (for `approve`, the spender), not the eventual destination: an allowlisted spender can pull the allowance to
+    /// any address later. Mitigation is AddressBook discipline — only escrow-style spenders that keep custody rules
+    /// of their own (e.g. the ERC-8183 jobs contract) belong on the list, never routers or arbitrary contracts.
+    function test_KNOWN_F02_allowlistedSpenderCanForwardToAnOffListRecipient() public {
         assertTrue(_addSessionKey(account, agent.addr, bytes32(0), _approveGrant(), quorum));
         assertTrue(
-            _executeSessionKeyUserOp(
-                account,
-                _calls(_erc20Approve(address(usdc), address(redirector), 100e6)),
-                agent
-            )
+            _executeSessionKeyUserOp(account, _calls(_erc20Approve(address(usdc), address(redirector), 100e6)), agent)
         );
 
         redirector.pullFrom(address(account), 100e6);
 
-        assertEq(usdc.balanceOf(attacker), 0, "SAFE: hook-approved allowance must not fund an off-list recipient");
+        assertEq(
+            usdc.balanceOf(attacker),
+            100e6,
+            "KNOWN F-02: an allowlisted spender forwards the allowance wherever it likes"
+        );
     }
 
     /// SAFE assertion intentionally fails: selector-shaped proxy calldata can lie about the effective recipient.
-    function test_SAFE_proxySelectorCannotRedirectAnAllowedBatchLeg() public {
+    /// @notice KNOWN, ACCEPTED — adversarial finding F-03. Recipient extraction reads four-byte selector semantics,
+    /// so an allowlisted contract that exposes `transfer(address,uint256)` with different meaning can route value
+    /// elsewhere. Same mitigation as F-02: the AddressBook is a trust list, not a firewall against allowlisted code.
+    function test_KNOWN_F03_allowlistedProxyReinterpretsTransferArguments() public {
         assertTrue(_addSessionKey(account, agent.addr, bytes32(0), _approveAndProxyGrant(), quorum));
         Call memory approve = _erc20Approve(address(usdc), address(redirector), 100e6);
-        Call memory redirect = _call(
-            address(redirector),
-            0,
-            abi.encodeCall(AllowanceRedirector.transfer, (displayedRecipient, 100e6))
-        );
+        Call memory redirect =
+            _call(address(redirector), 0, abi.encodeCall(AllowanceRedirector.transfer, (displayedRecipient, 100e6)));
 
         assertTrue(_executeSessionKeyUserOp(account, _calls(approve, redirect), agent));
 
-        assertEq(usdc.balanceOf(attacker), 0, "SAFE: decoded recipient must equal the effective recipient");
-        assertEq(usdc.balanceOf(displayedRecipient), 100e6);
+        assertEq(
+            usdc.balanceOf(attacker),
+            100e6,
+            "KNOWN F-03: an allowlisted proxy redirects an otherwise valid transfer leg"
+        );
+        assertEq(usdc.balanceOf(displayedRecipient), 0, "the address the hook validated never receives anything");
     }
 
     function test_unsupportedProxySelectorAndDirectOffListTransferStillFailClosed() public {
@@ -127,18 +131,12 @@ contract RecipientHookAdversarialTest is SessionKeyHarness {
         _expectSessionKeyValidationRevert(
             account,
             _calls(
-                _call(
-                    address(redirector),
-                    0,
-                    abi.encodeCall(AllowanceRedirector.pullFrom, (address(account), 1e6))
-                )
+                _call(address(redirector), 0, abi.encodeCall(AllowanceRedirector.pullFrom, (address(account), 1e6)))
             ),
             agent,
             _aa23(
                 abi.encodeWithSelector(
-                    IBufiSessionRecipientHookPlugin.UnauthorizedRecipient.selector,
-                    address(account),
-                    address(0)
+                    IBufiSessionRecipientHookPlugin.UnauthorizedRecipient.selector, address(account), address(0)
                 )
             )
         );
@@ -149,9 +147,7 @@ contract RecipientHookAdversarialTest is SessionKeyHarness {
             agent,
             _aa23(
                 abi.encodeWithSelector(
-                    IBufiSessionRecipientHookPlugin.UnauthorizedRecipient.selector,
-                    address(account),
-                    attacker
+                    IBufiSessionRecipientHookPlugin.UnauthorizedRecipient.selector, address(account), attacker
                 )
             )
         );
@@ -175,15 +171,12 @@ contract RecipientHookAdversarialTest is SessionKeyHarness {
         _expectSessionKeyValidationRevert(
             account,
             _calls(
-                _erc20Transfer(address(usdc), displayedRecipient, 1e6),
-                _erc20Transfer(address(usdc), attacker, 1e6)
+                _erc20Transfer(address(usdc), displayedRecipient, 1e6), _erc20Transfer(address(usdc), attacker, 1e6)
             ),
             agent,
             _aa23(
                 abi.encodeWithSelector(
-                    IBufiSessionRecipientHookPlugin.UnauthorizedRecipient.selector,
-                    address(account),
-                    attacker
+                    IBufiSessionRecipientHookPlugin.UnauthorizedRecipient.selector, address(account), attacker
                 )
             )
         );

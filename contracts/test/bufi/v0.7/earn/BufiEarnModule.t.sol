@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.24;
 
-import { Test } from "forge-std/src/Test.sol";
+import {Test} from "forge-std/src/Test.sol";
 
-import { BufiEarnModule } from "../../../../src/bufi/v0.7/earn/BufiEarnModule.sol";
-import { MockMsca, MockUsdc, MockVault } from "./mocks/Mocks.sol";
+import {BufiEarnModule} from "../../../../src/bufi/v0.7/earn/BufiEarnModule.sol";
+import {MockMsca, MockUsdc, MockVault} from "./mocks/Mocks.sol";
 import {FunctionReference} from "@circle/msca/6900/v0.7/common/Structs.sol";
 
 contract BufiEarnModuleTest is Test {
@@ -28,11 +28,7 @@ contract BufiEarnModuleTest is Test {
         account = new MockMsca();
 
         BufiEarnModule.ConfigInput[] memory configs = new BufiEarnModule.ConfigInput[](1);
-        configs[0] = BufiEarnModule.ConfigInput({
-            chainId: block.chainid,
-            token: address(usdc),
-            vault: address(vault)
-        });
+        configs[0] = BufiEarnModule.ConfigInput({chainId: block.chainid, token: address(usdc), vault: address(vault)});
         vm.prank(owner);
         configHash = module.setConfig(configs);
 
@@ -80,17 +76,13 @@ contract BufiEarnModuleTest is Test {
         other.mint(address(account), 1e6);
 
         vm.prank(relayer);
-        vm.expectRevert(
-            abi.encodeWithSelector(BufiEarnModule.ConfigNotFound.selector, address(other))
-        );
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.ConfigNotFound.selector, address(other)));
         BufiEarnModule(address(account)).autoEarn(address(other), 1e6);
     }
 
     function test_directPluginCallFromUninitializedAccountReverts() public {
         vm.prank(stranger);
-        vm.expectRevert(
-            abi.encodeWithSelector(BufiEarnModule.ModuleNotInitialized.selector, stranger)
-        );
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.ModuleNotInitialized.selector, stranger));
         module.autoEarn(address(usdc), 1e6);
     }
 
@@ -99,11 +91,7 @@ contract BufiEarnModuleTest is Test {
         assertFalse(module.isInitialized(address(account)));
 
         vm.prank(relayer);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                BufiEarnModule.ModuleNotInitialized.selector, address(account)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.ModuleNotInitialized.selector, address(account)));
         BufiEarnModule(address(account)).autoEarn(address(usdc), 1e6);
     }
 
@@ -143,22 +131,14 @@ contract BufiEarnModuleTest is Test {
     }
 
     function test_installRejectsDoubleInstall() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                BufiEarnModule.ModuleAlreadyInitialized.selector, address(account)
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.ModuleAlreadyInitialized.selector, address(account)));
         vm.prank(address(account));
         module.onInstall(abi.encode(configHash));
     }
 
     function test_setConfigOnlyOwner() public {
         BufiEarnModule.ConfigInput[] memory configs = new BufiEarnModule.ConfigInput[](1);
-        configs[0] = BufiEarnModule.ConfigInput({
-            chainId: block.chainid,
-            token: address(usdc),
-            vault: address(vault)
-        });
+        configs[0] = BufiEarnModule.ConfigInput({chainId: block.chainid, token: address(usdc), vault: address(vault)});
         vm.prank(stranger);
         vm.expectRevert();
         module.setConfig(configs);
@@ -182,11 +162,8 @@ contract BufiEarnModuleTest is Test {
     function test_accountCanChangeConfigHash() public {
         MockVault newVault = new MockVault(usdc);
         BufiEarnModule.ConfigInput[] memory configs = new BufiEarnModule.ConfigInput[](1);
-        configs[0] = BufiEarnModule.ConfigInput({
-            chainId: block.chainid,
-            token: address(usdc),
-            vault: address(newVault)
-        });
+        configs[0] =
+            BufiEarnModule.ConfigInput({chainId: block.chainid, token: address(usdc), vault: address(newVault)});
         vm.prank(owner);
         uint256 newHash = module.setConfig(configs);
 
@@ -205,11 +182,8 @@ contract BufiEarnModuleTest is Test {
         // produces a DIFFERENT hash — the account's adopted mapping is untouched
         MockVault evilVault = new MockVault(usdc);
         BufiEarnModule.ConfigInput[] memory configs = new BufiEarnModule.ConfigInput[](1);
-        configs[0] = BufiEarnModule.ConfigInput({
-            chainId: block.chainid,
-            token: address(usdc),
-            vault: address(evilVault)
-        });
+        configs[0] =
+            BufiEarnModule.ConfigInput({chainId: block.chainid, token: address(usdc), vault: address(evilVault)});
         vm.prank(owner);
         uint256 otherHash = module.setConfig(configs);
         assertTrue(otherHash != configHash);
@@ -228,25 +202,17 @@ contract BufiEarnModuleTest is Test {
     }
 
     function test_manifestHashMatchesManifestEncoding() public view {
-        assertEq(
-            module.manifestHash(), keccak256(abi.encode(module.pluginManifest()))
-        );
+        assertEq(module.manifestHash(), keccak256(abi.encode(module.pluginManifest())));
     }
 
     function test_multiChainConfigSharesOneHash() public {
         // Avalanche (43114) + Arc entries in one set: only the current chain's
         // mapping resolves; the other chain's tokens don't leak in
+        // Canonical order is strictly increasing by (chainId, token) — F-08. The local chain (31337) sorts before
+        // Avalanche (43114).
         BufiEarnModule.ConfigInput[] memory configs = new BufiEarnModule.ConfigInput[](2);
-        configs[0] = BufiEarnModule.ConfigInput({
-            chainId: 43_114,
-            token: address(usdc),
-            vault: address(vault)
-        });
-        configs[1] = BufiEarnModule.ConfigInput({
-            chainId: block.chainid,
-            token: address(usdc),
-            vault: address(vault)
-        });
+        configs[0] = BufiEarnModule.ConfigInput({chainId: block.chainid, token: address(usdc), vault: address(vault)});
+        configs[1] = BufiEarnModule.ConfigInput({chainId: 43_114, token: address(usdc), vault: address(vault)});
         vm.prank(owner);
         uint256 multiHash = module.setConfig(configs);
 

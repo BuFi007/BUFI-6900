@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.24;
 
-import {SessionKeyHarness} from "../harness/SessionKeyHarness.sol";
 import {MockVault} from "../bufi/v0.7/earn/mocks/Mocks.sol";
+import {SessionKeyHarness} from "../harness/SessionKeyHarness.sol";
 
 import {BufiEarnModule} from "../../src/bufi/v0.7/earn/BufiEarnModule.sol";
 import {BufiSessionRecipientHookPlugin} from "../../src/bufi/v0.7/recipient-hook/BufiSessionRecipientHookPlugin.sol";
@@ -14,8 +14,7 @@ import {PackedUserOperation} from "@account-abstraction/contracts/interfaces/Pac
 import {UpgradableMSCA} from "@circle/msca/6900/v0.7/account/UpgradableMSCA.sol";
 import {Call, FunctionReference} from "@circle/msca/6900/v0.7/common/Structs.sol";
 import {IPluginManager} from "@circle/msca/6900/v0.7/interfaces/IPluginManager.sol";
-import {IAddressBookPlugin} from
-    "@circle/msca/6900/v0.7/plugins/v1_0_0/addressbook/IAddressBookPlugin.sol";
+import {IAddressBookPlugin} from "@circle/msca/6900/v0.7/plugins/v1_0_0/addressbook/IAddressBookPlugin.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract CompositionAdversarialTest is SessionKeyHarness {
@@ -67,11 +66,7 @@ contract CompositionAdversarialTest is SessionKeyHarness {
 
     function _installHook() internal returns (bool) {
         return _installPlugin(
-            account,
-            address(hook),
-            abi.encode(address(addressBookPlugin)),
-            new FunctionReference[](0),
-            quorum
+            account, address(hook), abi.encode(address(addressBookPlugin)), new FunctionReference[](0), quorum
         );
     }
 
@@ -99,10 +94,8 @@ contract CompositionAdversarialTest is SessionKeyHarness {
             IBufiSessionKeyPlugin.removeSessionKey,
             (agent.addr, sessionKeyPlugin.findPredecessor(address(account), agent.addr))
         );
-        forbidden[4] = abi.encodeCall(
-            IBufiSessionKeyPlugin.updateKeyPermissions,
-            (agent.addr, _updates(_permAllowAll()))
-        );
+        forbidden[4] =
+            abi.encodeCall(IBufiSessionKeyPlugin.updateKeyPermissions, (agent.addr, _updates(_permAllowAll())));
         forbidden[5] = abi.encodeCall(IAddressBookPlugin.addAllowedRecipients, (_one(stranger)));
 
         for (uint256 i = 0; i < forbidden.length; ++i) {
@@ -118,9 +111,7 @@ contract CompositionAdversarialTest is SessionKeyHarness {
             agent,
             _aa23(
                 abi.encodeWithSelector(
-                    IBufiSessionRecipientHookPlugin.UnauthorizedRecipient.selector,
-                    address(account),
-                    address(0)
+                    IBufiSessionRecipientHookPlugin.UnauthorizedRecipient.selector, address(account), address(0)
                 )
             )
         );
@@ -147,9 +138,7 @@ contract CompositionAdversarialTest is SessionKeyHarness {
 
     function test_weightedUninstallIsBlockedUntilAllThreeDependentsAreRemoved() public {
         (bool ok,) = _executeOwnerUserOpWithReason(
-            account,
-            abi.encodeCall(IPluginManager.uninstallPlugin, (address(weightedPlugin), "", "")),
-            quorum
+            account, abi.encodeCall(IPluginManager.uninstallPlugin, (address(weightedPlugin), "", "")), quorum
         );
         assertFalse(ok, "weighted has session, earn, and AddressBook dependents");
         assertTrue(_isInstalled(account, address(weightedPlugin)));
@@ -187,9 +176,7 @@ contract CompositionAdversarialTest is SessionKeyHarness {
             agent,
             _aa23(
                 abi.encodeWithSelector(
-                    IBufiSessionRecipientHookPlugin.UnauthorizedRecipient.selector,
-                    address(account),
-                    allowed
+                    IBufiSessionRecipientHookPlugin.UnauthorizedRecipient.selector, address(account), allowed
                 )
             )
         );

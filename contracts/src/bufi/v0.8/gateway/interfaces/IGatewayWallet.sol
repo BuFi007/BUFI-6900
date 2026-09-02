@@ -83,13 +83,8 @@ interface IGatewayWallet {
      * @param deadline Permit deadline
      * @param signature The packed signature
      */
-    function depositWithPermit(
-        address token,
-        address owner,
-        uint256 value,
-        uint256 deadline,
-        bytes calldata signature
-    ) external;
+    function depositWithPermit(address token, address owner, uint256 value, uint256 deadline, bytes calldata signature)
+        external;
 
     /**
      * @notice Deposit tokens using EIP-3009 authorization
@@ -186,10 +181,10 @@ interface IGatewayWallet {
      * @param ids Array of encoded token IDs
      * @return balances Array of balances
      */
-    function balanceOfBatch(
-        address[] calldata depositors,
-        uint256[] calldata ids
-    ) external view returns (uint256[] memory balances);
+    function balanceOfBatch(address[] calldata depositors, uint256[] calldata ids)
+        external
+        view
+        returns (uint256[] memory balances);
 
     // =========================================================================
     // Delegate Management (TOKEN-SCOPED)
@@ -222,11 +217,7 @@ interface IGatewayWallet {
      * @param addr The potential delegate address (or depositor itself)
      * @return True if addr is authorized for this token/depositor pair
      */
-    function isAuthorizedForBalance(
-        address token,
-        address depositor,
-        address addr
-    ) external view returns (bool);
+    function isAuthorizedForBalance(address token, address depositor, address addr) external view returns (bool);
 
     // =========================================================================
     // Withdrawal Functions (Trustless)

@@ -1,19 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.24;
 
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { ERC4626 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IPluginExecutor} from "@circle/msca/6900/v0.7/interfaces/IPluginExecutor.sol";
-import {IPlugin} from "@circle/msca/6900/v0.7/interfaces/IPlugin.sol";
-import {
-    ManifestAssociatedFunctionType,
-    PluginManifest
-} from "@circle/msca/6900/v0.7/common/PluginManifest.sol";
+import {ManifestAssociatedFunctionType, PluginManifest} from "@circle/msca/6900/v0.7/common/PluginManifest.sol";
 import {FunctionReference} from "@circle/msca/6900/v0.7/common/Structs.sol";
+import {IPlugin} from "@circle/msca/6900/v0.7/interfaces/IPlugin.sol";
+import {IPluginExecutor} from "@circle/msca/6900/v0.7/interfaces/IPluginExecutor.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 
 contract MockUsdc is ERC20 {
-    constructor() ERC20("USD Coin", "USDC") { }
+    constructor() ERC20("USD Coin", "USDC") {}
 
     function decimals() public pure override returns (uint8) {
         return 6;
@@ -25,7 +22,7 @@ contract MockUsdc is ERC20 {
 }
 
 contract MockVault is ERC4626 {
-    constructor(IERC20 asset_) ERC4626(asset_) ERC20("Mock USDC Vault", "vUSDC") { }
+    constructor(IERC20 asset_) ERC4626(asset_) ERC20("Mock USDC Vault", "vUSDC") {}
 }
 
 /**
@@ -81,8 +78,7 @@ contract MockMsca is IPluginExecutor {
             ) {
                 runtimeValidationIsDependency[selector] = true;
             } else {
-                validationFunctionId[selector] =
-                    manifest.runtimeValidationFunctions[i].associatedFunction.functionId;
+                validationFunctionId[selector] = manifest.runtimeValidationFunctions[i].associatedFunction.functionId;
             }
         }
         IPlugin(plugin_).onInstall(installData);
@@ -115,7 +111,7 @@ contract MockMsca is IPluginExecutor {
         returns (bytes memory)
     {
         if (msg.sender != plugin) revert OnlyInstalledPlugin(msg.sender);
-        (bool ok, bytes memory ret) = target.call{ value: value }(data);
+        (bool ok, bytes memory ret) = target.call{value: value}(data);
         if (!ok) _revertWith(ret);
         return ret;
     }
@@ -124,9 +120,7 @@ contract MockMsca is IPluginExecutor {
         if (!selectorInstalled[msg.sig]) revert SelectorNotInstalled(msg.sig);
         if (runtimeValidationIsDependency[msg.sig]) revert RuntimeValidationFailClosed(msg.sig);
 
-        IPlugin(plugin).runtimeValidationFunction(
-            validationFunctionId[msg.sig], msg.sender, msg.value, msg.data
-        );
+        IPlugin(plugin).runtimeValidationFunction(validationFunctionId[msg.sig], msg.sender, msg.value, msg.data);
 
         (bool ok, bytes memory ret) = plugin.call(msg.data);
         if (!ok) _revertWith(ret);
@@ -135,7 +129,7 @@ contract MockMsca is IPluginExecutor {
         }
     }
 
-    receive() external payable { }
+    receive() external payable {}
 
     function _revertWith(bytes memory ret) private pure {
         assembly {

@@ -113,17 +113,22 @@ abstract contract SessionKeyPermissions is IBufiSessionKeyPlugin, SessionKeyPerm
             currentValidAfter = _max(currentValidAfter, spendLimitValidAfter);
         }
 
+        // PORT D10 (BUFI-6900, adversarial finding F-01): the audited original applied the nonce-lane rule ONLY to
+        // gas-limited keys, because its stated purpose was bundle-reputation protection for the gas-usage state
+        // write. An unmetered key could therefore occupy nonce lane 0 — the same lane owner user operations
+        // default to — and a well-timed agent operation would invalidate an owner's already-signed revocation,
+        // which then has to be re-signed by the quorum. We require the lane for EVERY session key: an agent gets
+        // its own sequential lane and can never consume an owner's nonce.
+        if (uint192(userOp.nonce >> 64) != uint192(uint160(sessionKey))) {
+            validationSuccess = false;
+        }
+
         if (sessionKeyData.hasGasLimit) {
             // Gas limit checking is the only type of permissions checking that has state changes performed during
             // validation. This can potentially cause reputation damage to staked accounts if multiple user
             // operations are accepted into the same bundle, then validation for one of the later operations fails
-            // due to the state change from the first. To protect from this, we require session keys to use their
-            // own address as the key portion of the user operation nonce field, in order to guarantee that they
-            // are used sequentially.
-            if (uint192(userOp.nonce >> 64) != uint192(uint160(sessionKey))) {
-                validationSuccess = false;
-            }
-
+            // due to the state change from the first. The nonce-lane requirement above (D10) guarantees session
+            // keys are used sequentially, which is what protects the account here.
             // PORT: the audited original charged `callGasLimit + verificationGasLimit * (paymaster ? 3 : 1) +
             // preVerificationGas`, which is EntryPoint v0.6's required prefund. EntryPoint v0.7 no longer scales
             // verificationGasLimit; the paymaster's verification and postOp gas are explicit fields of

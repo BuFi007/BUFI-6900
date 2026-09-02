@@ -44,39 +44,19 @@ interface IGatewayExecutionModule is IERC6900ExecutionModule {
     // =========================================================================
 
     /// @notice Emitted when a delegate is authorized for Gateway operations
-    event DelegateAuthorized(
-        address indexed account,
-        address indexed token,
-        address indexed delegate
-    );
+    event DelegateAuthorized(address indexed account, address indexed token, address indexed delegate);
 
     /// @notice Emitted when a delegate's authorization is revoked
-    event DelegateRevoked(
-        address indexed account,
-        address indexed token,
-        address indexed delegate
-    );
+    event DelegateRevoked(address indexed account, address indexed token, address indexed delegate);
 
     /// @notice Emitted when tokens are deposited to Gateway
-    event DepositedToGateway(
-        address indexed account,
-        address indexed token,
-        uint256 amount
-    );
+    event DepositedToGateway(address indexed account, address indexed token, uint256 amount);
 
     /// @notice Emitted when withdrawal is initiated
-    event WithdrawalInitiated(
-        address indexed account,
-        address indexed token,
-        uint256 amount
-    );
+    event WithdrawalInitiated(address indexed account, address indexed token, uint256 amount);
 
     /// @notice Emitted when withdrawal is completed
-    event WithdrawalCompleted(
-        address indexed account,
-        address indexed token,
-        uint256 amount
-    );
+    event WithdrawalCompleted(address indexed account, address indexed token, uint256 amount);
 
     // =========================================================================
     // Errors
@@ -156,11 +136,7 @@ interface IGatewayExecutionModule is IERC6900ExecutionModule {
      * @param delegate The potential delegate address
      * @return True if the delegate is authorized
      */
-    function isDelegateAuthorized(
-        address token,
-        address account,
-        address delegate
-    ) external view returns (bool);
+    function isDelegateAuthorized(address token, address account, address delegate) external view returns (bool);
 
     /**
      * @notice Get the MSCA's available Gateway balance for a token

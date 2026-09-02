@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.24;
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
-import {IPlugin} from "@circle/msca/6900/v0.7/interfaces/IPlugin.sol";
-import {IPluginExecutor} from "@circle/msca/6900/v0.7/interfaces/IPluginExecutor.sol";
+import {PackedUserOperation} from "@account-abstraction/contracts/interfaces/PackedUserOperation.sol";
 import {
     ManifestAssociatedFunction,
     ManifestAssociatedFunctionType,
@@ -16,7 +15,8 @@ import {
     PluginMetadata,
     SelectorPermission
 } from "@circle/msca/6900/v0.7/common/PluginManifest.sol";
-import {PackedUserOperation} from "@account-abstraction/contracts/interfaces/PackedUserOperation.sol";
+import {IPlugin} from "@circle/msca/6900/v0.7/interfaces/IPlugin.sol";
+import {IPluginExecutor} from "@circle/msca/6900/v0.7/interfaces/IPluginExecutor.sol";
 
 /**
  * @title BufiEarnModule
@@ -73,6 +73,14 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable {
     error InvalidConfigHash();
     error NotImplemented();
     error InvalidFunctionId(uint8 functionId);
+    /// @dev BUFI-6900 F-08: configs must be canonically ordered so that logically equal sets hash identically.
+    error ConfigNotSorted(uint256 index);
+    /// @dev BUFI-6900 F-06: the adopted vault accepted assets without minting shares to the account.
+    error ZeroSharesMinted(address vault);
+    /// @dev BUFI-6900 F-06: the account's balances did not move by exactly the swept amount.
+    error UnexpectedAssetDelta(address vault, uint256 expected, uint256 actual);
+    /// @dev BUFI-6900 F-06: the adopted vault's underlying asset is not the token being swept.
+    error VaultAssetMismatch(address vault, address expected, address actual);
 
     uint256 internal constant MAX_TOKENS = 100;
 
@@ -156,14 +164,24 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable {
     function setConfig(ConfigInput[] calldata newConfigs) external onlyOwner returns (uint256) {
         if (newConfigs.length == 0) revert EmptyConfigList();
 
+        // BUFI-6900 F-08: the hash commits to the ENCODING, so the same logical set submitted in a different order
+        // produced a different configHash — two hashes for one policy, and a quorum reviewing an adoption could not
+        // tell them apart. Require the canonical order the struct docs already claimed: strictly increasing by
+        // (chainId, token). Duplicates are rejected by the same predicate.
+        for (uint256 i = 1; i < newConfigs.length; i++) {
+            bool ordered = newConfigs[i].chainId > newConfigs[i - 1].chainId
+                || (newConfigs[i].chainId == newConfigs[i - 1].chainId
+                    && uint160(newConfigs[i].token) > uint160(newConfigs[i - 1].token));
+            if (!ordered) revert ConfigNotSorted(i);
+        }
+
         uint256 configHash_ = uint256(keccak256(abi.encode(newConfigs)));
 
         for (uint256 i = 0; i < newConfigs.length; i++) {
             address _token = newConfigs[i].token;
             uint256 _chainId = newConfigs[i].chainId;
 
-            uint256 configHashChainId =
-                uint256(keccak256(abi.encodePacked(configHash_, _chainId)));
+            uint256 configHashChainId = uint256(keccak256(abi.encodePacked(configHash_, _chainId)));
 
             if (!tokenListed[configHashChainId][_token]) {
                 if (tokenList[configHashChainId].length >= MAX_TOKENS) revert TooManyTokens();
@@ -202,11 +220,7 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable {
         return accountConfig[smartAccount] != 0;
     }
 
-    function getTokens(uint256 configHash_, uint256 chainId_)
-        external
-        view
-        returns (address[] memory)
-    {
+    function getTokens(uint256 configHash_, uint256 chainId_) external view returns (address[] memory) {
         return tokenList[uint256(keccak256(abi.encodePacked(configHash_, chainId_)))];
     }
 
@@ -215,15 +229,12 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable {
         if (configHash_ == 0) return new ConfigWithToken[](0);
 
         uint256 chainId_ = block.chainid;
-        address[] storage tokensArray =
-            tokenList[uint256(keccak256(abi.encodePacked(configHash_, chainId_)))];
+        address[] storage tokensArray = tokenList[uint256(keccak256(abi.encodePacked(configHash_, chainId_)))];
         ConfigWithToken[] memory configsArray = new ConfigWithToken[](tokensArray.length);
 
         for (uint256 i; i < tokensArray.length; i++) {
-            configsArray[i] = ConfigWithToken({
-                token: tokensArray[i],
-                vault: config[configHash_][chainId_][tokensArray[i]]
-            });
+            configsArray[i] =
+                ConfigWithToken({token: tokensArray[i], vault: config[configHash_][chainId_][tokensArray[i]]});
         }
 
         return configsArray;
@@ -254,12 +265,28 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable {
         address vaultAddress = config[configHash_][block.chainid][token];
         if (vaultAddress == address(0)) revert ConfigNotFound(token);
 
-        IPluginExecutor(account).executeFromPluginExternal(
-            token, 0, abi.encodeCall(IERC20.approve, (vaultAddress, amountToSave))
-        );
-        IPluginExecutor(account).executeFromPluginExternal(
-            vaultAddress, 0, abi.encodeCall(IERC4626.deposit, (amountToSave, account))
-        );
+        // BUFI-6900 F-06: `deposit`'s return value was ignored, so an adopted vault that took the assets and
+        // minted nothing still emitted a success event. Config adoption authorises a DESTINATION, not a silent
+        // loss: bound the leg with the vault's own asset claim and a before/after check on both sides.
+        if (IERC4626(vaultAddress).asset() != token) {
+            revert VaultAssetMismatch(vaultAddress, token, IERC4626(vaultAddress).asset());
+        }
+
+        uint256 tokenBefore = IERC20(token).balanceOf(account);
+        uint256 sharesBefore = IERC20(vaultAddress).balanceOf(account);
+
+        IPluginExecutor(account)
+            .executeFromPluginExternal(token, 0, abi.encodeCall(IERC20.approve, (vaultAddress, amountToSave)));
+        IPluginExecutor(account)
+            .executeFromPluginExternal(vaultAddress, 0, abi.encodeCall(IERC4626.deposit, (amountToSave, account)));
+
+        uint256 sharesMinted = IERC20(vaultAddress).balanceOf(account) - sharesBefore;
+        if (sharesMinted == 0) revert ZeroSharesMinted(vaultAddress);
+
+        uint256 tokenSpent = tokenBefore - IERC20(token).balanceOf(account);
+        if (tokenSpent != amountToSave) {
+            revert UnexpectedAssetDelta(vaultAddress, amountToSave, tokenSpent);
+        }
 
         emit AutoEarnExecuted(account, token, amountToSave);
     }
@@ -290,12 +317,11 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable {
 
     /// @dev The only validation this plugin provides: the runtime caller of
     /// account.autoEarn must be an authorized relayer or the module owner.
-    function runtimeValidationFunction(
-        uint8 functionId,
-        address sender,
-        uint256,
-        bytes calldata
-    ) external view override {
+    function runtimeValidationFunction(uint8 functionId, address sender, uint256, bytes calldata)
+        external
+        view
+        override
+    {
         if (functionId != FUNCTION_ID_RUNTIME_VALIDATION_RELAYER) {
             revert InvalidFunctionId(functionId);
         }
@@ -320,20 +346,11 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable {
         revert NotImplemented();
     }
 
-    function preRuntimeValidationHook(uint8, address, uint256, bytes calldata)
-        external
-        pure
-        override
-    {
+    function preRuntimeValidationHook(uint8, address, uint256, bytes calldata) external pure override {
         revert NotImplemented();
     }
 
-    function preExecutionHook(uint8, address, uint256, bytes calldata)
-        external
-        pure
-        override
-        returns (bytes memory)
-    {
+    function preExecutionHook(uint8, address, uint256, bytes calldata) external pure override returns (bytes memory) {
         revert NotImplemented();
     }
 

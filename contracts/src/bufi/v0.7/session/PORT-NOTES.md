@@ -154,6 +154,22 @@ change is marked `PORT:` inline (`grep -n PORT src/bufi/v0.7/session -r`).
 - **Storage layout** is identical to upstream (same C3 linearization: `_keyIdCounter` slot 0, `_sessionKeys` slot 1 —
   confirmed with `forge inspect … storage-layout`). All per-account data is ERC-4337 address-associated storage, as before.
 
+### D10 — `permissions/SessionKeyPermissions.sol`: the nonce-lane rule applies to EVERY session key
+
+Upstream gated the "a session key must use its own address as the 192-bit nonce key" requirement behind
+`if (sessionKeyData.hasGasLimit)`, because the rule was introduced to protect staked accounts from bundle-level
+reputation damage caused by the gas-usage state write. BUFI applies it unconditionally.
+
+**Why (adversarial finding F-01, `reports/ADVERSARIAL_PRE_TENDERLY.md`):** an unmetered key could legitimately sit
+in nonce lane 0 — the lane owner user operations use by default. An agent that spends while a quorum-signed
+`removeSessionKey` is in flight consumes that nonce, the revocation becomes stale, and the owners must re-collect
+k-of-n signatures while the key they are trying to revoke stays live. Requiring the lane for every key gives each
+agent its own sequential lane and makes owner operations un-frontrunnable by an agent.
+
+**Effect on the audited semantics:** strictly narrowing. No operation that was rejected becomes accepted; only
+operations submitted outside the key's own lane are newly rejected (they had no legitimate reason to be there).
+The SDK (`toBufiSessionKeyAccount`) and the recovery lane already pin the lane, so no caller changes.
+
 ### D8 — `AssociatedLinkedListSetLib` / `SetValue` / `SENTINEL_VALUE` from `@modular-account-libs`
 - erc6900/modular-account-libs `d64adb5` is the extracted MAv1 library: the diff against
   `lib/alchemy-modular-account/src/libraries/AssociatedLinkedListSetLib.sol` is the pragma, the internal constant's name
