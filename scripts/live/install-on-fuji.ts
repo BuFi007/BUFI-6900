@@ -94,8 +94,13 @@ async function main() {
   if (!installed.map((p) => p.toLowerCase()).includes(skAddr.toLowerCase())) {
     await send('installSessionKeyPlugin', { callData: face.installSessionKeyPlugin.data })
   } else {
-    log('plugin already installed — granting this run\'s agent key with addSessionKey (owner userOp, raw calldata)')
-    await send('addSessionKey', { callData: face.addSessionKeys[0].data })
+    const existing = await getSessionKeys(rpc, { plugin: skAddr, account: address })
+    if (existing.map((k) => k.toLowerCase()).includes(agent.address.toLowerCase())) {
+      log('plugin installed and this agent key already granted — skipping addSessionKey')
+    } else {
+      log('plugin already installed — granting this run\'s agent key with addSessionKey (owner userOp, raw calldata)')
+      await send('addSessionKey', { callData: face.addSessionKeys[0].data })
+    }
   }
   installed = await getInstalledPlugins(rpc, { account: address })
   log(`getInstalledPlugins → ${installed.join(', ')}`)
@@ -116,10 +121,13 @@ async function main() {
   const agentAccount = await toBufiSessionKeyAccount({ client, account: address, sessionKey: agent, plugin: skAddr, deployment })
   const agentBundler = createBundlerClient({ account: agentAccount, chain, transport: modular })
   const before = await rpc.readContract({ address: usdc, abi: USDC_ABI, functionName: 'balanceOf', args: [owner.address] })
-  const hash = await agentBundler.sendUserOperation({ calls: [{ to: usdc, data: encodeFunctionData({ abi: USDC_ABI, functionName: 'transfer', args: [owner.address, USDC(1)] }) }] })
+  const usePaymaster = process.env.USE_CIRCLE_PAYMASTER === '1'
+  if (usePaymaster) log('agent op sponsored by Circle paymaster (ERC-7677 pm_getPaymasterData on the same transport)')
+  const hash = await agentBundler.sendUserOperation({ calls: [{ to: usdc, data: encodeFunctionData({ abi: USDC_ABI, functionName: 'transfer', args: [owner.address, USDC(1)] }) }], ...(usePaymaster ? { paymaster: true } : {}) })
   const r = await agentBundler.waitForUserOperationReceipt({ hash, timeout: 180_000 })
   const after = await rpc.readContract({ address: usdc, abi: USDC_ABI, functionName: 'balanceOf', args: [owner.address] })
-  log(`agent transfer 1 USDC: userOp ${hash} tx ${r.receipt.transactionHash} success=${r.success} delta=${Number(after - before) / 1e6}`)
+  const gasPaidBy = usePaymaster ? 'paymaster' : 'account'
+  log(`agent transfer 1 USDC: userOp ${hash} tx ${r.receipt.transactionHash} success=${r.success} delta=${Number(after - before) / 1e6} gasPaidBy=${gasPaidBy} paymaster=${(r as { paymaster?: string }).paymaster ?? 'n/a'}`)
   state.agentSpend = { userOpHash: hash, tx: r.receipt.transactionHash, success: r.success }; save()
   if (!r.success || after - before !== USDC(1)) throw new Error('agent spend did not land')
 

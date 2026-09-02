@@ -1,26 +1,13 @@
 {
   "chainId": 43113,
-  "startedAt": "2026-09-02T05:55:40.232Z",
+  "startedAt": "2026-09-02T06:53:24.591Z",
   "account": "0x431bebb64552cefb2fbdb3968c75307aa709dc2b",
   "owner": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
   "agent": "0x0241639196fdB6f0c9Df611C9913b1D257770925",
-  "userOps": [
-    {
-      "label": "addSessionKey",
-      "userOpHash": "0xb3d41ac370c62d94ca5da40e98fa7418cf205505d3547fdbb748ff9bcd243713",
-      "tx": "0xa684f4a04079200421f8507d727fe35ddf75f17a11ea801dd1b15b01ee39d253",
-      "success": true
-    },
-    {
-      "label": "installAddressBook",
-      "userOpHash": "0x7f1421237a6fea5fcdfab45b63d46a42cbc0c39a6faf77d52acb5f64b4b7dafe",
-      "tx": "0xd50eaf5b77305d169473f25dc72893bb24d82738e38ab8ae00340eb7618cdd8a",
-      "success": true
-    }
-  ],
   "installedPlugins": [
     "0x0000000C984AFf541D6cE86Bb697e68ec57873C8",
-    "0x28504B34871Aa5a00269a960A9390187cbB5c070"
+    "0x28504B34871Aa5a00269a960A9390187cbB5c070",
+    "0x0000000d81083B16EA76dfab46B0315B0eDBF3d0"
   ],
   "sessionKeys": [
     "0x0241639196fdB6f0c9Df611C9913b1D257770925",
@@ -30,13 +17,13 @@
     "0xEe321D9274b06C22a466fa23e9f6fE1f23b2aEB1"
   ],
   "agentSpend": {
-    "userOpHash": "0x87d3ea2c0261430ebc12d2f11320e4640d0c618d6ef667f0295c9ee490e464a7",
-    "tx": "0xd451b2fe2279d36cf42483c6141a129a68f5784af2fd7f77635656692cc644cb",
+    "userOpHash": "0x8fd1f27cebd63547eb9675f2421f9f7d5cb53122178185fae82e450e92f92590",
+    "tx": "0xcd504609e35a57dcf78ddd7f0432d362ae1609105c8c794da264d99689803f78",
     "success": true
   },
   "addressBook": [
     "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474"
   ],
-  "finishedAt": "2026-09-02T05:56:01.723Z",
+  "finishedAt": "2026-09-02T06:53:33.191Z",
   "result": "green"
 }
