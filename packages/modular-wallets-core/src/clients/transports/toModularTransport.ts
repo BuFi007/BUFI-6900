@@ -33,6 +33,11 @@ export interface ToModularTransportOptions {
    * `toCircleSmartAccount` resolve the account address through `circle_getAddress`. BUFI modification.
    */
   trustedHosts?: readonly string[]
+  /**
+   * App URI sent in `X-AppInfo` when there is no browser `window` (node/bun). Circle checks it against the
+   * domain configured for the client key. Defaults to `MODULAR_WALLETS_APP_URI`. BUFI modification.
+   */
+  appUri?: string
 }
 
 /**
@@ -47,7 +52,9 @@ export const toModularTransport = (
   clientKey: string,
   options: ToModularTransportOptions = {},
 ) => {
-  const provider = new ModularWalletsProvider(clientUrl, clientKey)
+  const provider = new ModularWalletsProvider(clientUrl, clientKey, {
+    appUri: options?.appUri,
+  })
   const config = isCircleUrl(provider.clientUrl, options.trustedHosts)
     ? {
         key: MODULAR_WALLETS_TRANSPORT_KEY,

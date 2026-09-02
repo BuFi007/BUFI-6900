@@ -24,6 +24,7 @@ import {
 import { readContract } from 'viem/actions'
 
 import { encodeExecuteWithSessionKey } from '../../actions/plugins/sessionKey/encodeExecuteWithSessionKey'
+import { getDefaultVerificationGasLimit } from '../../utils/smartAccount/getDefaultVerificationGasLimit'
 import {
   CIRCLE_CANONICAL_DEPLOYMENT,
   ENTRY_POINT_07,
@@ -138,6 +139,20 @@ export async function toBufiSessionKeyAccount(
 
       // The plugin recovers the signer from `toEthSignedMessageHash(userOpHash)`, i.e. a personal_sign of the raw hash.
       return sessionKey.signMessage({ message: { raw: userOperationHash } })
+    },
+    userOperation: {
+      /**
+       * Mirrors `toCircleSmartAccount`: Circle's bundler enforces a verification-gas floor and publishes the
+       * right default through `circle_getUserOperationGasPrice`, so ask it (a session-key account is always
+       * deployed). An explicit `verificationGasLimit` is respected.
+       */
+      async estimateGas(userOperation) {
+        const verificationGasLimit =
+          userOperation.verificationGasLimit !== undefined
+            ? BigInt(userOperation.verificationGasLimit)
+            : BigInt(await getDefaultVerificationGasLimit(client, true))
+        return Promise.resolve({ verificationGasLimit })
+      },
     },
   })
 }

@@ -67,3 +67,5 @@ to auditors and to Circle. Plus a fork of Circle's web SDK that speaks our plugi
       + BUFI panels (address book, agent grant, agent spend, earn)
 - [ ] H4 `@bufi/msca-recovery` — BUFI plugin ABIs + `session-key-transfer` scenario
 - [x] testnet redeploy — Fuji + Arc: SessionKey 0x28504B34…, Earn 0x57D446a9… (same on both); `contracts/deployments/*.json`, SDK `AVAX_FUJI_DEPLOYMENT` / `ARC_TESTNET_DEPLOYMENT`, README table
+- [x] live canary on Fuji through Circle's real API: install + grant + agent spend + AddressBook — green (`scripts/live/install-on-fuji.ts`)
+- [ ] mock-circle: simulate validation in `eth_estimateUserOperationGas` (stub signature) so the stub/estimation class of bug is caught locally

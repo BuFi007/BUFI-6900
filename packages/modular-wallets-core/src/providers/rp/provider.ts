@@ -18,7 +18,11 @@
 
 import { InvalidProviderError, MethodNotImplementedError } from 'web3-errors'
 
-import { fetchFromApi, validateClientUrl } from '../../utils'
+import {
+  type FetchFromApiOptions,
+  fetchFromApi,
+  validateClientUrl,
+} from '../../utils'
 import { BaseProvider } from '../base'
 
 import type {
@@ -39,8 +43,14 @@ export default class RpProvider<
 > extends BaseProvider<API> {
   public readonly clientUrl: string
   private readonly clientKey: string
+  /** BUFI modification: app URI for the X-AppInfo header when running outside a browser. */
+  private readonly appUri?: string
 
-  public constructor(clientUrl: string, clientKey: string) {
+  public constructor(
+    clientUrl: string,
+    clientKey: string,
+    options?: { appUri?: string },
+  ) {
     super()
 
     if (!validateClientUrl(clientUrl)) {
@@ -49,6 +59,7 @@ export default class RpProvider<
 
     this.clientUrl = clientUrl
     this.clientKey = clientKey
+    this.appUri = options?.appUri
   }
 
   public async request<
@@ -56,7 +67,7 @@ export default class RpProvider<
     ResultType = Web3APIReturnType<API, Method>,
   >(
     payload: Web3APIPayload<API, Method>,
-    requestOptions?: RequestInit,
+    requestOptions?: FetchFromApiOptions,
   ): Promise<ResultType> {
     switch (payload.method) {
       case 'rp_getLoginOptions':
@@ -68,7 +79,7 @@ export default class RpProvider<
             this.clientUrl,
             this.clientKey,
             payload,
-            requestOptions,
+            { appUri: this.appUri, ...requestOptions },
           )
         ).result
       default:

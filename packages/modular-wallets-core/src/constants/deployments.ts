@@ -96,7 +96,12 @@ export const EARN_MODULE_OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX = 1
  * reverting, which lets the plugin report a signature failure rather than abort the simulation.
  */
 export const SESSION_KEY_STUB_SIGNATURE =
-  '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000077aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c' as Hex
+  // A REAL secp256k1 signature (private key 0x…01 over keccak256('bufi-session-key-stub')): bundlers simulate
+  // validation with the stub, and BufiSessionKeyPlugin reverts `InvalidSignature` when `tryRecover` errors
+  // (an off-curve dummy did exactly that on Circle's Fuji bundler, 2026-09-02). A well-formed signature recovers
+  // to an address that is not the session key, so the plugin returns SIG_VALIDATION_FAILED instead — which
+  // ERC-4337 bundlers tolerate during estimation, exactly like Circle's own STUB_SIGNATURE for the owner plugin.
+  '0x7bb4968166c70b3bcda67cbe87b14d3ddde7aff65bc1cf90fd805d5c94c508690931dd416f12b3336b8f1e4683b1f88c288524c7a99769a2088a644edb697e661c' as Hex
 
 /**
  * BUFI plugins as deployed on public testnets on 2026-09-01 (`contracts/deployments/avax-fuji.json`,

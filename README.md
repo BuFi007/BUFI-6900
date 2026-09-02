@@ -86,6 +86,26 @@ The 2026-08-02 earn build at `0xA9a9251f…` (both chains) is superseded and mus
 Explorer verification is not done (no API keys in the sandbox); `forge verify-contract` with the pinned profile
 reproduces the bytecode.
 
+## Live canary on Avalanche Fuji (Circle's real API + bundler, 2026-09-02)
+
+`bun run scripts/live/install-on-fuji.ts` (needs `CIRCLE_CLIENT_KEY`/`CIRCLE_CLIENT_URL`, `OWNER_PRIVATE_KEY`,
+`MODULAR_WALLETS_APP_URI`). Record: `contracts/deployments/avax-fuji.canary.json`.
+
+| Step | Result |
+| --- | --- |
+| `circle_getAddress` for an EOA owner → Circle Smart Account | `0x431bebb64552cefb2fbdb3968c75307aa709dc2b` |
+| Owner userOp (raw calldata) deploys the account AND installs `BufiSessionKeyPlugin` with the fail-closed dependency slots | tx `0x7e246342…5cad08b`, `getInstalledPlugins` = [Weighted, `0x28504B34…`] |
+| Owner grants an agent key (`addSessionKey`, raw calldata) | tx `0x3b41b9ec…59cffc` |
+| Agent (`toBufiSessionKeyAccount`) transfers 1 USDC through Circle's bundler | userOp `0x87d3ea2c…`, tx `0xd451b2fe…` |
+| `ColdStorageAddressBookPlugin` installed on the same account | tx `0xd50eaf5b…` |
+
+Plan 184's two PENDING proofs (testnet install, AddressBook composition) are therefore answered on a real Circle
+account. Three SDK-fork fixes came out of the run — none of which the local mock could catch because it does not
+simulate validation: Circle validates the `X-AppInfo` `uri` against the client key's domain (headless callers must
+pass `appUri` / `MODULAR_WALLETS_APP_URI`), bundlers simulate with the account's stub signature so the session-key
+stub must be a real secp256k1 signature (an off-curve dummy made the plugin revert `InvalidSignature`), and the
+session-key account needs Circle's verification-gas floor hook like `toCircleSmartAccount` does.
+
 ## Findings surfaced by the sandbox
 
 1. **Stock Alchemy `SessionKeyPlugin` cannot be installed on a Circle MSCA.** It targets ERC-4337 v0.6

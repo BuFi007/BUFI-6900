@@ -85,3 +85,14 @@ describe('Constants > deployments', () => {
     expect(SESSION_KEY_STUB_SIGNATURE).toMatch(/^0x[0-9a-f]{130}$/)
   })
 })
+
+describe('SESSION_KEY_STUB_SIGNATURE (BUFI)', () => {
+  it('is a well-formed secp256k1 signature that recovers to an address (bundlers simulate with it)', async () => {
+    const { recoverAddress, keccak256, toHex } = await import('viem')
+    const recovered = await recoverAddress({
+      hash: keccak256(toHex('any hash')),
+      signature: SESSION_KEY_STUB_SIGNATURE,
+    })
+    expect(recovered).toMatch(/^0x[0-9a-fA-F]{40}$/)
+  })
+})

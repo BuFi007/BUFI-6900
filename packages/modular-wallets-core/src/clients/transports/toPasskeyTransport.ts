@@ -31,8 +31,14 @@ import { isCircleUrl } from '../../utils'
  * @param clientKey - The Client key to use.
  * @returns The custom transport instance.
  */
-export const toPasskeyTransport = (clientUrl: string, clientKey: string) => {
-  const provider = new RpProvider(clientUrl, clientKey)
+export const toPasskeyTransport = (
+  clientUrl: string,
+  clientKey: string,
+  options?: { appUri?: string },
+) => {
+  const provider = new RpProvider(clientUrl, clientKey, {
+    appUri: options?.appUri,
+  })
   const config = isCircleUrl(provider.clientUrl)
     ? {
         key: MODULAR_WALLETS_TRANSPORT_KEY,

@@ -18,3 +18,4 @@ contracts/deployments/local/
 .sandbox/
 contracts/out-*/
 contracts/cache-*/
+junit.xml

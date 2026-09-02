@@ -23,6 +23,11 @@ import { ResponseError } from 'web3'
 
 import { isChromeExtension } from './isChromeExtension'
 
+/**
+ * Fetch options plus the BUFI `appUri` override for non-browser callers.
+ */
+export type FetchFromApiOptions = RequestInit & { appUri?: string }
+
 import type {
   JsonRpcResponseWithError,
   JsonRpcResponseWithResult,
@@ -48,13 +53,23 @@ export async function fetchFromApi<
   clientUrl: string,
   clientKey: string,
   payload: Web3APIPayload<API, Method>,
-  requestOptions?: RequestInit,
+  requestOptions?: FetchFromApiOptions,
 ): Promise<JsonRpcResponseWithResult<ResultType>> {
   // BUFI modification: `window` is absent under node / bun (headless e2e), so guard the lookup.
+  /**
+   * BUFI modification: outside a browser (node/bun) there is no `window`. Circle validates the `uri` of
+   * `X-AppInfo` against the domain configured for the client key, so headless callers must say which app they
+   * are: `requestOptions.appUri`, else `MODULAR_WALLETS_APP_URI`, else `'unknown'` (which Circle rejects with
+   * "Invalid credentials").
+   */
   const hostname =
-    typeof window === 'undefined'
-      ? 'unknown'
-      : window?.location?.hostname || 'unknown'
+    typeof window !== 'undefined' && window?.location?.hostname
+      ? window.location.hostname
+      : (requestOptions?.appUri ??
+        (typeof process !== 'undefined'
+          ? process.env?.MODULAR_WALLETS_APP_URI
+          : undefined) ??
+        'unknown')
 
   /**
    * Determine the URI for the X-AppInfo header.
@@ -63,8 +78,9 @@ export async function fetchFromApi<
    */
   const uri = isChromeExtension() ? `chrome-extension://${hostname}` : hostname
 
+  const { appUri: _appUri, ...fetchInit } = requestOptions ?? {}
   const fetchResponse: Response = await fetch(clientUrl, {
-    ...requestOptions,
+    ...fetchInit,
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
