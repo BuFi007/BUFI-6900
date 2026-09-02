@@ -393,7 +393,7 @@ export interface AgentGrantPresetBase {
   requiredPaymaster?: Address
 }
 
-/** Parameters for {@link erc8183BuyerGrant}. */
+/** Parameters for `erc8183BuyerGrant`. */
 export interface Erc8183BuyerGrantParameters extends AgentGrantPresetBase {
   /** The ERC-8183 jobs contract. Defaults to Circle's native Arc testnet deployment. */
   jobContract?: Address
@@ -405,13 +405,13 @@ export interface Erc8183BuyerGrantParameters extends AgentGrantPresetBase {
   includeComplete?: boolean
 }
 
-/** Parameters for {@link erc8183ProviderGrant}. */
+/** Parameters for `erc8183ProviderGrant`. */
 export interface Erc8183ProviderGrantParameters extends AgentGrantPresetBase {
   /** The ERC-8183 jobs contract. Defaults to Circle's native Arc testnet deployment. */
   jobContract?: Address
 }
 
-/** Parameters for {@link erc8004RaterGrant}. */
+/** Parameters for `erc8004RaterGrant`. */
 export interface Erc8004RaterGrantParameters extends AgentGrantPresetBase {
   /** The ERC-8004 reputation registry. Defaults to the Arc testnet registry. */
   reputationRegistry?: Address
@@ -419,7 +419,7 @@ export interface Erc8004RaterGrantParameters extends AgentGrantPresetBase {
   giveFeedbackSignature?: string
 }
 
-/** Parameters for {@link floatFunderGrant}. */
+/** Parameters for `floatFunderGrant`. */
 export interface FloatFunderGrantParameters extends AgentGrantPresetBase {
   /** The token the hot wallet is funded in. */
   token: Address
@@ -429,7 +429,7 @@ export interface FloatFunderGrantParameters extends AgentGrantPresetBase {
   budget: BufiGrantSpendBudget
 }
 
-/** Parameters for {@link gatewayDepositorGrant}. */
+/** Parameters for `gatewayDepositorGrant`. */
 export interface GatewayDepositorGrantParameters extends AgentGrantPresetBase {
   /** The Circle GatewayWallet on this chain. */
   gatewayWallet: Address

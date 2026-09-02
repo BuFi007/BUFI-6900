@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2026 BUFI. Licensed under the Apache License, Version 2.0.
  */
-import { decodeFunctionData, toFunctionSelector } from 'viem'
+import { toFunctionSelector } from 'viem'
 
 import {
   AGENT_ROLE_PRESETS,

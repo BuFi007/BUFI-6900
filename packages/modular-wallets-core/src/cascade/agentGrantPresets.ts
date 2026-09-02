@@ -199,6 +199,7 @@ export function erc8004RaterGrant({
  * consulted. The agent therefore funds a small hot wallet and that wallet signs; the plugin bounds how much and
  * how often. `recipients` is informational here: enforcement comes from the AddressBook via the recipient hook,
  * so every entry must also be allowlisted on the account.
+ * @throws If `recipients` is empty — a float funder with no destination is always a mistake.
  */
 export function floatFunderGrant({
   token,
@@ -318,9 +319,10 @@ export function describeGrant(grant_: BufiGrant): string[] {
       `may consume up to ${grant_.budget.gas.limit} wei of gas per ${grant_.budget.gas.refreshIntervalSeconds}s`,
     )
   }
+  const validAfter = grant_.expiry.validAfter ?? 0
   lines.push(
-    grant_.expiry.validAfter
-      ? `valid from ${grant_.expiry.validAfter} until ${grant_.expiry.validUntil}`
+    validAfter > 0
+      ? `valid from ${validAfter} until ${grant_.expiry.validUntil}`
       : `valid until ${grant_.expiry.validUntil}`,
   )
   if (grant_.requiredPaymaster) {
