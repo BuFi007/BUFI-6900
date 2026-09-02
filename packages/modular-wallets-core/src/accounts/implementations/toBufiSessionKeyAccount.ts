@@ -21,6 +21,7 @@ import {
   getUserOperationHash,
   toSmartAccount,
 } from 'viem/account-abstraction'
+import { readContract } from 'viem/actions'
 
 import { encodeExecuteWithSessionKey } from '../../actions/plugins/sessionKey/encodeExecuteWithSessionKey'
 import {
@@ -70,6 +71,22 @@ export async function toBufiSessionKeyAccount(
     extend: { abi, plugin, sessionKey: sessionKey.address },
     getAddress: function (): Promise<Address> {
       return Promise.resolve(address)
+    },
+    /**
+     * BufiSessionKeyPlugin requires a gas-limited session key to use its own address as the 192-bit nonce KEY
+     * (`SessionKeyPermissions._checkUserOpPermissions`: `uint192(nonce >> 64) == uint192(uint160(sessionKey))`),
+     * so gas-limit accounting cannot be bypassed by nonce-key hopping. viem's `toSmartAccount` always supplies a
+     * time-derived key of its own, so the key parameter is deliberately ignored here: a session-key account has
+     * exactly one valid nonce lane.
+     */
+    getNonce: async function (): Promise<bigint> {
+      const key = BigInt(sessionKey.address)
+      return await readContract(client, {
+        abi: entryPoint.abi,
+        address: entryPoint.address,
+        functionName: 'getNonce',
+        args: [address, key],
+      })
     },
     encodeCalls: function (
       calls: readonly {

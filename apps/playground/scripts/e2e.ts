@@ -223,7 +223,16 @@ async function main() {
   ok('10 USDC → stranger SUCCEEDED — FINDING: the address book hooks execute/executeBatch only; executeWithSessionKey is not gated. Recipient policy for agents lives in the grant (see docs/PLUGIN-COMPOSITION.md)')
   await agentTransfer(friend, USDC(250))
   ok('250 USDC → friend (460/500 used)')
-  await expectRejected('agent 100 USDC (would exceed the 500 USDC / 24h budget)', () => agentTransfer(friend, USDC(100)))
+  // The ERC-20 budget is enforced in the EXECUTION phase (the plugin decodes the transfer amount while running the
+  // call), so an over-budget op is included and reverts on-chain — gas is paid, no funds move. Time range, access
+  // list, gas and native limits are validation-phase (the bundler rejects them outright, see below).
+  const overBudget = await agentBundler
+    .sendUserOperation({ calls: [{ to: usdc, data: encodeFunctionData({ abi: USDC_ABI, functionName: 'transfer', args: [friend, USDC(100)] }) }] })
+    .then((hash) => agentBundler.waitForUserOperationReceipt({ hash }))
+  assert(overBudget.success === false, 'over-budget agent op is included but reverts')
+  const friendBalance = await rpc.readContract({ address: usdc, abi: USDC_ABI, functionName: 'balanceOf', args: [friend] })
+  assert(friendBalance === USDC(1 + 200 + 250), 'no funds moved on the over-budget op')
+  ok('agent 100 USDC (would exceed the 500 USDC / 24h budget) → included but reverted on-chain (execution-phase check; gas paid, no funds moved)')
   await expectRejected('agent calls a selector outside the grant (USDC.approve)', () =>
     agentBundler.sendUserOperation({
       calls: [{ to: usdc, data: encodeFunctionData({ abi: USDC_ABI, functionName: 'approve', args: [stranger, USDC(1)] }) }],
