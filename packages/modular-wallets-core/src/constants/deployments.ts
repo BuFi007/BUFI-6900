@@ -104,18 +104,24 @@ export const SESSION_KEY_STUB_SIGNATURE =
   '0x7bb4968166c70b3bcda67cbe87b14d3ddde7aff65bc1cf90fd805d5c94c508690931dd416f12b3336b8f1e4683b1f88c288524c7a99769a2088a644edb697e661c' as Hex
 
 /**
- * BUFI plugins as deployed on public testnets on 2026-09-01 (`contracts/deployments/avax-fuji.json`,
+ * BUFI plugins as deployed on public testnets on 2026-09-02 (`contracts/deployments/avax-fuji.json`,
  * `arc-testnet.json`). Same CREATE2 salt on every chain, so the plugin addresses are identical. The Circle
  * addresses are Circle's production deployment on those chains.
+ *
+ * These are the post-fix builds (adversarial findings F-01 / F-06 / F-08 — see
+ * `reports/ADVERSARIAL_PRE_TENDERLY.md` §Disposition). The 2026-09-01 addresses
+ * `0x28504B34871Aa5a00269a960A9390187cbB5c070` (session key) and
+ * `0x57D446a9A9c23d939035a924F7D3643B6eedE4Cf` (earn) carry pre-fix bytecode and must not be installed.
+ * The manifest hashes are unchanged: only the implementations moved.
  */
 export const BUFI_TESTNET_PLUGINS = {
   bufiSessionKey: {
-    address: '0x28504B34871Aa5a00269a960A9390187cbB5c070' as Hex,
+    address: '0xBd607dBAC82CF1351C352FB65fC29dE9D0095339' as Hex,
     manifestHash:
       '0xa32b3449ba437645e2386051ad0fcb64b0c2a9fed66b2eb4349505a2cb11ff5d' as Hex,
   },
   bufiEarnModule: {
-    address: '0x57D446a9A9c23d939035a924F7D3643B6eedE4Cf' as Hex,
+    address: '0xeb94A8b7412418B506b24dBeD4Aed0E9ba5453c2' as Hex,
     manifestHash:
       '0x5adab6895bc4f41df3405079667ae5103316a130ce3ebe225402958a96652e53' as Hex,
   },

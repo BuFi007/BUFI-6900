@@ -80,8 +80,12 @@ receipts under `contracts/broadcast/DeployBufiPlugins.s.sol/{43113,5042002}/`. S
 
 | Plugin | Avalanche Fuji (43113) + Arc testnet (5042002) | Manifest hash |
 | --- | --- | --- |
-| `BufiSessionKeyPlugin` | `0x28504B34871Aa5a00269a960A9390187cbB5c070` | `0xa32b3449…cb11ff5d` |
-| `BufiEarnModule` (owner + relayer = testnet deployer placeholder `0x09Ce8E2B…`, rotate before shared use) | `0x57D446a9A9c23d939035a924F7D3643B6eedE4Cf` | `0x5adab689…a96652e53` |
+| `BufiSessionKeyPlugin` | `0xBd607dBAC82CF1351C352FB65fC29dE9D0095339` | `0xa32b3449…cb11ff5d` |
+| `BufiEarnModule` (owner + relayer = testnet deployer placeholder `0x09Ce8E2B…`, rotate before shared use) | `0xeb94A8b7412418B506b24dBeD4Aed0E9ba5453c2` | `0x5adab689…a96652e53` |
+
+Redeployed 2026-09-02 (salt `…-v0.2.0`) with the fixes for adversarial findings F-01 / F-06 / F-08. The
+2026-09-01 builds `0x28504B34…` (session key) and `0x57D446a9…` (earn) carry pre-fix bytecode and must not be
+installed; manifest hashes are unchanged, only the implementations moved.
 
 The 2026-08-02 earn build at `0xA9a9251f…` (both chains) is superseded and must never be installed (finding 2).
 Explorer verification is not done (no API keys in the sandbox); `forge verify-contract` with the pinned profile
@@ -106,6 +110,17 @@ simulate validation: Circle validates the `X-AppInfo` `uri` against the client k
 pass `appUri` / `MODULAR_WALLETS_APP_URI`), bundlers simulate with the account's stub signature so the session-key
 stub must be a real secp256k1 signature (an off-curve dummy made the plugin revert `InvalidSignature`), and the
 session-key account needs Circle's verification-gas floor hook like `toCircleSmartAccount` does.
+
+## Adversarial review
+
+`reports/ADVERSARIAL_PRE_TENDERLY.md` — an adversarial pass over the three custom plugins run through Codex
+(gpt-5.6-sol, xhigh) against the production-bytecode harnesses, with a PoC suite in `contracts/test/adversarial/`
+(34 tests, kept as permanent regressions). **No Critical or High.** One Medium and two Informational were fixed
+(F-01 nonce-lane liveness → port deviation D10; F-06 earn now verifies the deposit; F-08 canonical config
+ordering); five Low findings were accepted with mitigations recorded in the report's §Disposition and pinned by
+`test_KNOWN_F0N_…` tests. The recurring theme in the accepted set: the recipient hook enforces the **syntactic**
+recipient in calldata, so an allowlisted spender or a selector-compatible contract can still route value onward —
+the AddressBook is a trust list, not a firewall against code you allowlisted.
 
 ## Findings surfaced by the sandbox
 

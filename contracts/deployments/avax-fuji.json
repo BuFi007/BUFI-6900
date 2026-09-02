@@ -16,11 +16,11 @@
       "manifestHash": "0x9d177c1c9573b10436b693b7a49f0face36b677c1606a2c579bba1415be349d8"
     },
     "bufiSessionKey": {
-      "address": "0x28504B34871Aa5a00269a960A9390187cbB5c070",
+      "address": "0xBd607dBAC82CF1351C352FB65fC29dE9D0095339",
       "manifestHash": "0xa32b3449ba437645e2386051ad0fcb64b0c2a9fed66b2eb4349505a2cb11ff5d"
     },
     "bufiEarnModule": {
-      "address": "0x57D446a9A9c23d939035a924F7D3643B6eedE4Cf",
+      "address": "0xeb94A8b7412418B506b24dBeD4Aed0E9ba5453c2",
       "manifestHash": "0x5adab6895bc4f41df3405079667ae5103316a130ce3ebe225402958a96652e53"
     }
   },
@@ -33,5 +33,11 @@
     "bundler": "0x0000000000000000000000000000000000000000",
     "factoryOwner": "0x0166EA90E565476f13c6a0D25ED2C35599E58785"
   },
-  "notes": "BUFI plugins deployed 2026-09-01 via script/DeployBufiPlugins.s.sol (CREATE2 salt keccak256('bufi-6900-plugins-v0.1.0'), same address on every chain). Earn module owner+relayer = testnet deployer placeholder; rotate before shared use. Circle addresses are Circle's production deployment on this chain (verified by code presence). Not verified on explorers."
+  "notes": "BUFI plugins redeployed 2026-09-02 via script/DeployBufiPlugins.s.sol with the fixes for adversarial findings F-01 (nonce lane for every session key), F-06 (autoEarn verifies the deposit) and F-08 (canonical config ordering). CREATE2 salt keccak256('bufi-6900-plugins-v0.2.0'), same address on every chain. Manifest hashes are unchanged from v0.1.0 \u2014 only the bytecode moved. Earn module owner+relayer = testnet deployer placeholder; rotate before shared use. Circle addresses are Circle's production deployment on this chain. Not verified on explorers.",
+  "supersededPlugins": {
+    "deployedAt": "2026-09-01",
+    "reason": "pre-fix bytecode (adversarial findings F-01/F-06/F-08); never install",
+    "bufiSessionKey": "0x28504B34871Aa5a00269a960A9390187cbB5c070",
+    "bufiEarnModule": "0x57D446a9A9c23d939035a924F7D3643B6eedE4Cf"
+  }
 }
