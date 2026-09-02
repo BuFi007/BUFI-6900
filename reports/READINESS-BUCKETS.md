@@ -92,6 +92,30 @@ what is missing is the **Arc chain entitlement on the dRPC plan for this team**.
 Arc's own whitelist may well have been applied — dRPC's plan gate is a separate
 door and it is the one that is shut. Nobody needs to re-verify the whitelist.
 
+### The same key DOES reach Arc testnet
+
+`arc-testnet` on the same key returns `0x4cef52` (5042002) on both `lb.drpc.live`
+and `lb.drpc.org`. So the free plan carries Arc testnet and withholds Arc private
+mainnet — which is the plan gate showing its shape, and a third confirmation that
+the credential itself is fine.
+
+Measured against the public `rpc.testnet.arc.network`:
+
+| | dRPC | public |
+|---|---|---|
+| `eth_chainId` | `0x4cef52` | `0x4cef52` |
+| archive `eth_getCode` @ block 60099079 | identical bytes | identical bytes |
+| archive `eth_getBalance` @ 60099079 | `0x10e0591f9bf738840` | `0x10e0591f9bf738840` |
+| `eth_blockNumber` latency ×3 | 0.48 / 0.49 / 0.47 s | 0.23 / 0.23 / 0.27 s |
+| `FOUNDRY_PROFILE=fork-arc forge test --match-path 'test/fork/agentic/**'` | **3 passed, 0 failed** (25.8 s) | 3 passed (baseline) |
+
+Both serve archive state at the block `AgentFaceErc8183.t.sol` pins, so dRPC is a
+verified drop-in for `ARC_TESTNET_RPC_URL` — useful as a fallback if the public
+endpoint throttles under fork-test load. It is not an upgrade: it is ~2× slower
+through the load balancer and returns the same data. **The only thing the dRPC
+grant buys that we do not already have is `arc` (5042), and that is the gated
+one.** Do not let the working testnet slug be mistaken for working access.
+
 ### Criteria for 100%
 
 - ✗ A `eth_chainId` from the Arc private mainnet RPC returns `0x13b2` (5042).
