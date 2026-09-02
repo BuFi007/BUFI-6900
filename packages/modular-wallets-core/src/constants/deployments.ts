@@ -125,6 +125,16 @@ export const BUFI_TESTNET_PLUGINS = {
     manifestHash:
       '0x5adab6895bc4f41df3405079667ae5103316a130ce3ebe225402958a96652e53' as Hex,
   },
+  /**
+   * Deployed 2026-09-02 at the same CREATE2 salt. Takes no constructor arguments, so unlike the earn module
+   * there is nothing to rotate before shared use. Install data is `abi.encode(coldStorageAddressBook.address)`
+   * and the hook verifies that plugin is installed on the calling account before binding to it.
+   */
+  bufiSessionRecipientHook: {
+    address: '0xAa8B4fb76e8Eb712435E2b948B3A35c4C069d98A' as Hex,
+    manifestHash:
+      '0x0870010f2468b943064a0d1273050e7e37bd40ca26c70138156e850a57e999da' as Hex,
+  },
 } as const
 
 /**

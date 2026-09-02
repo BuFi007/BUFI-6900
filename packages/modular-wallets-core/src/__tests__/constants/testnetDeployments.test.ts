@@ -34,6 +34,9 @@ describe('testnet deployments', () => {
       )
       expect(fromFile.bufiSessionKey).toEqual(constant.bufiSessionKey)
       expect(fromFile.bufiEarnModule).toEqual(constant.bufiEarnModule)
+      expect(fromFile.bufiSessionRecipientHook).toEqual(
+        constant.bufiSessionRecipientHook,
+      )
       expect(fromFile.weightedWebauthnMultisig).toEqual(
         constant.weightedWebauthnMultisig,
       )

@@ -193,6 +193,13 @@ export function toStackDeployment(json: unknown): StackDeployment {
   )
   if (bufiEarnModule) deployment.bufiEarnModule = bufiEarnModule
 
+  const bufiSessionRecipientHook = readOptionalPlugin(
+    plugins.bufiSessionRecipientHook,
+    'plugins.bufiSessionRecipientHook',
+  )
+  if (bufiSessionRecipientHook)
+    deployment.bufiSessionRecipientHook = bufiSessionRecipientHook
+
   if (isRecord(paymaster)) {
     deployment.paymaster = readAddress(paymaster, 'paymaster.', 'address')
   }

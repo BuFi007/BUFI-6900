@@ -81,6 +81,13 @@ export interface StackDeployment {
    */
   bufiEarnModule?: PluginDeployment
   /**
+   * The BUFI session recipient hook: gates `executeWithSessionKey` recipients against the account's
+   * `ColdStorageAddressBookPlugin` set. Absent on the canonical Circle deployment. Installing it requires
+   * `coldStorageAddressBook` to already be installed on the same account — the hook's `onInstall` verifies that
+   * through `IAccountLoupe` and reverts otherwise.
+   */
+  bufiSessionRecipientHook?: PluginDeployment
+  /**
    * A verifying paymaster, when the stack ships one.
    */
   paymaster?: Hex
