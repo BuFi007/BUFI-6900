@@ -17,11 +17,21 @@
     },
     "bufiSessionKey": {
       "address": "0xBd607dBAC82CF1351C352FB65fC29dE9D0095339",
-      "manifestHash": "0xa32b3449ba437645e2386051ad0fcb64b0c2a9fed66b2eb4349505a2cb11ff5d"
+      "manifestHash": "0xa32b3449ba437645e2386051ad0fcb64b0c2a9fed66b2eb4349505a2cb11ff5d",
+      "explorer": "https://testnet.snowtrace.io/address/0xBd607dBAC82CF1351C352FB65fC29dE9D0095339",
+      "verified": true
     },
     "bufiEarnModule": {
       "address": "0xeb94A8b7412418B506b24dBeD4Aed0E9ba5453c2",
-      "manifestHash": "0x5adab6895bc4f41df3405079667ae5103316a130ce3ebe225402958a96652e53"
+      "manifestHash": "0x5adab6895bc4f41df3405079667ae5103316a130ce3ebe225402958a96652e53",
+      "explorer": "https://testnet.snowtrace.io/address/0xeb94A8b7412418B506b24dBeD4Aed0E9ba5453c2",
+      "verified": true
+    },
+    "bufiSessionRecipientHook": {
+      "address": "0xAa8B4fb76e8Eb712435E2b948B3A35c4C069d98A",
+      "manifestHash": "0x0870010f2468b943064a0d1273050e7e37bd40ca26c70138156e850a57e999da",
+      "explorer": "https://testnet.snowtrace.io/address/0xAa8B4fb76e8Eb712435E2b948B3A35c4C069d98A",
+      "verified": true
     }
   },
   "paymaster": null,
@@ -33,7 +43,7 @@
     "bundler": "0x0000000000000000000000000000000000000000",
     "factoryOwner": "0x0166EA90E565476f13c6a0D25ED2C35599E58785"
   },
-  "notes": "BUFI plugins redeployed 2026-09-02 via script/DeployBufiPlugins.s.sol with the fixes for adversarial findings F-01 (nonce lane for every session key), F-06 (autoEarn verifies the deposit) and F-08 (canonical config ordering). CREATE2 salt keccak256('bufi-6900-plugins-v0.2.0'), same address on every chain. Manifest hashes are unchanged from v0.1.0 \u2014 only the bytecode moved. Earn module owner+relayer = testnet deployer placeholder; rotate before shared use. Circle addresses are Circle's production deployment on this chain. Not verified on explorers.",
+  "notes": "BUFI plugins redeployed 2026-09-02 via script/DeployBufiPlugins.s.sol with the fixes for adversarial findings F-01 (nonce lane for every session key), F-06 (autoEarn verifies the deposit) and F-08 (canonical config ordering). CREATE2 salt keccak256('bufi-6900-plugins-v0.2.0'), same address on every chain. Manifest hashes are unchanged from v0.1.0 \u2014 only the bytecode moved. Earn module owner+relayer = testnet deployer placeholder; rotate before shared use. Circle addresses are Circle's production deployment on this chain. BufiSessionRecipientHookPlugin deployed 2026-09-02 at the same salt; it takes no constructor args. All three BUFI plugins are explorer-verified on this chain and the verification was confirmed by reading getsourcecode back from the explorer, not from the verify tool's own success message. The two Circle plugins above are Circle's own deployments and are not ours to verify.",
   "supersededPlugins": {
     "deployedAt": "2026-09-01",
     "reason": "pre-fix bytecode (adversarial findings F-01/F-06/F-08); never install",

@@ -126,10 +126,13 @@ alternative are in `reports/COVERAGE.md`.
 - Fork suites under `test/fork/**` are excluded from the default profile and need three different networks
   (Arc testnet, Base mainnet, Sepolia) — see the table above. A previous revision of this document said "a
   Sepolia RPC", which is true of one suite of three.
-- `BufiSessionRecipientHookPlugin` is **not deployed on any chain** as of this writing, so no explorer-verified
-  instance exists to read alongside the source. The other three BUFI plugins are deployed on Avalanche Fuji and
-  Arc testnet (`contracts/deployments/*.json`) but are **not** explorer-verified either. Bucket 3 in
-  `reports/READINESS-BUCKETS.md`.
+- All three BUFI plugins are deployed on Avalanche Fuji (43113) and Arc testnet (5042002) at identical CREATE2
+  addresses and are **explorer-verified on both**, so the auditor can read verified source next to this repo:
+  `BufiSessionKeyPlugin` `0xBd607dBAC82CF1351C352FB65fC29dE9D0095339`, `BufiEarnModule`
+  `0xeb94A8b7412418B506b24dBeD4Aed0E9ba5453c2`, `BufiSessionRecipientHookPlugin`
+  `0xAa8B4fb76e8Eb712435E2b948B3A35c4C069d98A`. Links and manifest hashes in `contracts/deployments/*.json`.
+  Note the earn module's owner and relayer are both the **testnet deployer placeholder** on those chains; that is
+  a deployment parameter, not a property of the contract.
 - Membership in the hook is a linear scan (`O(calls x n)`) because Circle's `AssociatedLinkedListSetLib.contains`
   is `internal` and the AddressBook plugin exposes no single-recipient view. This is a known cost, not an
   oversight; if Circle exposes one, `_contains` is the only thing that changes.

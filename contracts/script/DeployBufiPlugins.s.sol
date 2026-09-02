@@ -2,6 +2,7 @@
 pragma solidity 0.8.24;
 
 import {BufiEarnModule} from "../src/bufi/v0.7/earn/BufiEarnModule.sol";
+import {BufiSessionRecipientHookPlugin} from "../src/bufi/v0.7/recipient-hook/BufiSessionRecipientHookPlugin.sol";
 import {BufiSessionKeyPlugin} from "../src/bufi/v0.7/session/BufiSessionKeyPlugin.sol";
 
 import {IPlugin} from "@circle/msca/6900/v0.7/interfaces/IPlugin.sol";
@@ -29,6 +30,10 @@ contract DeployBufiPlugins is Script {
         vm.startBroadcast(key);
         address sessionKey = _create2("BufiSessionKeyPlugin", salt, type(BufiSessionKeyPlugin).creationCode, "");
         address earn = _create2("BufiEarnModule", salt, type(BufiEarnModule).creationCode, abi.encode(earnRelayer, earnOwner));
+        // Stateless (its only storage is the per-account AddressBook binding written by `onInstall`), so no
+        // constructor args and nothing to rotate before shared use.
+        address recipientHook =
+            _create2("BufiSessionRecipientHookPlugin", salt, type(BufiSessionRecipientHookPlugin).creationCode, "");
         vm.stopBroadcast();
 
         console.log("chainId                     %s", block.chainid);
@@ -38,6 +43,9 @@ contract DeployBufiPlugins is Script {
         console.log("BufiEarnModule              %s (owner %s, relayer %s)", earn, earnOwner, earnRelayer);
         console.log("  manifestHash");
         console.logBytes32(keccak256(abi.encode(IPlugin(earn).pluginManifest())));
+        console.log("BufiSessionRecipientHookPlugin %s", recipientHook);
+        console.log("  manifestHash");
+        console.logBytes32(keccak256(abi.encode(IPlugin(recipientHook).pluginManifest())));
     }
 
     function _create2(string memory name, bytes32 salt, bytes memory creationCode, bytes memory args)

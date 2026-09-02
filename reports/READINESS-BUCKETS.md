@@ -11,7 +11,7 @@ blocks the launch claim and is gated on an external party, so it starts now.
 |---|---|---|---|---|
 | 1 | Scope definition & provenance | **100%** ✅ | — | closed 2026-09-02 |
 | 2 | Test evidence (coverage + gas) | **85%** | audit submission | invariant tests remain |
-| 3 | Deployment & explorer verification | 45% | audit submission | deploy hook, verify 3 contracts |
+| 3 | Deployment & explorer verification | **100%** ✅ | — | closed 2026-09-02 |
 | 4 | **Arc private mainnet validation** | **10%** | **launch claim** | **unblock dRPC entitlement** |
 
 ---
@@ -93,7 +93,36 @@ instead of reverting) — and refresh every count from a real run.
 skip it, then commit coverage + `.gas-snapshot`. Add invariants for the session
 key budget accounting and the multisig weight total.
 
-## 3. Deployment & explorer verification — 45%
+## 3. Deployment & explorer verification — 100% ✅ closed 2026-09-02
+
+`BufiSessionRecipientHookPlugin` is deployed at **`0xAa8B4fb76e8Eb712435E2b948B3A35c4C069d98A`** on both Avalanche
+Fuji (43113) and Arc testnet (5042002) — same address, same 11054-byte runtime, from the shared CREATE2 salt
+`keccak256("bufi-6900-plugins-v0.2.0")`. Manifest hash
+`0x0870010f2468b943064a0d1273050e7e37bd40ca26c70138156e850a57e999da`. It takes no constructor args, so unlike the
+earn module there is nothing to rotate before shared use.
+
+The dry run was the check that the salt was right: it re-predicted the two existing plugins at exactly their
+recorded addresses (`0xBd607dBA…`, `0xeb94A8b7…`) before anything was broadcast.
+
+All three BUFI plugins are explorer-verified on both chains — six verifications:
+
+| | Fuji (Routescan) | Arc testnet (arcscan / Blockscout v11.2.8) |
+| --- | --- | --- |
+| `BufiSessionKeyPlugin` | ✓ | ✓ |
+| `BufiEarnModule` | ✓ | ✓ |
+| `BufiSessionRecipientHookPlugin` | ✓ | ✓ |
+
+**Confirmed by reading `getsourcecode` back from each explorer**, not from `forge verify-contract`'s own success
+message — every one returned the right `ContractName` with real source attached. A tool reporting its own success
+is not evidence.
+
+The two Circle plugins in those files (`weightedWebauthnMultisig`, `coldStorageAddressBook`) are Circle's own
+deployments and are not ours to verify; they carry no `verified` flag for that reason.
+
+`script/DeployBufiPlugins.s.sol` now deploys all three and stays idempotent — a re-run reports "already at" and
+broadcasts nothing.
+
+### Superseded assessment (kept for the record) — 45%
 
 - ✗ The recipient hook is not deployed anywhere. `contracts/deployments/arc-testnet.json`
   and `avax-fuji.json` list only `weightedWebauthnMultisig`, `coldStorageAddressBook`,
