@@ -21,8 +21,6 @@ import type { Address, Hex } from 'viem'
 
 const USDC = '0x5425890298aed601595a70AB815c96711a31Bc65' as Address
 const GATEWAY = '0x0077777d7EBA4688BDeF3E311b846F25870A19B9' as Address
-const PROVIDER =
-  '0x00000000000000000000000000000000000Pr0v1' as unknown as Address
 const HOT_WALLET = '0x1111111111111111111111111111111111111111' as Address
 const EXPIRY = { validUntil: 1_800_000_000 }
 const BUDGET = { limit: 1_000_000_000n, refreshIntervalSeconds: 86_400 }
