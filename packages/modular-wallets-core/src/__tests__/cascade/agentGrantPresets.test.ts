@@ -15,6 +15,7 @@ import {
   erc8183ProviderGrant,
   floatFunderGrant,
   gatewayDepositorGrant,
+  spendFromYieldGrant,
 } from '../../index'
 
 import type { Address, Hex } from 'viem'
@@ -22,6 +23,9 @@ import type { Address, Hex } from 'viem'
 const USDC = '0x5425890298aed601595a70AB815c96711a31Bc65' as Address
 const GATEWAY = '0x0077777d7EBA4688BDeF3E311b846F25870A19B9' as Address
 const HOT_WALLET = '0x1111111111111111111111111111111111111111' as Address
+const VAULT = '0x2222222222222222222222222222222222222222' as Address
+const VAULT_B = '0x3333333333333333333333333333333333333333' as Address
+const PAYEE = '0x4444444444444444444444444444444444444444' as Address
 const EXPIRY = { validUntil: 1_800_000_000 }
 const BUDGET = { limit: 1_000_000_000n, refreshIntervalSeconds: 86_400 }
 
@@ -43,6 +47,8 @@ const SEL = {
   giveFeedback: toFunctionSelector(
     'function giveFeedback(uint256,int128,uint8,string,string,string,string,bytes32)',
   ),
+  withdraw: toFunctionSelector('function withdraw(uint256,address,address)'),
+  redeem: toFunctionSelector('function redeem(uint256,address,address)'),
 }
 
 const targets = (g: ReturnType<typeof erc8183ProviderGrant>) =>
@@ -73,7 +79,9 @@ describe('agent role grant presets', () => {
         SEL.reject,
       ])
       // The provider states the price, so the buyer never calls setBudget (proved on Arc: job 182422).
-      expect(selectorsFor(g, ARC_TESTNET_ERC8183_JOBS)).not.toContain(SEL.setBudget)
+      expect(selectorsFor(g, ARC_TESTNET_ERC8183_JOBS)).not.toContain(
+        SEL.setBudget,
+      )
     })
 
     it('excludes complete unless explicitly requested', () => {
@@ -212,6 +220,88 @@ describe('agent role grant presets', () => {
     })
   })
 
+  describe('spendFromYieldGrant', () => {
+    const base = {
+      token: USDC,
+      vaults: [VAULT],
+      recipients: [PAYEE],
+      budget: BUDGET,
+      expiry: EXPIRY,
+    }
+
+    it('scopes the token to transfer and the vault to withdraw', () => {
+      const g = spendFromYieldGrant(base)
+
+      expect(targets(g)).toEqual([USDC.toLowerCase(), VAULT.toLowerCase()])
+      expect(selectorsFor(g, USDC)).toEqual([SEL.transfer])
+      expect(selectorsFor(g, VAULT)).toEqual([SEL.withdraw])
+    })
+
+    // The whole point of the preset. A vault carrying an ERC-20 spend limit admits transfer/approve only, so
+    // withdraw would be rejected at validation — pinned on-chain by SpendFromVault.t.sol.
+    it('budgets the token and NEVER the vault', () => {
+      const g = spendFromYieldGrant(base)
+
+      expect(g.budget?.erc20).toEqual([
+        {
+          token: USDC,
+          limit: BUDGET.limit,
+          refreshIntervalSeconds: BUDGET.refreshIntervalSeconds,
+        },
+      ])
+      expect(
+        g.budget?.erc20?.some(
+          (b) => b.token.toLowerCase() === VAULT.toLowerCase(),
+        ),
+      ).toBe(false)
+      expect(g.budget?.gas).toEqual(DEFAULT_AGENT_GAS_BUDGET)
+    })
+
+    it('refuses a vault that is the budgeted token itself', () => {
+      expect(() => spendFromYieldGrant({ ...base, vaults: [USDC] })).toThrow(
+        /cannot use the budgeted token/,
+      )
+    })
+
+    it('adds redeem only when asked, and dedupes vaults', () => {
+      expect(selectorsFor(spendFromYieldGrant(base), VAULT)).toEqual([
+        SEL.withdraw,
+      ])
+
+      const g = spendFromYieldGrant({
+        ...base,
+        vaults: [VAULT, VAULT_B, VAULT],
+        includeRedeem: true,
+      })
+      expect(targets(g)).toEqual([
+        USDC.toLowerCase(),
+        VAULT.toLowerCase(),
+        VAULT_B.toLowerCase(),
+      ])
+      expect(selectorsFor(g, VAULT_B)).toEqual([SEL.withdraw, SEL.redeem])
+    })
+
+    it('fails closed on an empty vault or recipient list', () => {
+      expect(() => spendFromYieldGrant({ ...base, vaults: [] })).toThrow(
+        /at least one vault/,
+      )
+      expect(() => spendFromYieldGrant({ ...base, recipients: [] })).toThrow(
+        /at least one recipient/,
+      )
+    })
+
+    it('compiles to updates that never set a spend limit on the vault', () => {
+      const updates = buildBufiGrant(spendFromYieldGrant(base))
+      const vaultBody = VAULT.slice(2).toLowerCase()
+      const limitUpdates = updates.filter((u) =>
+        u.toLowerCase().includes(vaultBody),
+      )
+
+      // The vault appears as an access-list address entry and a function entry, and nowhere else.
+      expect(limitUpdates).toHaveLength(2)
+    })
+  })
+
   describe('AGENT_ROLE_PRESETS', () => {
     it('names the plugins and AddressBook entries each role depends on', () => {
       const buyer = AGENT_ROLE_PRESETS.find((p) => p.role === 'erc8183-buyer')
@@ -221,7 +311,11 @@ describe('agent role grant presets', () => {
         (p) => p.role === 'erc8183-provider',
       )
       expect(provider?.addressBookRecipients).toEqual([])
-      expect(AGENT_ROLE_PRESETS).toHaveLength(5)
+      const yield_ = AGENT_ROLE_PRESETS.find(
+        (p) => p.role === 'spend-from-yield',
+      )
+      expect(yield_?.addressBookRecipients).toEqual(['vaults', 'recipients'])
+      expect(AGENT_ROLE_PRESETS).toHaveLength(6)
     })
   })
 

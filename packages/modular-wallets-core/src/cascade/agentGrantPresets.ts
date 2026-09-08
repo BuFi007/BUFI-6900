@@ -19,6 +19,7 @@ import type {
   Erc8183ProviderGrantParameters,
   FloatFunderGrantParameters,
   GatewayDepositorGrantParameters,
+  SpendFromYieldGrantParameters,
 } from '../types/bufi'
 import type { Address, Hex } from 'viem'
 
@@ -39,6 +40,16 @@ export const ERC20_TRANSFER_SELECTOR = toFunctionSelector(
 export const ERC20_APPROVE_SELECTOR = toFunctionSelector(
   'function approve(address,uint256)',
 )
+
+/**
+ * ERC-4626 sourcing selectors. These are permitted as PLAIN calls on a vault — never as ERC-20 budgeted ones.
+ * A contract carrying an ERC-20 spend limit admits `transfer` and `approve` only
+ * (`SessionKeyPermissions.isAllowedERC20Function`), so budgeting a vault silently bricks its withdrawal leg.
+ */
+export const ERC4626_SELECTORS = {
+  withdraw: toFunctionSelector('function withdraw(uint256,address,address)'),
+  redeem: toFunctionSelector('function redeem(uint256,address,address)'),
+} as const
 
 /** Native ERC-8183 job selectors, as BUFI drives them (see `apps/shiva` `w2w-onchain.service.ts` in desk). */
 export const ERC8183_SELECTORS = {
@@ -253,6 +264,71 @@ export function gatewayDepositorGrant({
 }
 
 /**
+ * Paying out of an ERC-4626 position: redeem the shortfall and transfer, in ONE `executeWithSessionKey` operation.
+ * Pair it with `buildSpendFromYieldCalls`, which builds that call array from the account's live balances.
+ *
+ * This is the FluidKey shape. `fluidkey/fluidkey-earn-module` has no `withdraw` or `redeem` anywhere in
+ * `src/FluidkeyEarnModule.sol`; spending straight from yield happens in the transaction their app builds, not in
+ * the module. `BufiEarnModule` inherits that, so the sourcing leg is a grant plus a call array, not a new plugin.
+ *
+ * The vault is granted as a PLAIN permitted call and is deliberately absent from the ERC-20 budget. Vault shares
+ * are themselves an ERC-20, so budgeting one looks reasonable and is the trap this preset exists to close: a
+ * contract flagged `isERC20WithSpendLimit` admits `transfer` and `approve` only, so `withdraw` would be rejected
+ * at validation. Pinned on-chain by `contracts/test/bufi/v0.7/session/SpendFromVault.t.sol`
+ * (`test_vaultAsErc20SpendLimited_rejectsWithdraw`).
+ *
+ * The budget still bounds the agent exactly as before: it caps `token` spending per window, and sourcing more
+ * from the vault does not raise that ceiling — an over-budget transfer is rejected whatever the balance is.
+ * @param parameters - Parameters to use. See {@link SpendFromYieldGrantParameters}.
+ * @returns The grant. See {@link BufiGrant}.
+ * @throws If `vaults` or `recipients` is empty, or if a vault is the budgeted token itself — which would fold the
+ * vault into the ERC-20 budget and brick its withdrawal leg.
+ */
+export function spendFromYieldGrant({
+  token,
+  vaults,
+  recipients,
+  budget,
+  expiry,
+  gas,
+  requiredPaymaster,
+  includeRedeem = false,
+}: SpendFromYieldGrantParameters): BufiGrant {
+  if (vaults.length === 0) {
+    throw new Error(
+      'A spend-from-yield grant must name at least one vault. For a key that only spends a liquid balance, use floatFunderGrant.',
+    )
+  }
+  if (recipients.length === 0) {
+    throw new Error(
+      'A spend-from-yield grant must name at least one recipient.',
+    )
+  }
+
+  const vaultSelectors: Hex[] = [
+    ERC4626_SELECTORS.withdraw,
+    ...(includeRedeem ? [ERC4626_SELECTORS.redeem] : []),
+  ]
+
+  const seen = new Set<string>()
+  const scope: BufiGrantScopeEntry[] = [
+    { target: token, selectors: [ERC20_TRANSFER_SELECTOR] },
+  ]
+  for (const vault of vaults) {
+    if (vault.toLowerCase() === token.toLowerCase()) {
+      throw new Error(
+        `A spend-from-yield grant cannot use the budgeted token ${token} as a vault: the ERC-20 spend limit would flag it, and a flagged contract admits transfer and approve only, so withdraw would be rejected at validation.`,
+      )
+    }
+    if (seen.has(vault.toLowerCase())) continue
+    seen.add(vault.toLowerCase())
+    scope.push({ target: vault, selectors: vaultSelectors })
+  }
+
+  return grant(scope, expiry, { token, budget }, gas, requiredPaymaster)
+}
+
+/**
  * Metadata for each role, for approval UIs and for the service that provisions agent faces: which plugins the
  * account needs, and which addresses must be on its AddressBook for the grant to be usable.
  */
@@ -284,6 +360,13 @@ export const AGENT_ROLE_PRESETS: readonly AgentRolePresetMeta[] = [
       'Top up an x402 signer or a card funding wallet under budget. The hot wallet signs; the agent only funds it.',
     plugins: ['bufiSessionKey', 'coldStorageAddressBook', 'recipientHook'],
     addressBookRecipients: ['hotWallet'],
+  },
+  {
+    role: 'spend-from-yield',
+    description:
+      "Pay out of an ERC-4626 position: redeem the shortfall and transfer in one operation. The vault is a plain permitted call, never a budgeted ERC-20. Vault addresses come from the account's adopted earn config (getEarnConfigs); the earn module itself is only needed for the deposit side.",
+    plugins: ['bufiSessionKey', 'coldStorageAddressBook', 'recipientHook'],
+    addressBookRecipients: ['vaults', 'recipients'],
   },
   {
     role: 'gateway-depositor',

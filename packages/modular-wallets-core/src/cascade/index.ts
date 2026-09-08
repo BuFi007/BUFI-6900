@@ -17,5 +17,6 @@
  */
 
 export * from './buildAgentFaceCalls'
+export * from './buildSpendFromYieldCalls'
 export * from './buildTreasuryBootstrapCalls'
 export * from './agentGrantPresets'

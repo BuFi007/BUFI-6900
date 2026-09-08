@@ -446,6 +446,24 @@ export interface GatewayDepositorGrantParameters extends AgentGrantPresetBase {
   budget: BufiGrantSpendBudget
 }
 
+/** Parameters for `spendFromYieldGrant`. */
+export interface SpendFromYieldGrantParameters extends AgentGrantPresetBase {
+  /** The token the agent pays in. */
+  token: Address
+  /**
+   * The ERC-4626 vaults the shortfall may be sourced from — the account's adopted `(token, vault)` config, read
+   * with `getEarnConfigs`. Each MUST also be on the account's AddressBook: `withdraw(uint256,address,address)`
+   * carries no decodable token recipient, so `BufiSessionRecipientHookPlugin` judges it by its target.
+   */
+  vaults: readonly Address[]
+  /** The payees. Each MUST also be on the account's AddressBook. */
+  recipients: readonly Address[]
+  /** How much the agent may pay out per window. Applies to `token`, never to a vault. */
+  budget: BufiGrantSpendBudget
+  /** Also permit `redeem(uint256,address,address)` alongside `withdraw`. Defaults to false. */
+  includeRedeem?: boolean
+}
+
 /** An agent role, its plugin requirements and the AddressBook entries the grant depends on. */
 export interface AgentRolePresetMeta {
   role:
@@ -454,6 +472,7 @@ export interface AgentRolePresetMeta {
     | 'erc8004-rater'
     | 'float-funder'
     | 'gateway-depositor'
+    | 'spend-from-yield'
   description: string
   plugins: readonly (
     | 'bufiSessionKey'
