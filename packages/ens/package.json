@@ -1,0 +1,10 @@
+{
+  "name": "@bufi6900/ens",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ENSv2 workspace naming: face-first name shapes, wallet tags and the preview registry",
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "license": "SEE LICENSE IN ../../LICENSE"
+}

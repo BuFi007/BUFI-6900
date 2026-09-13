@@ -1,0 +1,48 @@
+{
+  "name": "@bufi6900/cre",
+  "version": "1.0.0",
+  "private": true,
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./client": {
+      "types": "./src/client.ts",
+      "default": "./src/client.ts"
+    },
+    "./types": {
+      "types": "./src/types/index.ts",
+      "default": "./src/types/index.ts"
+    },
+    "./constants": {
+      "types": "./src/constants.ts",
+      "default": "./src/constants.ts"
+    },
+    "./catalog": {
+      "types": "./src/catalog.ts",
+      "default": "./src/catalog.ts"
+    },
+    "./evidence": {
+      "types": "./src/evidence.ts",
+      "default": "./src/evidence.ts"
+    }
+  },
+  "dependencies": {
+    "@bu/observability": "workspace:*",
+    "viem": "^2.38.3"
+  },
+  "devDependencies": {
+    "@bu/tsconfig": "workspace:*"
+  },
+  "scripts": {
+    "clean": "rm -rf .turbo node_modules",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test src"
+  },
+  "description": "Chainlink CRE catalog, client and attestation/evidence types",
+  "license": "SEE LICENSE IN ../../LICENSE"
+}

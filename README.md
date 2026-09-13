@@ -23,9 +23,54 @@ BUFI-6900/
 ├─ packages/modular-wallets-core  @bufi/modular-wallets-core — fork of @circle-fin/modular-wallets-core + plugin actions
 ├─ packages/mock-circle           @bufi/mock-circle — Modular Wallets API + bundler + paymaster mock on anvil
 ├─ packages/msca-recovery         @bufi/msca-recovery — fork of circlefin/msca-wallet-recovery (independent lane)
+├─ packages/cre                   @bufi6900/cre — Chainlink CRE catalog, client, attestation/evidence types
+├─ packages/the-graph             @bufi6900/the-graph — ERC-8004 identity+reputation, ERC-8183 job-escrow subgraphs
+├─ packages/ens                   @bufi6900/ens — ENSv2 workspace naming, face-first shapes, preview registry
+├─ packages/ledger                @bufi6900/ledger — Ledger hardware signer for treasuries (web + React Native)
 ├─ apps/playground                headless e2e + Vite UI against the mock
 └─ docs/                          AUDIT-SCOPE · THREAT-MODEL · PLUGIN-COMPOSITION · CIRCLE-SUBMISSION
 ```
+
+## ETHGlobal ETHOnline 2026 — 👻 BUFI
+
+**BUFI is a financial OS purpose-built for distributed B2B teams that are stablecoin and AI-first.**
+
+- Showcase: https://ethglobal.com/showcase/bufi-8ecop
+- Product monorepo: https://github.com/BuFi007/desk-v1
+- CRE workflow engine: https://github.com/BuFi007/chainlink-cre
+
+### Packages
+
+| Package | What it is |
+| --- | --- |
+| [`packages/modular-wallets-core`](packages/modular-wallets-core) | Fork of Circle's web SDK with ERC-6900 plugin actions as first-class |
+| [`packages/cre`](packages/cre) | Chainlink CRE catalog, gateway client, attestation + evidence types |
+| [`packages/the-graph`](packages/the-graph) | Subgraph reads for ERC-8004 identity/reputation and ERC-8183 job escrow |
+| [`packages/ens`](packages/ens) | ENSv2 workspace naming, face-first, with its honest Sepolia-only limits |
+| [`packages/ledger`](packages/ledger) | Ledger hardware signer for treasuries, web + React Native, plus its CSP regression |
+| [`packages/mock-circle`](packages/mock-circle) | Modular Wallets API + bundler + paymaster mock, zero Circle credentials |
+| [`packages/msca-recovery`](packages/msca-recovery) | Fork of Circle's MSCA wallet recovery |
+| [`contracts/src/bufi`](contracts/src/bufi) | The ERC-6900 plugins — session keys, Earn, Gateway |
+
+### How it's made
+
+BUFI is a unified financial workspace for agile B2B teams, combining stablecoin payments, self-custodial treasury management, AI assistance, privacy, and ERP/CRM workflows in one cross-platform product.
+
+Its custody architecture uses Circle User-Controlled Wallets as treasury signers for Circle MSCA Modular Wallets with weighted approvals. For agentic workflows, AI requests permission and scope to the treasury and goes through a treasury ceremony for scoped and safe agentic transactions. Teams can also connect existing Web3 wallets, including Ledger hardware devices, to access shared workflows such as invoicing, reimbursements, payroll, contracts, deals, products, and project management.
+
+For secure AI-assisted treasury operations, BUFI integrates Circle's ERC-6900 Allowlist plugin with human-in-the-loop treasury ceremonies. This enables policy-controlled agentic payments while preserving explicit user oversight. The architecture works across web and mobile, allowing treasury activity and AI notifications to be reviewed and handled from either platform.
+
+Each workspace has an ERC-8004 identity for agent-to-agent flows. During workspace setup, ENSv2 naming distinguishes collective workspace wallets from personal wallets, supported by colour coding to reduce operational ambiguity. For AI agents, BUFI supports WebMCP, LLM discoverability, and x402 nanopayments, allowing assistants to discover and procure tools and enabling workspaces to be discovered for hiring.
+
+BUFI combines the Circle and Arc stack with Ledger to create a global, self-custodial ERP for the future of work. The platform supports swaps, FX across StableFX assets on Avalanche Mainnet and Arc testnet, yield and earn functionality, allowlisted payments, conditional payments, onchain automation, and multi-step settlement.
+
+During ETHOnline 2026, we completed BUFI's privacy implementation. BUFI means Private Business Finance, represented by its ghost identity. We integrated Hinkal's privacy payment solution as Ghost Balances for MSCA treasuries and personal wallets, alongside StableFX support on Arc testnet. This allows companies and independent contributors to transact globally and privately while retaining programmable treasury controls.
+
+We also extended ERC-8004 identities into a payment-scoring system using Chainlink Confidential CRE. This provides the foundation for a human and agent workspace marketplace where financial workspaces can be discovered and hired based on reputation and scoring. A dedicated agentic workflow manages quotes, contracts, invoices, and settlement for workspace hiring, enabling humans and agents to hire and transact with one another through a unified financial operating layer. To power the agentic marketplace and discoverability, we enabled an MCP and Arc Subgraph to keep this agentic workspace "Behance meets Fiverr" in sync. When a workspace gets a quote and deal done in the CRM, the contract and escrow itself is settled leveraging the ERC-8183 Agentic Commerce contract combined with Chainlink CRE for disputes and settlement, with AI reviewing deliverables and disputes in a multi-model juror dispute resolution system, as workspaces and their agents get hired through ERC-8183 job escrow and A2A.
+
+Circle's MSCA architecture and the ERC-6900 plugin model offer a path beyond developer-controlled agent wallets toward scoped agentic accounts and automated yield treasuries. We developed BUFI-6900, a collection of plugins that defines modular capabilities for Circle MSCA wallets. Similar to the skills.sh directory, and built to support the Circle Agent Stack Marketplace and Coinbase Bazaar, these capabilities could be installed as reusable "Wallet Skills", allowing agent wallets to evolve without replacing their underlying accounts. Further integration work is required because Circle's plugin installation contract currently relies on a Circle-managed allowlist. We provide these plugins for consideration to power BUFI 2.0 with enhanced capabilities for scoped agentic accounts, agentic policy, unified USDC gateway balances, and automated yield treasury multisigs.
+
+> **On the four packages added for this submission.** `cre`, `the-graph`, `ens` and `ledger` are lifted verbatim from the product monorepo (`BuFi007/desk-v1`) so the hackathon work reads as standalone packages. They still import from that workspace (`@bu/*`), so they are published for review and portability rather than to build in isolation here. Each package README maps every file to its canonical home.
 
 ## Quickstart
 
