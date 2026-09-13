@@ -1,0 +1,26 @@
+{
+  "name": "@bufi6900/subgraph-arc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "BUFI's Arc subgraph: ERC-8004 identity + reputation and ERC-8183 agentic commerce on one graph, with workspace joins, evidence-bound ratings and the bufi.score.v1 attestation.",
+  "scripts": {
+    "chain-config": "bun run ./scripts/generate-chain-config.ts",
+    "build": "bun run ./scripts/deploy.ts --build-only",
+    "deploy": "bun run ./scripts/deploy.ts",
+    "test": "graph test",
+    "check:type": "tsc --noEmit -p tsconfig.scripts.json",
+    "typecheck": "tsc --noEmit -p tsconfig.scripts.json",
+    "clean": "rm -rf .turbo node_modules .generated build generated"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "0.98.1",
+    "@graphprotocol/graph-ts": "0.38.2"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "matchstick-as": "0.6.0",
+    "typescript": "^5.9.3"
+  },
+  "license": "GPL-3.0-or-later"
+}

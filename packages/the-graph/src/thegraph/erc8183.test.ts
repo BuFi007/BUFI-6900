@@ -16,10 +16,12 @@ const REF: SubgraphRef = {
   chainId: 5042002,
   subgraphId: 'Sub',
   deploymentId: null,
+  queryUrl: null,
 };
 const CIRCLE_8183 = '0x0747EEf0706327138c69792bF28Cd525089e4583';
 const AGENT_DCW = '0x89875CCB15770E1BA344818002F08A44ECB8FAE2';
 
+// Shape of a `job` row on the BUFI Arc subgraph (packages/subgraph-arc).
 const LIVE_JOB = {
   id: jobEntityId(5042002, CIRCLE_8183, '182422'),
   jobId: '182422',
@@ -27,18 +29,20 @@ const LIVE_JOB = {
   client: { id: AGENT_DCW.toLowerCase() },
   provider: { id: '0x1708f1004a87370fe31040338a6bea6a579896dc' },
   evaluator: { id: AGENT_DCW.toLowerCase() },
-  payoutReceiver: null,
+  clientAgent: { agentId: '894551' },
+  providerAgent: { agentId: '893198' },
+  engagement: { id: '0xe' },
   expiresAt: '1756600000',
   submittedAt: '1756590000',
   budget: '1000000',
   paymentToken: '0x3600000000000000000000000000000000000000',
-  providerAgentId: '0',
+  hook: null,
   description: 'Arc native W2W job',
-  settledAmount: '1000000',
   providerPayment: '980000',
-  platformFeePaid: '10000',
   evaluatorFeePaid: '10000',
   refundedAmount: '0',
+  settled: true,
+  settledAt: '1756595000',
   deliverable: '0xdeadbeef',
   completionReason: '0x01',
   rejectionReason: null,
@@ -87,6 +91,8 @@ describe('getJob', () => {
     expect(sent[0]?.variables.id).toBe(LIVE_JOB.id);
     expect(job?.jobId).toBe('182422');
     expect(typeof job?.budget).toBe('string');
+    expect(job?.clientAgent?.agentId).toBe('894551');
+    expect(job?.settled).toBe(true);
     expect(job?.events[0]?.kind).toBe('CREATED');
   });
 
@@ -112,7 +118,7 @@ describe('listJobs', () => {
     expect(page.nextCursor).toBeNull();
   });
 
-  test('adds status and id_gt filters when given', async () => {
+  test('adds status, settledOnly and id_gt filters when given', async () => {
     const sent: Sent[] = [];
     await listJobs(
       {
@@ -121,6 +127,7 @@ describe('listJobs', () => {
         address: AGENT_DCW,
         role: 'provider',
         status: 'COMPLETED',
+        settledOnly: true,
         afterId: '0x01',
       },
       opts({ jobs: [] }, sent)
@@ -128,6 +135,7 @@ describe('listJobs', () => {
     const where = sent[0]?.variables.where as Record<string, unknown>;
     expect(where.provider).toBe(AGENT_DCW.toLowerCase());
     expect(where.status).toBe('COMPLETED');
+    expect(where.settled).toBe(true);
     expect(where.id_gt).toBe('0x01');
   });
 });
@@ -148,7 +156,16 @@ describe('effectiveJobStatus', () => {
 });
 
 describe('isSettledPayment', () => {
-  test('completed AND paid counts; refunded or unpaid does not', () => {
+  test("the subgraph's verdict wins when present", () => {
+    expect(isSettledPayment({ status: 'COMPLETED', providerPayment: '0', settled: true })).toBe(
+      true
+    );
+    expect(
+      isSettledPayment({ status: 'COMPLETED', providerPayment: '980000', settled: false })
+    ).toBe(false);
+  });
+
+  test('without it: completed AND paid counts; refunded or unpaid does not', () => {
     expect(isSettledPayment({ status: 'COMPLETED', providerPayment: '980000' })).toBe(true);
     expect(isSettledPayment({ status: 'COMPLETED', providerPayment: '0' })).toBe(false);
     expect(isSettledPayment({ status: 'EXPIRED', providerPayment: '0' })).toBe(false);

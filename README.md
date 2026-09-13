@@ -45,7 +45,8 @@ BUFI-6900/
 | --- | --- |
 | [`packages/modular-wallets-core`](packages/modular-wallets-core) | Fork of Circle's web SDK with ERC-6900 plugin actions as first-class |
 | [`packages/cre`](packages/cre) | Chainlink CRE catalog, gateway client, attestation + evidence types |
-| [`packages/the-graph`](packages/the-graph) | Subgraph reads for ERC-8004 identity/reputation and ERC-8183 job escrow |
+| [`packages/subgraph-arc`](packages/subgraph-arc) | BUFI's own Arc subgraph: ERC-8004 identity + reputation and Circle's ERC-8183 escrow on one graph, with workspace joins, verified ratings and the payment-score attestation — builds standalone |
+| [`packages/the-graph`](packages/the-graph) | Typed reads over that subgraph for ERC-8004 identity/reputation and ERC-8183 job escrow |
 | [`packages/ens`](packages/ens) | ENSv2 workspace naming, face-first, with its honest Sepolia-only limits |
 | [`packages/ledger`](packages/ledger) | Ledger hardware signer for treasuries, web + React Native, plus its CSP regression |
 | [`packages/mock-circle`](packages/mock-circle) | Modular Wallets API + bundler + paymaster mock, zero Circle credentials |
@@ -70,6 +71,8 @@ We also extended ERC-8004 identities into a payment-scoring system using Chainli
 
 Circle's MSCA architecture and the ERC-6900 plugin model offer a path beyond developer-controlled agent wallets toward scoped agentic accounts and automated yield treasuries. We developed BUFI-6900, a collection of plugins that defines modular capabilities for Circle MSCA wallets. Similar to the skills.sh directory, and built to support the Circle Agent Stack Marketplace and Coinbase Bazaar, these capabilities could be installed as reusable "Wallet Skills", allowing agent wallets to evolve without replacing their underlying accounts. Further integration work is required because Circle's plugin installation contract currently relies on a Circle-managed allowlist. We provide these plugins for consideration to power BUFI 2.0 with enhanced capabilities for scoped agentic accounts, agentic policy, unified USDC gateway balances, and automated yield treasury multisigs.
 
+> **`packages/subgraph-arc` builds and deploys from this repo** (`bun install`, then `bun run --cwd packages/subgraph-arc build`); it is the Arc subgraph behind the marketplace, based on Space Object's hackathon subgraphs with their permission and extended with BUFI's business logic.
+>
 > **On the four packages added for this submission.** `cre`, `the-graph`, `ens` and `ledger` are lifted verbatim from the product monorepo (`BuFi007/desk-v1`) so the hackathon work reads as standalone packages. They still import from that workspace (`@bu/*`), so they are published for review and portability rather than to build in isolation here. Each package README maps every file to its canonical home.
 
 ## Quickstart

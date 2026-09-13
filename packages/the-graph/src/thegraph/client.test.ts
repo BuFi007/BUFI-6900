@@ -9,6 +9,7 @@ const REF: SubgraphRef = {
   chainId: 5042002,
   subgraphId: 'SubgraphId',
   deploymentId: null,
+  queryUrl: null,
 };
 
 interface Captured {

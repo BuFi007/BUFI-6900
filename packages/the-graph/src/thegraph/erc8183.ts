@@ -1,14 +1,16 @@
 /**
- * Typed reads over the ERC-8183 agentic-commerce subgraph (plan 342).
+ * Typed reads over the ERC-8183 side of BUFI's Arc subgraph (plan 342).
  *
- * The subgraph is one escrow contract per deployment; BUFI's is Circle's Arc
- * Testnet contract (`getBuAgenticCommerceAddress(5042002)` in `@bu/env/ace`),
- * shared with every other party on it, so readers filter by their own agent
- * wallet addresses. `jobId` is a uint256: strings end to end, never Number.
+ * The indexed escrow is Circle's Arc contract
+ * (`getBuAgenticCommerceAddress(5042002)` in `@bu/env/ace`), shared with every
+ * other party on it; readers filter by their own agent wallet addresses or by
+ * the workspace links the subgraph resolves (`clientAgent` / `providerAgent`).
+ * `jobId` is a uint256: strings end to end, never Number.
  *
  * `Job.status` only flips to EXPIRED on-chain when someone calls `claimRefund`,
  * so a job past its deadline still reads OPEN / FUNDED / SUBMITTED. Use
- * `effectiveJobStatus` for anything user-facing.
+ * `effectiveJobStatus` for anything user-facing. `Job.settled` is the
+ * subgraph's own verdict: COMPLETED and the provider paid.
  */
 
 import { getSubgraphRef, type SubgraphRef } from '@bu/env/thegraph';
@@ -29,6 +31,7 @@ export type JobStatus = (typeof JOB_STATUSES)[number];
 
 const bigIntString = z.string().regex(/^-?\d+$/, 'expected an integer string');
 const account = z.object({ id: z.string() });
+const agentRef = z.object({ agentId: bigIntString });
 
 export const jobEventSchema = z.object({
   id: z.string(),
@@ -49,19 +52,23 @@ export const jobSchema = z.object({
   client: account,
   provider: account.nullable(),
   evaluator: account,
-  payoutReceiver: account.nullable(),
+  /** BUFI: the workspaces behind the party addresses, via WalletBinding. */
+  clientAgent: agentRef.nullable(),
+  providerAgent: agentRef.nullable(),
+  engagement: z.object({ id: z.string() }).nullable(),
   /** Unix seconds. */
   expiresAt: bigIntString,
   submittedAt: bigIntString.nullable(),
   budget: bigIntString,
-  paymentToken: z.string().nullable(),
-  providerAgentId: bigIntString,
+  paymentToken: z.string(),
+  hook: z.string().nullable(),
   description: z.string(),
-  settledAmount: bigIntString,
   providerPayment: bigIntString,
-  platformFeePaid: bigIntString,
   evaluatorFeePaid: bigIntString,
   refundedAmount: bigIntString,
+  /** BUFI: COMPLETED and the provider was paid; a refund never counts. */
+  settled: z.boolean(),
+  settledAt: bigIntString.nullable(),
   deliverable: z.string().nullable(),
   completionReason: z.string().nullable(),
   rejectionReason: z.string().nullable(),
@@ -74,9 +81,10 @@ export const jobSchema = z.object({
 export type SubgraphJob = z.infer<typeof jobSchema>;
 
 const JOB_FIELDS = `
-  id jobId status client { id } provider { id } evaluator { id } payoutReceiver { id }
-  expiresAt submittedAt budget paymentToken providerAgentId description
-  settledAmount providerPayment platformFeePaid evaluatorFeePaid refundedAmount
+  id jobId status client { id } provider { id } evaluator { id }
+  clientAgent { agentId } providerAgent { agentId } engagement { id }
+  expiresAt submittedAt budget paymentToken hook description
+  providerPayment evaluatorFeePaid refundedAmount settled settledAt
   deliverable completionReason rejectionReason
   createdAt createdAtTransaction updatedAt updatedAtTransaction
   events(first: 200, orderBy: logIndex, orderDirection: asc) {
@@ -124,6 +132,8 @@ export interface ListJobsInput {
   first?: number;
   afterId?: string | null;
   status?: JobStatus;
+  /** Only settled jobs (COMPLETED and provider paid). */
+  settledOnly?: boolean;
 }
 
 export interface JobPage {
@@ -144,6 +154,7 @@ export async function listJobs(
     [input.role]: input.address.toLowerCase(),
   };
   if (input.status) where.status = input.status;
+  if (input.settledOnly) where.settled = true;
   if (input.afterId) where.id_gt = input.afterId;
 
   const data = await queryTheGraph<{ jobs: unknown[] }>(
@@ -186,8 +197,12 @@ export function effectiveJobStatus(
 /**
  * A job counts as a settled payment only when it completed AND the provider
  * was actually paid. A refunded job is not a settlement (marketplace audit P1,
- * 2026-09-12: refunded agreements were counting as settled).
+ * 2026-09-12). The subgraph carries the same verdict as `settled`; this is the
+ * client-side restatement for rows read without that field.
  */
-export function isSettledPayment(job: Pick<SubgraphJob, 'status' | 'providerPayment'>): boolean {
+export function isSettledPayment(
+  job: Pick<SubgraphJob, 'status' | 'providerPayment'> & { settled?: boolean }
+): boolean {
+  if (typeof job.settled === 'boolean') return job.settled;
   return job.status === 'COMPLETED' && BigInt(job.providerPayment) > 0n;
 }

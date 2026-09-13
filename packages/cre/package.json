@@ -32,12 +32,9 @@
     }
   },
   "dependencies": {
-    "@bu/observability": "workspace:*",
     "viem": "^2.38.3"
   },
-  "devDependencies": {
-    "@bu/tsconfig": "workspace:*"
-  },
+  "devDependencies": {},
   "scripts": {
     "clean": "rm -rf .turbo node_modules",
     "typecheck": "tsc --noEmit",

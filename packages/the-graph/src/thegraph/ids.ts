@@ -11,6 +11,7 @@
  */
 
 import type { HexString } from '@bu/types/evm';
+import { concatHex, keccak256 } from 'viem';
 
 export type ChainScopedIdPart = string | number | bigint;
 
@@ -131,4 +132,17 @@ export function decodeChainScopedEntityId(id: string): DecodedChainScopedId {
     address,
     parts: rest ? rest.slice(1).split(':') : [],
   };
+}
+
+/**
+ * BUFI `Engagement` entity id: keccak256 of the client agent id bytes followed
+ * by the provider agent id bytes — directed, so client→provider and
+ * provider→client are two edges. Mirrors `engagementId` in
+ * `packages/subgraph-arc/src/bufi/engagement.ts`.
+ */
+export function engagementEntityId(
+  clientAgentId: HexString,
+  providerAgentId: HexString
+): HexString {
+  return keccak256(concatHex([clientAgentId, providerAgentId]));
 }

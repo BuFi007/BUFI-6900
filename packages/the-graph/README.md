@@ -14,10 +14,14 @@ and the reputation scoring read from.
 | `src/thegraph/erc8183.ts` | `packages/blockchain-data/src/thegraph/erc8183.ts` | job-escrow reads |
 | `src/thegraph/ids.ts` | `packages/blockchain-data/src/thegraph/ids.ts` | subgraph id helpers |
 | `src/env/thegraph.ts` | `packages/env/src/thegraph.ts` | endpoint + key resolution |
-| `src/erc8004-registration.ts` | `packages/utils/src/erc8004-registration.ts` | registration rules |
+| `src/erc8004-registration.ts` | `packages/utils/src/erc8004-registration.ts` | the inline `data:` registration document every BUFI identity carries |
+| `src/base64.ts` | `packages/utils/src/base64.ts` | portable base64 used by the document builder |
 | `src/reputation.ts` | `packages/api-types/src/reputation.ts` | reputation wire types |
 
-Tests ship alongside each module.
+Tests ship alongside each module. The graph these read is `packages/subgraph-arc` in this
+repo — BUFI's own Arc subgraph (identity + reputation + commerce on one graph, with the
+workspace joins, verified ratings, `Job.settled` and the `bufi.score.v1` attestation).
+Refreshed 2026-09-13 to the BUFI schema.
 
 ## Provenance
 

@@ -11,6 +11,9 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
 const ENV_KEYS = [
   'GRAPH_GATEWAY_API_KEY',
+  'THEGRAPH_ARC_TESTNET_QUERY_URL',
+  'THEGRAPH_ARC_TESTNET_SUBGRAPH_ID',
+  'THEGRAPH_ARC_TESTNET_DEPLOYMENT_ID',
   'THEGRAPH_ERC8004_ARC_TESTNET_SUBGRAPH_ID',
   'THEGRAPH_ERC8004_ARC_TESTNET_DEPLOYMENT_ID',
   'THEGRAPH_ERC8183_ARC_TESTNET_SUBGRAPH_ID',
@@ -66,8 +69,39 @@ describe('getSubgraphRef', () => {
       chainId: 5042002,
       subgraphId: null,
       deploymentId: null,
+      queryUrl: null,
     });
-    expect(() => subgraphQueryUrl(ref)).toThrow('THEGRAPH_ERC8004_ARC_TESTNET_SUBGRAPH_ID');
+    expect(() => subgraphQueryUrl(ref)).toThrow('THEGRAPH_ARC_TESTNET_SUBGRAPH_ID');
+  });
+
+  test('a Studio query URL wins over every id and needs no gateway id at all', () => {
+    process.env.THEGRAPH_ARC_TESTNET_QUERY_URL =
+      'https://api.studio.thegraph.com/query/1760286/bufi-eth-online/v0.1.0';
+    process.env.THEGRAPH_ARC_TESTNET_DEPLOYMENT_ID = 'QmPinned';
+    for (const kind of ['erc8004', 'erc8183'] as const) {
+      expect(subgraphQueryUrl(getSubgraphRef(kind))).toBe(
+        'https://api.studio.thegraph.com/query/1760286/bufi-eth-online/v0.1.0'
+      );
+    }
+  });
+
+  test('one chain-level id serves both kinds: BUFI indexes identity and commerce on one graph', () => {
+    process.env.THEGRAPH_ARC_TESTNET_SUBGRAPH_ID = 'BufiArc';
+    expect(getSubgraphRef('erc8004').subgraphId).toBe('BufiArc');
+    expect(getSubgraphRef('erc8183').subgraphId).toBe('BufiArc');
+    expect(subgraphQueryUrl(getSubgraphRef('erc8183'))).toBe(
+      `${THEGRAPH_GATEWAY_URL}/subgraphs/id/BufiArc`
+    );
+  });
+
+  test('a per-kind id wins over the chain-level id, and replaces both chain-level values', () => {
+    process.env.THEGRAPH_ARC_TESTNET_SUBGRAPH_ID = 'BufiArc';
+    process.env.THEGRAPH_ARC_TESTNET_DEPLOYMENT_ID = 'QmChainPin';
+    process.env.THEGRAPH_ERC8183_ARC_TESTNET_SUBGRAPH_ID = 'SplitCommerce';
+    expect(getSubgraphRef('erc8004').deploymentId).toBe('QmChainPin');
+    const commerce = getSubgraphRef('erc8183');
+    expect(commerce.subgraphId).toBe('SplitCommerce');
+    expect(commerce.deploymentId).toBeNull();
   });
 
   test('erc8183 on arc-testnet has NO default either', () => {

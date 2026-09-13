@@ -1,0 +1,161 @@
+# Generated per chain by scripts/deploy.ts from chain.config.json. Event
+# signatures come from the VERIFIED implementations behind the Arc proxies
+# (explorer, 2026-09-13), not from a reference ABI: Circle's Arc escrow emits a
+# smaller event set than the ERC-8183 reference (no payout receiver, claims,
+# fee-paid, disbursed or pause events), and graph-cli refuses a handler for an
+# event the ABI does not declare.
+specVersion: 1.3.0
+description: BUFI Arc — ERC-8004 identity + reputation and ERC-8183 agentic commerce on one graph
+repository: https://github.com/BuFi007/desk-v1
+schema:
+  file: ../../schema.graphql
+features:
+  - fullTextSearch
+indexerHints:
+  prune: auto
+dataSources:
+  - kind: ethereum
+    name: IdentityRegistry
+    network: {{network}}
+    source:
+      address: "{{identityAddress}}"
+      abi: IdentityRegistry
+      startBlock: {{identityStartBlock}}
+    context:
+      chainId:
+        type: BigInt
+        data: "{{chainId}}"
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Account
+        - IdentityRegistry
+        - Agent
+        - AgentMetadata
+        - AgentURIRevision
+        - AgentTransfer
+        - AgentMetadataRevision
+        - AgentRegistration
+        - AgentService
+        - AgentServiceFeature
+        - AgentServiceAttribute
+        - AgentRegistrationReference
+        - AgentTrust
+        - WalletBinding
+      abis:
+        - name: IdentityRegistry
+          file: ../../abis/IdentityRegistry.json
+      eventHandlers:
+        - event: Registered(indexed uint256,string,indexed address)
+          handler: handleRegistered
+        - event: MetadataSet(indexed uint256,indexed string,string,bytes)
+          handler: handleMetadataSet
+        - event: URIUpdated(indexed uint256,string,indexed address)
+          handler: handleURIUpdated
+        - event: Transfer(indexed address,indexed address,indexed uint256)
+          handler: handleTransfer
+      file: ../../src/mapping.ts
+  - kind: ethereum
+    name: ReputationRegistry
+    network: {{network}}
+    source:
+      address: "{{reputationAddress}}"
+      abi: ReputationRegistry
+      startBlock: {{reputationStartBlock}}
+    context:
+      chainId:
+        type: BigInt
+        data: "{{chainId}}"
+      identityRegistry:
+        type: Bytes
+        data: "{{identityAddress}}"
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Account
+        - ReputationRegistry
+        - Agent
+        - Feedback
+        - FeedbackResponse
+        - FeedbackDocument
+        - FeedbackDocumentFeature
+        - PaymentProof
+        - FeedbackAttachment
+        - FeedbackMetricPoint
+        - Engagement
+        - AgentMetricPoint
+      abis:
+        - name: ReputationRegistry
+          file: ../../abis/ReputationRegistry.json
+      eventHandlers:
+        - event: NewFeedback(indexed uint256,indexed address,uint64,int128,uint8,indexed string,string,string,string,string,bytes32)
+          handler: handleNewFeedback
+        - event: FeedbackRevoked(indexed uint256,indexed address,indexed uint64)
+          handler: handleFeedbackRevoked
+        - event: ResponseAppended(indexed uint256,indexed address,uint64,indexed address,string,bytes32)
+          handler: handleResponseAppended
+      file: ../../src/mapping.ts
+  - kind: ethereum
+    name: AgenticCommerce
+    network: {{network}}
+    source:
+      address: "{{agenticCommerceAddress}}"
+      abi: AgenticCommerce
+      startBlock: {{agenticCommerceStartBlock}}
+    context:
+      chainId:
+        type: BigInt
+        data: "{{chainId}}"
+      paymentToken:
+        type: Bytes
+        data: "{{paymentToken}}"
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - AgenticCommerce
+        - Account
+        - Agent
+        - Job
+        - JobEvent
+        - HookAllowlistEntry
+        - Engagement
+        - AgentMetricPoint
+      abis:
+        - name: AgenticCommerce
+          file: ../../abis/AgenticCommerce.json
+      eventHandlers:
+        - event: JobCreated(indexed uint256,indexed address,indexed address,address,uint256,address)
+          handler: handleJobCreated
+          calls:
+            job: AgenticCommerce[event.address].getJob(event.params.jobId)
+        - event: ProviderSet(indexed uint256,indexed address)
+          handler: handleProviderSet
+        - event: BudgetSet(indexed uint256,uint256)
+          handler: handleBudgetSet
+        - event: JobFunded(indexed uint256,indexed address,uint256)
+          handler: handleJobFunded
+        - event: JobSubmitted(indexed uint256,indexed address,bytes32)
+          handler: handleJobSubmitted
+        - event: JobCompleted(indexed uint256,indexed address,bytes32)
+          handler: handleJobCompleted
+        - event: JobRejected(indexed uint256,indexed address,bytes32)
+          handler: handleJobRejected
+        - event: JobExpired(indexed uint256)
+          handler: handleJobExpired
+        - event: PaymentReleased(indexed uint256,indexed address,uint256)
+          handler: handlePaymentReleased
+        - event: EvaluatorFeePaid(indexed uint256,indexed address,uint256)
+          handler: handleEvaluatorFeePaid
+        - event: Refunded(indexed uint256,indexed address,uint256)
+          handler: handleRefunded
+        - event: HookWhitelistUpdated(indexed address,bool)
+          handler: handleHookWhitelistUpdated
+        - event: Upgraded(indexed address)
+          handler: handleUpgraded
+      file: ../../src/mapping.ts

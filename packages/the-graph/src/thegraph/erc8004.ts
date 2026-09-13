@@ -1,13 +1,14 @@
 /**
- * Typed reads over the ERC-8004 identity + reputation subgraph (plan 342).
+ * Typed reads over the identity + reputation side of BUFI's Arc subgraph
+ * (`packages/subgraph-arc`, plan 342).
  *
- * Rules learned against the live deployment (2026-09-13):
+ * Rules pinned by the schema and by what the gateway does:
  *  - Never select `registration { … }` without `where: { registration_not: null }`:
  *    the interface field errors at the store when null and the gateway reports
  *    it as "bad indexers". `getAgent` therefore never touches `registration`;
  *    `getAgentProfile` filters and uses an inline fragment.
  *  - Entity timestamps are unix SECONDS; aggregation bucket timestamps are
- *    MICROSECONDS. `getAgentFeedbackStats` normalises to seconds.
+ *    MICROSECONDS. Stats readers normalise to seconds.
  *  - `agentId`, counts and BigDecimals travel as strings end to end (uint256).
  *  - Paginate by `id_gt`, never `skip` (gateway caps skip at 5000).
  */
@@ -16,11 +17,13 @@ import { getSubgraphRef, type SubgraphRef } from '@bu/env/thegraph';
 import { z } from 'zod';
 
 import { queryTheGraph, type TheGraphQueryOptions } from './client';
-import { agentEntityId, type ChainScopedIdPart } from './ids';
+import { agentEntityId, type ChainScopedIdPart, engagementEntityId } from './ids';
 
 const bigIntString = z.string().regex(/^-?\d+$/, 'expected an integer string');
 const decimalString = z.string().regex(/^-?\d+(\.\d+)?$/, 'expected a decimal string');
 const account = z.object({ id: z.string() });
+const agentRef = z.object({ agentId: bigIntString });
+const jobRef = z.object({ id: z.string(), jobId: bigIntString });
 
 export const agentSchema = z.object({
   id: z.string(),
@@ -33,6 +36,22 @@ export const agentSchema = z.object({
   feedbackCount: bigIntString,
   activeFeedbackCount: bigIntString,
   responseCount: bigIntString,
+  /** BUFI: ratings whose rater had settled a job with this workspace first. */
+  verifiedFeedbackCount: bigIntString,
+  /** BUFI: the bufi.score.v1 attestation, decoded; null until the workspace publishes one. */
+  bufiScore: bigIntString.nullable(),
+  bufiScoreVersion: bigIntString.nullable(),
+  bufiScoreDate: z.string().nullable(),
+  bufiScoreHash: z.string().nullable(),
+  bufiScoreUpdatedAt: bigIntString.nullable(),
+  /** BUFI: ERC-8183 activity joined through the agent wallet. */
+  jobsAsClient: bigIntString,
+  jobsAsProvider: bigIntString,
+  settledAsClient: bigIntString,
+  settledAsProvider: bigIntString,
+  settledVolumeAsClient: bigIntString,
+  settledVolumeAsProvider: bigIntString,
+  refundedVolumeAsClient: bigIntString,
   createdAt: bigIntString,
   createdAtTransaction: z.string(),
   updatedAt: bigIntString,
@@ -41,7 +60,10 @@ export type SubgraphAgent = z.infer<typeof agentSchema>;
 
 const AGENT_FIELDS = `
   id agentId owner { id } agentWallet isBurned agentURI agentURIKind
-  feedbackCount activeFeedbackCount responseCount
+  feedbackCount activeFeedbackCount responseCount verifiedFeedbackCount
+  bufiScore bufiScoreVersion bufiScoreDate bufiScoreHash bufiScoreUpdatedAt
+  jobsAsClient jobsAsProvider settledAsClient settledAsProvider
+  settledVolumeAsClient settledVolumeAsProvider refundedVolumeAsClient
   createdAt createdAtTransaction updatedAt`;
 
 export interface AgentLocator {
@@ -92,8 +114,8 @@ export type SubgraphAgentProfile = z.infer<typeof agentProfileSchema>;
 
 /**
  * The parsed registration document, or null when the agent registered with a
- * URI the subgraph does not parse (anything but `data:` today — which is every
- * BUFI identity until plan 342 D5 lands).
+ * URI the subgraph does not parse (anything but `data:`). Every BUFI identity
+ * carries a `data:` document since the plan 342 D5 backfill.
  */
 export async function getAgentProfile(
   locator: AgentLocator,
@@ -122,6 +144,12 @@ export const feedbackSchema = z.object({
   id: z.string(),
   feedbackIndex: bigIntString,
   client: account,
+  /** BUFI: the rater's workspace, when the rater is a bound agent wallet. */
+  clientAgent: agentRef.nullable(),
+  /** BUFI: the rater had settled a job with the rated workspace before rating. */
+  verified: z.boolean(),
+  /** BUFI: the settled job behind a verified rating. */
+  evidence: jobRef.nullable(),
   value: bigIntString,
   valueDecimals: z.number().int(),
   normalizedValue: decimalString,
@@ -138,6 +166,11 @@ export const feedbackSchema = z.object({
 });
 export type SubgraphFeedback = z.infer<typeof feedbackSchema>;
 
+const FEEDBACK_FIELDS = `
+  id feedbackIndex client { id } clientAgent { agentId } verified evidence { id jobId }
+  value valueDecimals normalizedValue tag1 tag2 endpoint feedbackURI feedbackURIKind
+  hasFeedbackHash isRevoked responseCount createdAt createdAtTransaction`;
+
 export interface FeedbackPage {
   items: SubgraphFeedback[];
   /** Pass back as `afterId` for the next page; null when exhausted. */
@@ -149,6 +182,8 @@ export interface ListAgentFeedbackInput extends AgentLocator {
   first?: number;
   afterId?: string | null;
   includeRevoked?: boolean;
+  /** Only ratings backed by a settled job. */
+  verifiedOnly?: boolean;
 }
 
 export const FEEDBACK_PAGE_MAX = 1000;
@@ -163,16 +198,13 @@ export async function listAgentFeedback(
     agent: agentEntityId(input.chainId, input.identityRegistry, input.agentId),
   };
   if (!input.includeRevoked) where.isRevoked = false;
+  if (input.verifiedOnly) where.verified = true;
   if (input.afterId) where.id_gt = input.afterId;
 
   const data = await queryTheGraph<{ feedbacks: unknown[] }>(
     refFor(options),
     `query AgentFeedback($first: Int!, $where: Feedback_filter) {
-      feedbacks(first: $first, orderBy: id, orderDirection: asc, where: $where) {
-        id feedbackIndex client { id } value valueDecimals normalizedValue
-        tag1 tag2 endpoint feedbackURI feedbackURIKind hasFeedbackHash isRevoked
-        responseCount createdAt createdAtTransaction
-      }
+      feedbacks(first: $first, orderBy: id, orderDirection: asc, where: $where) { ${FEEDBACK_FIELDS} }
     }`,
     { first, where },
     options
@@ -250,4 +282,122 @@ export async function getAgentFeedbackStats(
   return raw.map(bucket =>
     feedbackStatsBucketSchema.parse({ ...bucket, timestamp: microsToSeconds(bucket.timestamp) })
   );
+}
+
+export const AGENT_METRIC_KINDS = [
+  'SETTLED_AS_PROVIDER',
+  'SETTLED_AS_CLIENT',
+  'REFUNDED_AS_CLIENT',
+] as const;
+export type AgentMetricKind = (typeof AGENT_METRIC_KINDS)[number];
+
+export const agentDailyMetricSchema = z.object({
+  id: z.string(),
+  /** Unix seconds, start of day. */
+  timestamp: z.number().int(),
+  kind: z.enum(AGENT_METRIC_KINDS),
+  /** Raw token units settled/refunded that day. */
+  volume: bigIntString,
+  count: bigIntString,
+});
+export type AgentDailyMetric = z.infer<typeof agentDailyMetricSchema>;
+
+export interface GetAgentDailyMetricsInput extends AgentLocator {
+  kind?: AgentMetricKind;
+  /** Newest-first day count, default 30, max 1000. */
+  first?: number;
+}
+
+/** BUFI: settled and refunded volume per workspace per day. */
+export async function getAgentDailyMetrics(
+  input: GetAgentDailyMetricsInput,
+  options: Erc8004ReadOptions = {}
+): Promise<AgentDailyMetric[]> {
+  const first = Math.min(Math.max(input.first ?? 30, 1), FEEDBACK_PAGE_MAX);
+  const where: Record<string, unknown> = {
+    agent: agentEntityId(input.chainId, input.identityRegistry, input.agentId),
+  };
+  if (input.kind) where.kind = input.kind;
+  const data = await queryTheGraph<{ agentDailyMetric_collection: unknown[] }>(
+    refFor(options),
+    `query AgentDailyMetrics($first: Int!, $where: AgentDailyMetric_filter) {
+      agentDailyMetric_collection(interval: day, first: $first, orderBy: timestamp, orderDirection: desc, where: $where) {
+        id timestamp kind volume count
+      }
+    }`,
+    { first, where },
+    options
+  );
+  const raw = z
+    .array(
+      z.object({
+        id: z.string(),
+        timestamp: z.union([z.string(), z.number()]),
+        kind: z.enum(AGENT_METRIC_KINDS),
+        volume: bigIntString,
+        count: z.union([z.string(), z.number()]),
+      })
+    )
+    .parse(data.agentDailyMetric_collection);
+  return raw.map(bucket =>
+    agentDailyMetricSchema.parse({
+      ...bucket,
+      timestamp: microsToSeconds(bucket.timestamp),
+      count: String(bucket.count),
+    })
+  );
+}
+
+export const engagementSchema = z.object({
+  id: z.string(),
+  client: agentRef,
+  provider: agentRef,
+  jobCount: bigIntString,
+  settledJobCount: bigIntString,
+  settledVolume: bigIntString,
+  refundedVolume: bigIntString,
+  lastSettledJob: jobRef.nullable(),
+  lastSettledAt: bigIntString.nullable(),
+  feedbackCount: bigIntString,
+  verifiedFeedbackCount: bigIntString,
+  lastFeedbackAt: bigIntString.nullable(),
+  firstSeenAt: bigIntString,
+  updatedAt: bigIntString,
+});
+export type SubgraphEngagement = z.infer<typeof engagementSchema>;
+
+export interface EngagementLocator {
+  chainId: ChainScopedIdPart;
+  identityRegistry: string;
+  clientAgentId: ChainScopedIdPart;
+  providerAgentId: ChainScopedIdPart;
+}
+
+/**
+ * BUFI: the edge between two workspaces, client → provider: have they settled
+ * work, how much, how often, and how did the client rate it. Null when the two
+ * have never shared a job or a rating.
+ */
+export async function getEngagement(
+  locator: EngagementLocator,
+  options: Erc8004ReadOptions = {}
+): Promise<SubgraphEngagement | null> {
+  const id = engagementEntityId(
+    agentEntityId(locator.chainId, locator.identityRegistry, locator.clientAgentId),
+    agentEntityId(locator.chainId, locator.identityRegistry, locator.providerAgentId)
+  );
+  const data = await queryTheGraph<{ engagement: unknown }>(
+    refFor(options),
+    `query Engagement($id: ID!) {
+      engagement(id: $id) {
+        id client { agentId } provider { agentId }
+        jobCount settledJobCount settledVolume refundedVolume
+        lastSettledJob { id jobId } lastSettledAt
+        feedbackCount verifiedFeedbackCount lastFeedbackAt firstSeenAt updatedAt
+      }
+    }`,
+    { id },
+    options
+  );
+  return data.engagement === null ? null : engagementSchema.parse(data.engagement);
 }

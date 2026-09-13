@@ -1,0 +1,910 @@
+# BUFI Arc subgraph — ERC-8004 identity + reputation and ERC-8183 agentic commerce
+# on ONE graph (plan 342). Standard entities adapted from Space Object's hackathon
+# subgraphs (used with permission); BUFI additions are marked "BUFI:".
+# Full-text search returns immutable, parsed offchain records. Consumers should
+# compare the result's ID with Agent.registration or Feedback.document when
+# they only want the currently referenced document.
+type _Schema_
+  @fulltext(
+    name: "agentProfileSearch"
+    language: en
+    algorithm: rank
+    include: [{ entity: "AgentRegistration", fields: [{ name: "name" }, { name: "description" }] }]
+  )
+  @fulltext(
+    name: "agentServiceSearch"
+    language: en
+    algorithm: rank
+    include: [{ entity: "AgentService", fields: [{ name: "name" }, { name: "endpoint" }] }]
+  )
+  @fulltext(
+    name: "agentProfileFileSearch"
+    language: en
+    algorithm: rank
+    include: [
+      { entity: "AgentRegistrationFile", fields: [{ name: "name" }, { name: "description" }] }
+    ]
+  )
+  @fulltext(
+    name: "agentServiceFileSearch"
+    language: en
+    algorithm: rank
+    include: [{ entity: "AgentServiceFile", fields: [{ name: "name" }, { name: "endpoint" }] }]
+  )
+  @fulltext(
+    name: "feedbackDocumentSearch"
+    language: en
+    algorithm: rank
+    include: [
+      {
+        entity: "FeedbackDocument"
+        fields: [{ name: "reasoning" }, { name: "context" }, { name: "task" }]
+      }
+    ]
+  )
+  @fulltext(
+    name: "feedbackDocumentFileSearch"
+    language: en
+    algorithm: rank
+    include: [
+      {
+        entity: "FeedbackDocumentFile"
+        fields: [{ name: "reasoning" }, { name: "context" }, { name: "task" }]
+      }
+    ]
+  )
+
+enum URIKind {
+  NONE
+  DATA
+  IPFS
+  ARWEAVE
+  HTTPS
+  HTTP
+  OTHER
+}
+
+enum AgentServiceKind {
+  WEB
+  A2A
+  MCP
+  WEBMCP
+  X402
+  OASF
+  ENS
+  DID
+  EMAIL
+  AGENT_WALLET
+  CUSTOM
+}
+
+enum AgentServiceFeatureKind {
+  CAPABILITY
+  MCP_TOOL
+  MCP_PROMPT
+  MCP_RESOURCE
+  A2A_SKILL
+  OASF_SKILL
+  OASF_DOMAIN
+  CUSTOM
+}
+
+enum AgentServiceAttributeType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+}
+
+enum TrustKind {
+  REPUTATION
+  CRYPTO_ECONOMIC
+  TEE_ATTESTATION
+  SOCIAL_GRAPH
+  CUSTOM
+}
+
+enum FeedbackFeatureKind {
+  SKILL
+  A2A_SKILL
+  OASF_SKILL
+  OASF_DOMAIN
+  MCP_CAPABILITY
+  MCP_TOOL
+  MCP_PROMPT
+  MCP_RESOURCE
+  MCP_COMPLETION
+  CUSTOM
+}
+
+interface AgentRegistrationData {
+  id: Bytes!
+  sourceURI: String!
+  sourceURIKind: URIKind!
+  contentHash: Bytes
+  rawJSON: String!
+  profileType: String
+  name: String
+  description: String
+  image: String
+  active: Boolean
+  x402Support: Boolean
+  metadataUpdatedAt: Timestamp
+  usedLegacyEndpointsField: Boolean!
+}
+
+interface FeedbackDocumentData {
+  id: Bytes!
+  sourceURI: String!
+  sourceURIKind: URIKind!
+  contentHash: Bytes
+  rawJSON: String!
+  agentRegistry: String
+  agentId: BigInt
+  clientAddress: String
+  createdAt: String
+  value: BigDecimal
+  valueDecimals: Int
+  tag1: String
+  tag2: String
+  endpoint: String
+  reasoning: String
+  context: String
+  task: String
+  a2aContextId: String
+  a2aTaskId: String
+}
+
+# Registry-level state is useful for discovery pages and protocol counters.
+# ID: UTF-8 bytes of "<chainId>:<registry address>" (see `registryEntityId`
+# in src/entities/registry.ts). The chain ID matters here for the same reason
+# it does for `Agent`/`Feedback` below: the ERC-8004 registries deploy at the
+# same address on several chains (see chain.config.json), so cross-deployment
+# consumers would otherwise collide on byte-identical IDs.
+type IdentityRegistry @entity(immutable: false) {
+  id: Bytes!
+  network: String!
+  chainId: BigInt!
+  agentRegistry: String!
+  agentCount: BigInt!
+  unburnedAgentCount: BigInt!
+  createdAt: Timestamp!
+  updatedAt: Timestamp!
+  agents: [Agent!]! @derivedFrom(field: "registry")
+}
+
+# ID: same chain-scoped scheme as `IdentityRegistry` above.
+type ReputationRegistry @entity(immutable: false) {
+  id: Bytes!
+  network: String!
+  chainId: BigInt!
+  identityRegistry: IdentityRegistry!
+  feedbackCount: BigInt!
+  activeFeedbackCount: BigInt!
+  responseCount: BigInt!
+  createdAt: Timestamp!
+  updatedAt: Timestamp!
+  feedback: [Feedback!]! @derivedFrom(field: "registry")
+}
+
+# An Account is created lazily for every address seen as an owner, operator,
+# reviewer, or responder.
+type Account @entity(immutable: false) {
+  id: Bytes!
+  # BUFI: the workspace whose agent wallet this address is (see WalletBinding).
+  bindings: [WalletBinding!]! @derivedFrom(field: "account")
+  clientJobs: [Job!]! @derivedFrom(field: "client")
+  providerJobs: [Job!]! @derivedFrom(field: "provider")
+  evaluatorJobs: [Job!]! @derivedFrom(field: "evaluator")
+  ownedAgents: [Agent!]! @derivedFrom(field: "owner")
+  approvedAgents: [Agent!]! @derivedFrom(field: "approved")
+  submittedFeedback: [Feedback!]! @derivedFrom(field: "client")
+  feedbackResponses: [FeedbackResponse!]! @derivedFrom(field: "responder")
+  operatorApprovals: [OperatorApproval!]! @derivedFrom(field: "operator")
+}
+
+# Mutable current state of an ERC-8004 identity.
+# ID: UTF-8 bytes of "<chainId>:<identity registry address>:<agentId>".
+type Agent @entity(immutable: false) {
+  id: Bytes!
+  registry: IdentityRegistry!
+  agentId: BigInt!
+
+  owner: Account
+  approved: Account
+  agentWallet: Bytes
+  isBurned: Boolean!
+
+  agentURI: String!
+  agentURIKind: URIKind!
+  uriRevision: BigInt!
+  registration: AgentRegistrationData
+
+  feedbackCount: BigInt!
+  activeFeedbackCount: BigInt!
+  responseCount: BigInt!
+  # BUFI: ratings whose rater had already settled a job with this workspace.
+  verifiedFeedbackCount: BigInt!
+
+  # BUFI: the bufi.score.v1 payment-score attestation, written by the
+  # workspace's own agent wallet via setMetadata and decoded from {v,d,s,h}.
+  bufiScore: BigInt
+  bufiScoreVersion: BigInt
+  bufiScoreDate: String
+  bufiScoreHash: Bytes
+  bufiScoreUpdatedAt: Timestamp
+
+  # BUFI: ERC-8183 activity, joined through the agent wallet (WalletBinding).
+  jobsAsClient: BigInt!
+  jobsAsProvider: BigInt!
+  settledAsClient: BigInt!
+  settledAsProvider: BigInt!
+  settledVolumeAsClient: BigInt!
+  settledVolumeAsProvider: BigInt!
+  refundedVolumeAsClient: BigInt!
+
+  createdAt: Timestamp!
+  createdAtBlock: BigInt!
+  createdAtTransaction: Bytes!
+  updatedAt: Timestamp!
+  updatedAtBlock: BigInt!
+  updatedAtTransaction: Bytes!
+
+  walletBindings: [WalletBinding!]! @derivedFrom(field: "agent")
+  clientJobs: [Job!]! @derivedFrom(field: "clientAgent")
+  providerJobs: [Job!]! @derivedFrom(field: "providerAgent")
+  givenFeedback: [Feedback!]! @derivedFrom(field: "clientAgent")
+  engagementsAsClient: [Engagement!]! @derivedFrom(field: "client")
+  engagementsAsProvider: [Engagement!]! @derivedFrom(field: "provider")
+  metadata: [AgentMetadata!]! @derivedFrom(field: "agent")
+  uriRevisions: [AgentURIRevision!]! @derivedFrom(field: "agent")
+  transfers: [AgentTransfer!]! @derivedFrom(field: "agent")
+  approvals: [AgentApprovalChange!]! @derivedFrom(field: "agent")
+  metadataRevisions: [AgentMetadataRevision!]! @derivedFrom(field: "agent")
+  feedback: [Feedback!]! @derivedFrom(field: "agent")
+}
+
+# Latest value for each arbitrary onchain metadata key.
+# ID: agent ID + keccak256(metadata key).
+type AgentMetadata @entity(immutable: false) {
+  id: Bytes!
+  agent: Agent!
+  key: String!
+  keyHash: Bytes!
+  value: Bytes!
+  updatedAt: Timestamp!
+  updatedAtBlock: BigInt!
+  updatedAtTransaction: Bytes!
+}
+
+# Latest ERC-721 approval-for-all state.
+# ID: owner address + operator address.
+type OperatorApproval @entity(immutable: false) {
+  id: Bytes!
+  owner: Account!
+  operator: Account!
+  approved: Boolean!
+  updatedAt: Timestamp!
+  updatedAtBlock: BigInt!
+  updatedAtTransaction: Bytes!
+}
+
+# Immutable audit records use transaction hash + log index as their ID.
+type AgentURIRevision @entity(immutable: true) {
+  id: Bytes!
+  agent: Agent!
+  revision: BigInt!
+  uri: String!
+  uriKind: URIKind!
+  updatedBy: Account!
+  registration: AgentRegistrationData
+  blockNumber: BigInt!
+  timestamp: Timestamp!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+type AgentTransfer @entity(immutable: true) {
+  id: Bytes!
+  agent: Agent!
+  from: Account!
+  to: Account!
+  blockNumber: BigInt!
+  timestamp: Timestamp!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+type AgentApprovalChange @entity(immutable: true) {
+  id: Bytes!
+  agent: Agent!
+  owner: Account!
+  approved: Account!
+  blockNumber: BigInt!
+  timestamp: Timestamp!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+type OperatorApprovalChange @entity(immutable: true) {
+  id: Bytes!
+  owner: Account!
+  operator: Account!
+  approved: Boolean!
+  blockNumber: BigInt!
+  timestamp: Timestamp!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+type AgentMetadataRevision @entity(immutable: true) {
+  id: Bytes!
+  agent: Agent!
+  key: String!
+  keyHash: Bytes!
+  value: Bytes!
+  blockNumber: BigInt!
+  timestamp: Timestamp!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+# Parsed data: agentURI contents. Chain handlers own this entity tree. The ID is
+# keccak256(agent entity ID + source URI), so each agent owns its own copy of
+# the parsed document and `agent` is a true 1-to-1 back-reference.
+type AgentRegistration implements AgentRegistrationData @entity(immutable: true) {
+  id: Bytes!
+  agent: Agent!
+  sourceURI: String!
+  sourceURIKind: URIKind!
+  contentHash: Bytes
+  rawJSON: String!
+
+  profileType: String
+  name: String
+  description: String
+  image: String
+  active: Boolean
+  x402Support: Boolean
+  metadataUpdatedAt: Timestamp
+  usedLegacyEndpointsField: Boolean!
+
+  services: [AgentService!]! @derivedFrom(field: "registration")
+  registrations: [AgentRegistrationReference!]! @derivedFrom(field: "registration")
+  supportedTrust: [AgentTrust!]! @derivedFrom(field: "registration")
+}
+
+# `name` preserves the producer's value while `kind` provides a stable,
+# case-insensitive filter. Unknown names map to CUSTOM, not to new entity
+# shapes. Fields beyond name/endpoint/version (e.g. description, method) land
+# in AgentServiceAttribute rows.
+type AgentService @entity(immutable: true) {
+  id: Bytes!
+  registration: AgentRegistration!
+  position: Int!
+  kind: AgentServiceKind!
+  name: String!
+  endpoint: String!
+  version: String
+  capabilitiesInferred: Boolean!
+  features: [AgentServiceFeature!]! @derivedFrom(field: "service")
+  attributes: [AgentServiceAttribute!]! @derivedFrom(field: "service")
+}
+
+# Normalizing list values into entities makes exact tool, resource, skill, and
+# domain filters efficient and avoids growing arrays on AgentService.
+type AgentServiceFeature @entity(immutable: true) {
+  id: Bytes!
+  service: AgentService!
+  position: Int!
+  kind: AgentServiceFeatureKind!
+  value: String!
+}
+
+# Forward-compatible storage for scalar custom service fields. Object and
+# unknown array values use canonical JSON in `value`.
+type AgentServiceAttribute @entity(immutable: true) {
+  id: Bytes!
+  service: AgentService!
+  position: Int!
+  key: String!
+  value: String!
+  valueType: AgentServiceAttributeType!
+}
+
+type AgentRegistrationReference @entity(immutable: true) {
+  id: Bytes!
+  registration: AgentRegistration!
+  position: Int!
+  agentRegistry: String!
+  namespace: String
+  chainId: String
+  registryAddress: String
+  agentId: BigInt
+}
+
+type AgentTrust @entity(immutable: true) {
+  id: Bytes!
+  registration: AgentRegistration!
+  position: Int!
+  kind: TrustKind!
+  name: String!
+}
+
+# IPFS and Arweave handlers cannot write the chain-owned entity types above.
+# This parallel tree gives file data sources their own immutable entity types.
+# File handlers receive the agent entity ID in DataSourceContext and use the
+# same keccak256(agent entity ID + source URI) ID rule as AgentRegistration.
+type AgentRegistrationFile implements AgentRegistrationData @entity(immutable: true) {
+  id: Bytes!
+  agent: Agent!
+  sourceURI: String!
+  sourceURIKind: URIKind!
+  contentHash: Bytes
+  rawJSON: String!
+
+  profileType: String
+  name: String
+  description: String
+  image: String
+  active: Boolean
+  x402Support: Boolean
+  metadataUpdatedAt: Timestamp
+  usedLegacyEndpointsField: Boolean!
+
+  services: [AgentServiceFile!]! @derivedFrom(field: "registration")
+  registrations: [AgentRegistrationReferenceFile!]! @derivedFrom(field: "registration")
+  supportedTrust: [AgentTrustFile!]! @derivedFrom(field: "registration")
+}
+
+type AgentServiceFile @entity(immutable: true) {
+  id: Bytes!
+  registration: AgentRegistrationFile!
+  position: Int!
+  kind: AgentServiceKind!
+  name: String!
+  endpoint: String!
+  version: String
+  capabilitiesInferred: Boolean!
+  features: [AgentServiceFeatureFile!]! @derivedFrom(field: "service")
+  attributes: [AgentServiceAttributeFile!]! @derivedFrom(field: "service")
+}
+
+type AgentServiceFeatureFile @entity(immutable: true) {
+  id: Bytes!
+  service: AgentServiceFile!
+  position: Int!
+  kind: AgentServiceFeatureKind!
+  value: String!
+}
+
+type AgentServiceAttributeFile @entity(immutable: true) {
+  id: Bytes!
+  service: AgentServiceFile!
+  position: Int!
+  key: String!
+  value: String!
+  valueType: AgentServiceAttributeType!
+}
+
+type AgentRegistrationReferenceFile @entity(immutable: true) {
+  id: Bytes!
+  registration: AgentRegistrationFile!
+  position: Int!
+  agentRegistry: String!
+  namespace: String
+  chainId: String
+  registryAddress: String
+  agentId: BigInt
+}
+
+type AgentTrustFile @entity(immutable: true) {
+  id: Bytes!
+  registration: AgentRegistrationFile!
+  position: Int!
+  kind: TrustKind!
+  name: String!
+}
+
+# Mutable current state of one feedback item.
+# ID: UTF-8 bytes of "<chainId>:<reputation registry address>:<agentId>:
+# <client address>:<feedbackIndex>".
+type Feedback @entity(immutable: false) {
+  id: Bytes!
+  registry: ReputationRegistry!
+  agent: Agent!
+  client: Account!
+  # BUFI: the rater's workspace (via WalletBinding), whether the rater had
+  # already settled a job with the rated workspace, and that job.
+  clientAgent: Agent
+  verified: Boolean!
+  evidence: Job
+  feedbackIndex: BigInt!
+
+  value: BigInt!
+  valueDecimals: Int!
+  normalizedValue: BigDecimal!
+  tag1: String!
+  tag1Hash: Bytes!
+  tag2: String!
+  endpoint: String!
+  feedbackURI: String!
+  feedbackURIKind: URIKind!
+  feedbackHash: Bytes!
+  hasFeedbackHash: Boolean!
+  document: FeedbackDocumentData
+
+  isRevoked: Boolean!
+  revokedAt: Timestamp
+  revokedAtBlock: BigInt
+  revokedAtTransaction: Bytes
+
+  responseCount: BigInt!
+  createdAt: Timestamp!
+  createdAtBlock: BigInt!
+  createdAtTransaction: Bytes!
+  createdAtLogIndex: BigInt!
+
+  responses: [FeedbackResponse!]! @derivedFrom(field: "feedback")
+}
+
+type FeedbackResponse @entity(immutable: true) {
+  id: Bytes!
+  feedback: Feedback!
+  responder: Account!
+  responseURI: String!
+  responseURIKind: URIKind!
+  responseHash: Bytes!
+  hasResponseHash: Boolean!
+  blockNumber: BigInt!
+  timestamp: Timestamp!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+# Parsed data: feedbackURI contents. Chain handlers own this entity tree. The ID
+# is keccak256(feedback entity ID + source URI), so two feedback records may
+# reuse one URI without sharing a document entity, and `feedback` is a true
+# 1-to-1 back-reference.
+type FeedbackDocument implements FeedbackDocumentData @entity(immutable: true) {
+  id: Bytes!
+  feedback: Feedback!
+  sourceURI: String!
+  sourceURIKind: URIKind!
+  contentHash: Bytes
+  rawJSON: String!
+
+  agentRegistry: String
+  agentId: BigInt
+  clientAddress: String
+  createdAt: String
+  value: BigDecimal
+  valueDecimals: Int
+  tag1: String
+  tag2: String
+  endpoint: String
+
+  # reasoning, context, task, and flat skill/domain/capability fields come from
+  # the 8004scan v2 profile. Nested EIP-8004 arrays and MCP values are stored as
+  # FeedbackDocumentFeature rows.
+  reasoning: String
+  context: String
+  task: String
+  a2aContextId: String
+  a2aTaskId: String
+
+  proofOfPayment: PaymentProof
+  attachments: [FeedbackAttachment!]! @derivedFrom(field: "document")
+  features: [FeedbackDocumentFeature!]! @derivedFrom(field: "document")
+}
+
+type FeedbackDocumentFeature @entity(immutable: true) {
+  id: Bytes!
+  document: FeedbackDocument!
+  position: Int!
+  kind: FeedbackFeatureKind!
+  value: String!
+}
+
+type PaymentProof @entity(immutable: true) {
+  id: Bytes!
+  document: FeedbackDocument!
+  fromAddress: String
+  toAddress: String
+  chainId: String
+  transactionHash: String
+  transactionSignature: String
+  amount: String
+  currency: String
+  protocol: String
+  timestamp: String
+  decimals: Int
+}
+
+type FeedbackAttachment @entity(immutable: true) {
+  id: Bytes!
+  document: FeedbackDocument!
+  position: Int!
+  name: String!
+  uri: String!
+  uriKind: URIKind!
+  mimeType: String!
+  size: BigInt
+  description: String
+  uploadedAt: String
+}
+
+# File handlers receive `feedbackId` in DataSourceContext. The ID uses the same
+# feedback entity ID + source URI rule as the data: document above. A repeated
+# IPFS or Arweave URI therefore creates one document per feedback record.
+type FeedbackDocumentFile implements FeedbackDocumentData @entity(immutable: true) {
+  id: Bytes!
+  feedback: Feedback!
+  sourceURI: String!
+  sourceURIKind: URIKind!
+  contentHash: Bytes
+  rawJSON: String!
+
+  agentRegistry: String
+  agentId: BigInt
+  clientAddress: String
+  createdAt: String
+  value: BigDecimal
+  valueDecimals: Int
+  tag1: String
+  tag2: String
+  endpoint: String
+
+  reasoning: String
+  context: String
+  task: String
+  a2aContextId: String
+  a2aTaskId: String
+
+  proofOfPayment: PaymentProofFile
+  attachments: [FeedbackAttachmentFile!]! @derivedFrom(field: "document")
+  features: [FeedbackDocumentFeatureFile!]! @derivedFrom(field: "document")
+}
+
+type FeedbackDocumentFeatureFile @entity(immutable: true) {
+  id: Bytes!
+  document: FeedbackDocumentFile!
+  position: Int!
+  kind: FeedbackFeatureKind!
+  value: String!
+}
+
+type PaymentProofFile @entity(immutable: true) {
+  id: Bytes!
+  document: FeedbackDocumentFile!
+  fromAddress: String
+  toAddress: String
+  chainId: String
+  transactionHash: String
+  transactionSignature: String
+  amount: String
+  currency: String
+  protocol: String
+  timestamp: String
+  decimals: Int
+}
+
+type FeedbackAttachmentFile @entity(immutable: true) {
+  id: Bytes!
+  document: FeedbackDocumentFile!
+  position: Int!
+  name: String!
+  uri: String!
+  uriKind: URIKind!
+  mimeType: String!
+  size: BigInt
+  description: String
+  uploadedAt: String
+}
+
+# New feedback writes a positive point; revocation writes the inverse point.
+# Cumulative sums therefore describe active feedback. `tag1` is the metric
+# identifier, so values with unrelated meanings are not averaged together.
+type FeedbackMetricPoint @entity(timeseries: true) {
+  id: Int8!
+  timestamp: Timestamp!
+  registry: ReputationRegistry!
+  agent: Agent!
+  tag1: String!
+  tag2: String!
+  feedbackCountDelta: BigInt!
+  valueDelta: BigDecimal!
+}
+
+type AgentFeedbackStats @aggregation(intervals: ["hour", "day"], source: "FeedbackMetricPoint") {
+  id: Int8!
+  timestamp: Timestamp!
+  agent: Agent!
+  tag1: String!
+  tag2: String!
+  feedbackCount: BigInt! @aggregate(fn: "sum", arg: "feedbackCountDelta", cumulative: true)
+  valueSum: BigDecimal! @aggregate(fn: "sum", arg: "valueDelta", cumulative: true)
+}
+
+type RegistryFeedbackStats @aggregation(intervals: ["hour", "day"], source: "FeedbackMetricPoint") {
+  id: Int8!
+  timestamp: Timestamp!
+  registry: ReputationRegistry!
+  tag1: String!
+  tag2: String!
+  feedbackCount: BigInt! @aggregate(fn: "sum", arg: "feedbackCountDelta", cumulative: true)
+  valueSum: BigDecimal! @aggregate(fn: "sum", arg: "valueDelta", cumulative: true)
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ERC-8183 agentic commerce — Circle's Arc escrow. Event set is the VERIFIED
+# implementation's, smaller than the reference contract (no payout receiver,
+# claims, platform-fee-paid, disbursed or pause events).
+# ═══════════════════════════════════════════════════════════════════════════
+
+enum JobStatus {
+  OPEN
+  FUNDED
+  SUBMITTED
+  COMPLETED
+  REJECTED
+  EXPIRED
+}
+
+enum JobEventKind {
+  CREATED
+  PROVIDER_SET
+  BUDGET_SET
+  FUNDED
+  SUBMITTED
+  COMPLETED
+  REJECTED
+  EXPIRED
+  PAYMENT_RELEASED
+  EVALUATOR_FEE_PAID
+  REFUNDED
+}
+
+# ID: UTF-8 bytes of "<chainId>:<contract address>" — same chain-scoped scheme
+# as the registries above.
+type AgenticCommerce @entity(immutable: false) {
+  id: Bytes!
+  network: String!
+  chainId: BigInt!
+  implementation: Bytes
+  paymentToken: Bytes!
+  platformFeeBP: BigInt!
+  platformTreasury: Account
+  evaluatorFeeBP: BigInt!
+  jobCount: BigInt!
+  # BUFI: settlements = completed AND provider paid; refunds tracked apart.
+  settledJobCount: BigInt!
+  settledVolume: BigInt!
+  refundedVolume: BigInt!
+  createdAt: Timestamp!
+  updatedAt: Timestamp!
+  jobs: [Job!]! @derivedFrom(field: "agenticCommerce")
+  hooks: [HookAllowlistEntry!]! @derivedFrom(field: "agenticCommerce")
+}
+
+# Mutable current state of one escrow job.
+# ID: UTF-8 bytes of "<chainId>:<contract address>:<jobId>".
+type Job @entity(immutable: false) {
+  id: Bytes!
+  agenticCommerce: AgenticCommerce!
+  jobId: BigInt!
+  status: JobStatus!
+  client: Account!
+  provider: Account
+  evaluator: Account!
+  # BUFI: the workspaces behind the party addresses (via WalletBinding).
+  clientAgent: Agent
+  providerAgent: Agent
+  engagement: Engagement
+  expiresAt: Timestamp!
+  submittedAt: Timestamp
+  budget: BigInt!
+  paymentToken: Bytes!
+  hook: Bytes
+  description: String!
+  providerPayment: BigInt!
+  evaluatorFeePaid: BigInt!
+  refundedAmount: BigInt!
+  # BUFI: true only once the job COMPLETED and the provider was paid.
+  settled: Boolean!
+  settledAt: Timestamp
+  deliverable: Bytes
+  completionReason: Bytes
+  rejectionReason: Bytes
+  createdAt: Timestamp!
+  createdAtBlock: BigInt!
+  createdAtTransaction: Bytes!
+  updatedAt: Timestamp!
+  updatedAtBlock: BigInt!
+  updatedAtTransaction: Bytes!
+  events: [JobEvent!]! @derivedFrom(field: "job")
+}
+
+type JobEvent @entity(immutable: true) {
+  id: Bytes!
+  agenticCommerce: AgenticCommerce!
+  job: Job!
+  kind: JobEventKind!
+  actor: Account
+  address: Bytes
+  amount: BigInt
+  data: Bytes
+  blockNumber: BigInt!
+  timestamp: Timestamp!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+# ID: the chain-scoped `AgenticCommerce` entity ID + the hook address.
+type HookAllowlistEntry @entity(immutable: false) {
+  id: Bytes!
+  agenticCommerce: AgenticCommerce!
+  hook: Bytes!
+  allowed: Boolean!
+  updatedAt: Timestamp!
+  updatedAtBlock: BigInt!
+  updatedAtTransaction: Bytes!
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BUFI: the joins that make this a workspace reputation graph.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Agent wallet address → workspace identity, from the `agentWallet` metadata
+# key. The address that signs ERC-8183 jobs and ERC-8004 ratings is the
+# workspace's agent wallet, so this is THE join between commerce and identity.
+# ID: the wallet address.
+type WalletBinding @entity(immutable: false) {
+  id: Bytes!
+  account: Account!
+  agent: Agent!
+  boundAt: Timestamp!
+  boundAtTransaction: Bytes!
+}
+
+# One edge of the reputation graph: what happened between a client workspace
+# and a provider workspace. ID: keccak256(client agent id ++ provider agent id).
+type Engagement @entity(immutable: false) {
+  id: Bytes!
+  client: Agent!
+  provider: Agent!
+  jobCount: BigInt!
+  settledJobCount: BigInt!
+  settledVolume: BigInt!
+  refundedVolume: BigInt!
+  lastSettledJob: Job
+  lastSettledAt: Timestamp
+  feedbackCount: BigInt!
+  verifiedFeedbackCount: BigInt!
+  lastFeedbackAt: Timestamp
+  firstSeenAt: Timestamp!
+  updatedAt: Timestamp!
+}
+
+enum AgentMetricKind {
+  SETTLED_AS_PROVIDER
+  SETTLED_AS_CLIENT
+  REFUNDED_AS_CLIENT
+}
+
+type AgentMetricPoint @entity(timeseries: true) {
+  id: Int8!
+  timestamp: Timestamp!
+  agent: Agent!
+  kind: AgentMetricKind!
+  amount: BigInt!
+}
+
+type AgentDailyMetric @aggregation(intervals: ["day"], source: "AgentMetricPoint") {
+  id: Int8!
+  timestamp: Timestamp!
+  agent: Agent!
+  kind: AgentMetricKind!
+  volume: BigInt! @aggregate(fn: "sum", arg: "amount")
+  count: Int8! @aggregate(fn: "count")
+}

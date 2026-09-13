@@ -1,0 +1,40 @@
+{
+  "arc-testnet": {
+    "network": "arc-testnet",
+    "chainId": 5042002,
+    "paymentToken": "0x3600000000000000000000000000000000000000",
+    "contracts": {
+      "identity": {
+        "address": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+        "startBlock": 29241340
+      },
+      "reputation": {
+        "address": "0x8004B663056A597Dffe9eCcC1965A193B7388713",
+        "startBlock": 29241344
+      },
+      "agenticCommerce": {
+        "address": "0x0747EEf0706327138c69792bF28Cd525089e4583",
+        "startBlock": 33908011
+      }
+    }
+  },
+  "arc": {
+    "network": "arc",
+    "chainId": 5042,
+    "paymentToken": "0x3600000000000000000000000000000000000000",
+    "contracts": {
+      "identity": {
+        "address": "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+        "startBlock": 13344062
+      },
+      "reputation": {
+        "address": "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63",
+        "startBlock": 13344072
+      },
+      "agenticCommerce": {
+        "address": "",
+        "startBlock": 0
+      }
+    }
+  }
+}
