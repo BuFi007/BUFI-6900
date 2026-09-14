@@ -10,7 +10,8 @@
  * decodes to `5042002:0x8004a818bfb912233c491871b3d84c89a494bd9e`.
  */
 
-import type { HexString } from '@bu/types/evm';
+/** Any `0x`-prefixed hex string. Inlined so this package stands alone (desk: `@bu/types/evm`). */
+type HexString = `0x${string}`;
 import { concatHex, keccak256 } from 'viem';
 
 export type ChainScopedIdPart = string | number | bigint;

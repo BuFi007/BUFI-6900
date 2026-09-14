@@ -3,10 +3,15 @@
  *
  * A fetch wrapper, not graphql-request: Shiva is on a bundle budget (plan 329)
  * and the two subgraphs need a dozen hand-written queries, so no GraphQL
- * dependency enters the tree. Every query is `POST <gateway url>` with a
- * Bearer gateway key; errors surface as `TheGraphQueryError` carrying the
- * gateway's own messages (a "bad indexers" store error, a schema mismatch), so
- * a caller can decide between fallback and 502 instead of reading a zero.
+ * dependency enters the tree. Every query is `POST <query url>`; errors surface
+ * as `TheGraphQueryError` carrying the gateway's own messages (a "bad indexers"
+ * store error, a schema mismatch), so a caller can decide between fallback and
+ * 502 instead of reading a zero.
+ *
+ * The Bearer key is sent only where it means something. The decentralised
+ * gateway bills by key and requires it; a Subgraph Studio endpoint serves
+ * without one, and demanding it there failed a keyless read in the one
+ * environment that deliberately holds no key.
  */
 
 import {
@@ -14,7 +19,8 @@ import {
   getSubgraphRef,
   type SubgraphRef,
   subgraphQueryUrl,
-} from '@bu/env/thegraph';
+  subgraphQueryUrlNeedsApiKey,
+} from '../env/thegraph';
 
 export interface TheGraphErrorEntry {
   message: string;
@@ -68,14 +74,16 @@ export async function queryTheGraph<TData>(
   options: TheGraphQueryOptions = {}
 ): Promise<TData> {
   const url = subgraphQueryUrl(ref);
-  const apiKey = getGraphGatewayApiKey(options.apiKey);
+  const apiKey = subgraphQueryUrlNeedsApiKey(url)
+    ? getGraphGatewayApiKey(options.apiKey)
+    : (options.apiKey ?? null);
   const fetchImpl = options.fetchImpl ?? fetch;
   const label = `${ref.kind}/${ref.chain}`;
 
   const response = await fetchImpl(url, {
     method: 'POST',
     headers: {
-      authorization: `Bearer ${apiKey}`,
+      ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}),
       'content-type': 'application/json',
     },
     body: JSON.stringify({ query, variables }),

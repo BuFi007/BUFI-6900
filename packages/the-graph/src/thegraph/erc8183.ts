@@ -13,7 +13,7 @@
  * subgraph's own verdict: COMPLETED and the provider paid.
  */
 
-import { getSubgraphRef, type SubgraphRef } from '@bu/env/thegraph';
+import { getSubgraphRef, type SubgraphRef } from '../env/thegraph';
 import { z } from 'zod';
 
 import { queryTheGraph, type TheGraphQueryOptions } from './client';

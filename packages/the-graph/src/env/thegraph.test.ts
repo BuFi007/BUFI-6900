@@ -5,6 +5,7 @@ import {
   MissingSubgraphError,
   subgraphEnvKey,
   subgraphQueryUrl,
+  subgraphQueryUrlNeedsApiKey,
   THEGRAPH_GATEWAY_URL,
 } from './thegraph';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
@@ -131,5 +132,24 @@ describe('getSubgraphRef', () => {
     const ref = getSubgraphRef('erc8004', 'arc');
     expect(ref.chainId).toBe(5042);
     expect(() => subgraphQueryUrl(ref)).toThrow(MissingSubgraphError);
+  });
+});
+
+describe('subgraphQueryUrlNeedsApiKey', () => {
+  test('the decentralised gateway needs the key; Studio and a local node do not', () => {
+    expect(subgraphQueryUrlNeedsApiKey('https://gateway.thegraph.com/api/subgraphs/id/Abc')).toBe(
+      true
+    );
+    expect(
+      subgraphQueryUrlNeedsApiKey('https://gateway.thegraph.com/api/deployments/id/QmAbc')
+    ).toBe(true);
+    // Studio serves without a key — requiring one there throws in production,
+    // which deliberately holds no key until a mainnet subgraph exists.
+    expect(
+      subgraphQueryUrlNeedsApiKey(
+        'https://api.studio.thegraph.com/query/1760286/bufi-eth-online/version/latest'
+      )
+    ).toBe(false);
+    expect(subgraphQueryUrlNeedsApiKey('http://localhost:8000/subgraphs/name/bufi')).toBe(false);
   });
 });

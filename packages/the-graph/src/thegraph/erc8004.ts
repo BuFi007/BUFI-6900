@@ -13,7 +13,7 @@
  *  - Paginate by `id_gt`, never `skip` (gateway caps skip at 5000).
  */
 
-import { getSubgraphRef, type SubgraphRef } from '@bu/env/thegraph';
+import { getSubgraphRef, type SubgraphRef } from '../env/thegraph';
 import { z } from 'zod';
 
 import { queryTheGraph, type TheGraphQueryOptions } from './client';

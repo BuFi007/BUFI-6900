@@ -1,4 +1,4 @@
-import type { SubgraphRef } from '@bu/env/thegraph';
+import type { SubgraphRef } from '../env/thegraph';
 
 import {
   getAgent,

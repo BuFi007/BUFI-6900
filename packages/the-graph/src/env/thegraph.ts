@@ -148,3 +148,17 @@ export function subgraphQueryUrl(ref: SubgraphRef): string {
   if (ref.subgraphId) return `${THEGRAPH_GATEWAY_URL}/subgraphs/id/${ref.subgraphId}`;
   throw new MissingSubgraphError(ref);
 }
+
+/**
+ * Whether this URL is billed through the decentralised gateway, and therefore
+ * needs `GRAPH_GATEWAY_API_KEY`.
+ *
+ * A Subgraph Studio endpoint (`api.studio.thegraph.com/query/...`) and a local
+ * graph-node serve without any key, so requiring one there couples a keyless
+ * read to an unrelated secret and throws in exactly the environment that
+ * deliberately has no key — production, which holds none until a mainnet
+ * subgraph exists.
+ */
+export function subgraphQueryUrlNeedsApiKey(url: string): boolean {
+  return url.startsWith(THEGRAPH_GATEWAY_URL);
+}

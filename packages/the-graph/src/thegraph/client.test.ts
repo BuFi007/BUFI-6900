@@ -1,4 +1,4 @@
-import { MissingSubgraphError, type SubgraphRef } from '@bu/env/thegraph';
+import { MissingSubgraphError, type SubgraphRef } from '../env/thegraph';
 
 import { getSubgraphMeta, queryTheGraph, TheGraphQueryError } from './client';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
