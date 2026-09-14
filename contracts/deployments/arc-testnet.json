@@ -49,5 +49,16 @@
     "reason": "pre-fix bytecode (adversarial findings F-01/F-06/F-08); never install",
     "bufiSessionKey": "0x28504B34871Aa5a00269a960A9390187cbB5c070",
     "bufiEarnModule": "0x57D446a9A9c23d939035a924F7D3643B6eedE4Cf"
+  },
+  "conduit": {
+    "address": "0x31DEB857f22504E38d4C1Bc58524730d8Bd4FABe",
+    "owner": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
+    "salt": "keccak256(\"bufi.treasury-conduit.v1\")",
+    "deployedAt": "2026-09-14",
+    "targets": {
+      "circleAppKitAdapter": "0xBBD70b01a1CAbc96d5b7b129Ae1AAabdf50dd40b",
+      "lifiDiamond": "0xFf70F4A1d11995621854F3692acF286d8aCd04b2"
+    },
+    "notes": "TreasuryConduit (plan 353). Owner is the dev deployer until the ops multisig exists; same address on every chain via the Arachnid CREATE2 deployer."
   }
 }
