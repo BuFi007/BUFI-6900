@@ -88,10 +88,32 @@ contract TreasuryConduit is Ownable2Step, ReentrancyGuard {
         address beneficiary;
         /// Unix time after which the intent is void even if the authorization window is open.
         uint256 deadline;
+        /**
+         * A 32-byte reference the workspace can find this movement by later —
+         * an invoice id, a payroll run, the approval's own hash. Indexed on
+         * `Executed`, so `eth_getLogs` finds it without the transaction hash.
+         *
+         * Arc ships a `Memo` contract that does this for plain transfers, but
+         * it is EOA-ONLY: it preserves the signing EOA as `msg.sender` through
+         * the `CallFrom` precompile and REVERTS for smart-contract callers,
+         * ERC-4337 accounts and Circle SCAs alike
+         * (docs.arc.io/arc/concepts/transaction-memos, read 2026-09-14). Every
+         * account in this rail is a contract — the treasury MSCA, the agent
+         * wallet, this conduit — so Arc's Memo can never wrap it. Carrying the
+         * memo here instead also makes it part of what the quorum SIGNED,
+         * because the intent is hashed into the authorisation nonce: the memo
+         * on chain is provably the memo that was approved, and it works the
+         * same on Avalanche, Arbitrum and Base, which have no Memo contract.
+         */
+        bytes32 memoId;
+        /**
+         * Free-form memo bytes (UTF-8 text, or an encoded struct). Emitted verbatim.
+         */
+        bytes memo;
     }
 
     bytes32 public constant INTENT_TYPEHASH = keccak256(
-        "Intent(address target,bytes data,address tokenIn,uint256 amountIn,address tokenOut,uint256 minOut,address beneficiary,uint256 deadline)"
+        "Intent(address target,bytes data,address tokenIn,uint256 amountIn,address tokenOut,uint256 minOut,address beneficiary,uint256 deadline,bytes32 memoId,bytes memo)"
     );
 
     /// @notice Protocol contracts an intent may call on this chain.
@@ -100,12 +122,14 @@ contract TreasuryConduit is Ownable2Step, ReentrancyGuard {
     event TargetSet(address indexed target, bool allowed);
     event Executed(
         address indexed treasury,
-        bytes32 indexed nonce,
+        bytes32 indexed memoId,
         address indexed target,
+        bytes32 nonce,
         address tokenIn,
         uint256 amountIn,
         address tokenOut,
-        uint256 gained
+        uint256 gained,
+        bytes memo
     );
 
     error BeneficiaryMismatch(address beneficiary, address from);
@@ -144,7 +168,9 @@ contract TreasuryConduit is Ownable2Step, ReentrancyGuard {
                 intent.tokenOut,
                 intent.minOut,
                 intent.beneficiary,
-                intent.deadline
+                intent.deadline,
+                intent.memoId,
+                keccak256(intent.memo)
             )
         );
     }
@@ -194,7 +220,17 @@ contract TreasuryConduit is Ownable2Step, ReentrancyGuard {
         uint256 gained = tokenOut.balanceOf(auth.from) - before;
         if (gained < intent.minOut) revert BelowFloor(gained, intent.minOut);
 
-        emit Executed(auth.from, auth.nonce, intent.target, intent.tokenIn, intent.amountIn, intent.tokenOut, gained);
+        emit Executed(
+            auth.from,
+            intent.memoId,
+            intent.target,
+            auth.nonce,
+            intent.tokenIn,
+            intent.amountIn,
+            intent.tokenOut,
+            gained,
+            intent.memo
+        );
     }
 
     /// @notice Return any token this contract holds to a treasury. Never needed

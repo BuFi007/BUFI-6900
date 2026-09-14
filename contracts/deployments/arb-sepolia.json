@@ -46,12 +46,13 @@
     "factoryOwner": "0x0166EA90E565476f13c6a0D25ED2C35599E58785"
   },
   "conduit": {
-    "address": "0x31DEB857f22504E38d4C1Bc58524730d8Bd4FABe",
+    "address": "0xA9817049F0a48d4653719465A7829E85b3A415e7",
     "owner": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
-    "salt": "keccak256(\"bufi.treasury-conduit.v1\")",
+    "salt": "keccak256(\"bufi.treasury-conduit.v2\")",
     "deployedAt": "2026-09-14",
-    "targets": {},
-    "notes": "TreasuryConduit (plan 353). No targets registered yet on this chain: register the swap router / vault with setTarget before the first intent."
+    "supersedes": "0x31DEB857f22504E38d4C1Bc58524730d8Bd4FABe",
+    "notes": "TreasuryConduit v2 \u2014 the intent carries a quorum-signed memo (memoId indexed on Executed). v1 has no memo and a different INTENT_TYPEHASH, so an authorisation signed for one is unredeemable at the other; that is deliberate. Arc's own Memo predeploy cannot wrap this rail (EOA-only).",
+    "targets": {}
   },
   "notes": [
     "Circle canonical stack addresses are the same on every chain; BUFI plugin entries are copied from arc-testnet.json and NOT yet verified deployed on Arbitrum Sepolia (CREATE2 gives the same address once deployed).",

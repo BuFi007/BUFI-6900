@@ -10,6 +10,7 @@ import {MockVault4626} from "../../../mocks/MockVault4626.sol";
 import {UpgradableMSCA} from "@circle/msca/6900/v0.7/account/UpgradableMSCA.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {Vm} from "forge-std/src/Vm.sol";
 
 /// @notice The on-chain conduit against a REAL Circle treasury: a weighted
 /// 2-of-2 MSCA with ColdStorageAddressBook installed, signing the ERC-3009
@@ -61,7 +62,9 @@ contract TreasuryConduitTest is CircleStackHarness {
             tokenOut: address(eurc),
             minOut: minOut,
             beneficiary: address(treasury),
-            deadline: block.timestamp + 1 hours
+            deadline: block.timestamp + 1 hours,
+            memoId: keccak256("invoice-2026-0001"),
+            memo: bytes("invoice=2026-0001")
         });
     }
 
@@ -115,7 +118,15 @@ contract TreasuryConduitTest is CircleStackHarness {
 
         vm.expectEmit(true, true, true, true, address(conduit));
         emit TreasuryConduit.Executed(
-            address(treasury), auth.nonce, address(router), address(usdc), AMOUNT, address(eurc), 13_600_000
+            address(treasury),
+            keccak256("invoice-2026-0001"),
+            address(router),
+            auth.nonce,
+            address(usdc),
+            AMOUNT,
+            address(eurc),
+            13_600_000,
+            bytes("invoice=2026-0001")
         );
         vm.prank(KEEPER); // anyone may drive it
         conduit.execute(auth, sig, intent);
@@ -137,7 +148,9 @@ contract TreasuryConduitTest is CircleStackHarness {
             tokenOut: address(vault),
             minOut: AMOUNT, // fresh vault: 1:1
             beneficiary: address(treasury),
-            deadline: block.timestamp + 1 hours
+            deadline: block.timestamp + 1 hours,
+            memoId: keccak256("earn-run-7"),
+            memo: bytes("earn=morpho-usdc")
         });
         TreasuryConduit.Authorization memory auth = _auth(intent);
         conduit.execute(auth, _sign(auth), intent);
@@ -261,5 +274,62 @@ contract TreasuryConduitTest is CircleStackHarness {
         vm.prank(OPS_MULTISIG);
         conduit.rescue(address(usdc), address(treasury));
         assertEq(usdc.balanceOf(address(treasury)), 105e6);
+    }
+
+    // ── the memo: Arc's own Memo contract cannot wrap this rail ─────────────
+
+    function test_the_memo_is_part_of_what_the_quorum_signed() public {
+        TreasuryConduit.Intent memory intent = _swapIntent(0);
+        TreasuryConduit.Authorization memory auth = _auth(intent);
+        bytes memory sig = _sign(auth);
+        // Changing only the memo changes the nonce, so the signed authorisation
+        // no longer redeems: the memo on chain is provably the approved one.
+        TreasuryConduit.Intent memory retagged = intent;
+        retagged.memo = bytes("invoice=SOMETHING-ELSE");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TreasuryConduit.NonceIsNotTheIntent.selector, auth.nonce, conduit.intentNonce(retagged)
+            )
+        );
+        conduit.execute(auth, sig, retagged);
+
+        TreasuryConduit.Intent memory reided = intent;
+        reided.memoId = keccak256("a different invoice");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                TreasuryConduit.NonceIsNotTheIntent.selector, auth.nonce, conduit.intentNonce(reided)
+            )
+        );
+        conduit.execute(auth, sig, reided);
+    }
+
+    function test_a_movement_is_findable_by_memoId_without_its_transaction_hash() public {
+        TreasuryConduit.Intent memory intent = _swapIntent(0);
+        TreasuryConduit.Authorization memory auth = _auth(intent);
+        vm.recordLogs();
+        conduit.execute(auth, _sign(auth), intent);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        bytes32 executedTopic =
+            keccak256("Executed(address,bytes32,address,bytes32,address,uint256,address,uint256,bytes)");
+        uint256 matches = 0;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].emitter != address(conduit)) continue;
+            if (logs[i].topics[0] != executedTopic) continue;
+            // topic 2 is the indexed memoId — the field an indexer filters on.
+            assertEq(logs[i].topics[2], keccak256("invoice-2026-0001"), "memoId is indexed");
+            assertEq(logs[i].topics[1], bytes32(uint256(uint160(address(treasury)))), "treasury indexed");
+            matches++;
+        }
+        assertEq(matches, 1, "exactly one Executed carries this memo");
+    }
+
+    function test_an_empty_memo_is_allowed_and_costs_nothing() public {
+        TreasuryConduit.Intent memory intent = _swapIntent(0);
+        intent.memoId = bytes32(0);
+        intent.memo = "";
+        TreasuryConduit.Authorization memory auth = _auth(intent);
+        conduit.execute(auth, _sign(auth), intent);
+        assertEq(eurc.balanceOf(address(treasury)), 13_600_000);
     }
 }
