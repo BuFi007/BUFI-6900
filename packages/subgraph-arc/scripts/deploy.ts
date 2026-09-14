@@ -7,6 +7,13 @@
  *
  *   bun run build                                      # arc-testnet, build only
  *   bun run deploy -- arc-testnet=bufi-arc-testnet --version v0.1.0
+ *   bun run deploy -- arc-testnet=bufi-eth-online --version v0.1.1 \
+ *     --graft QmBase…:45306948                         # resume a fixed index
+ *
+ * `--graft <deployment>:<block>` copies the base deployment's state up to
+ * `block` instead of re-indexing from the start blocks — hours saved when a
+ * handler fix only has to reprocess what came after. Grafted versions are
+ * for Studio; a version published to the network should be a clean sync.
  *
  * `graph auth <deploy key>` must have run once on this machine. Adapted from
  * Space Object's hackathon deploy script (used with permission).
@@ -19,7 +26,7 @@ const options = parseArgs(Bun.argv.slice(2));
 
 for (const target of options.targets) {
   const chain = requireChain(target.chain, options.buildOnly);
-  const manifest = await generateManifest(target.chain, chain);
+  const manifest = await generateManifest(target.chain, chain, options.graft);
 
   console.log(`\nBuilding ${target.chain} (${chain.chainId})`);
   await run(['bunx', 'graph', 'codegen', manifest]);
@@ -43,16 +50,22 @@ for (const target of options.targets) {
 
 type Chain = (typeof chains)[keyof typeof chains];
 
+type Graft = { base: string; block: number };
+
 function parseArgs(args: string[]) {
   const versionIndex = args.indexOf('--version');
   const version = versionIndex === -1 ? 'dev' : args[versionIndex + 1];
   const buildOnly = args.includes('--build-only');
   if (!version) fail('Pass a value after --version.');
+  const graftIndex = args.indexOf('--graft');
+  const graft = graftIndex === -1 ? null : parseGraft(args[graftIndex + 1]);
 
   const targets = args
     .filter((argument, index) => {
-      if (argument === '--build-only' || argument === '--version') return false;
-      return versionIndex === -1 || index !== versionIndex + 1;
+      if (['--build-only', '--version', '--graft'].includes(argument)) return false;
+      if (versionIndex !== -1 && index === versionIndex + 1) return false;
+      if (graftIndex !== -1 && index === graftIndex + 1) return false;
+      return true;
     })
     .map(argument => {
       const [chain, slug, extra] = argument.split('=');
@@ -66,9 +79,18 @@ function parseArgs(args: string[]) {
   if (targets.length === 0 && !buildOnly) fail('Pass at least one chain=studio-slug target.');
   return {
     buildOnly,
+    graft,
     targets: targets.length === 0 ? [{ chain: DEFAULT_CHAIN, slug: '' }] : targets,
     version: version as string,
   };
+}
+
+function parseGraft(value: string | undefined): Graft {
+  const [base, block] = (value ?? '').split(':');
+  if (!base || !/^Qm[1-9A-HJ-NP-Za-km-z]{44}$/.test(base) || !block || !/^\d+$/.test(block)) {
+    fail('Pass --graft <base deployment Qm…>:<block>.');
+  }
+  return { base, block: Number(block) };
 }
 
 function requireChain(name: string, buildOnly: boolean): Chain {
@@ -81,7 +103,7 @@ function requireChain(name: string, buildOnly: boolean): Chain {
   return chain;
 }
 
-async function generateManifest(name: string, chain: Chain) {
+async function generateManifest(name: string, chain: Chain, graft: Graft | null) {
   const escrow =
     chain.contracts.agenticCommerce.address || '0x0000000000000000000000000000000000000000';
   const replacements: Record<string, string | number> = {
@@ -96,10 +118,18 @@ async function generateManifest(name: string, chain: Chain) {
     agenticCommerceStartBlock: chain.contracts.agenticCommerce.startBlock,
   };
   const template = await Bun.file(new URL('../subgraph.template.yaml', import.meta.url)).text();
-  const manifest = Object.entries(replacements).reduce(
+  let manifest = Object.entries(replacements).reduce(
     (contents, [key, value]) => contents.replaceAll(`{{${key}}}`, String(value)),
     template
   );
+  if (graft) {
+    const features = 'features:\n  - fullTextSearch\n';
+    if (!manifest.includes(features)) fail('The template features block moved; update --graft.');
+    manifest = manifest.replace(
+      features,
+      `${features}  - grafting\ngraft:\n  base: ${graft.base}\n  block: ${graft.block}\n`
+    );
+  }
   if (manifest.split('\n').some(line => !line.trimStart().startsWith('#') && line.includes('{{'))) {
     fail('The manifest has an unknown template value.');
   }

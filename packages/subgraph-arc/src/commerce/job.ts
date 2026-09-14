@@ -15,6 +15,7 @@ import { Agent, Job, JobEvent } from '../../generated/schema';
 import { getOrCreateEngagement } from '../bufi/engagement';
 import { resolveAgentByWallet } from '../bufi/wallet-binding';
 import { getOrCreateAccount } from '../shared/account';
+import { toTimestampSeconds } from '../shared/timestamp';
 import {
   contextChainId,
   contextPaymentToken,
@@ -104,7 +105,9 @@ export function handleJobCreated(event: JobCreated): void {
   job.status = 'OPEN';
   job.client = client.id;
   job.evaluator = evaluator.id;
-  job.expiresAt = event.params.expiredAt.toI64();
+  // Clamped: uint64 max ("never expires") wraps to -1 through toI64() and a
+  // negative Timestamp is a deterministic store error (see shared/timestamp.ts).
+  job.expiresAt = toTimestampSeconds(event.params.expiredAt);
   job.budget = BigInt.zero();
   job.paymentToken = contextPaymentToken();
   job.description = '';
