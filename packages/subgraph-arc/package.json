@@ -11,7 +11,8 @@
     "test": "graph test",
     "check:type": "tsc --noEmit -p tsconfig.scripts.json",
     "typecheck": "tsc --noEmit -p tsconfig.scripts.json",
-    "clean": "rm -rf .turbo node_modules .generated build generated"
+    "clean": "rm -rf .turbo node_modules .generated build generated",
+    "assert-live": "bun run ./scripts/assert-live.ts"
   },
   "dependencies": {
     "@graphprotocol/graph-cli": "0.98.1",

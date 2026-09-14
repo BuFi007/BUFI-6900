@@ -45,6 +45,29 @@ bun run deploy -- arc-testnet=<studio-slug> --version v0.1.1 \
 handler fix only has to reprocess what came after it. Use it for Studio; a version
 published to the network should be a clean sync.
 
+## Verified live, 2026-09-14
+
+```sh
+bun run assert-live        # or: bun run ./scripts/assert-live.ts --json
+```
+
+Against the deployed index at the Arc testnet chain head, all six checks pass:
+
+| Check | Result |
+| --- | --- |
+| index health | no indexing errors, at head |
+| registry counters | 7,237 agents, 4,067 jobs, 2,701 settled |
+| agent 894551 | serving its inline `data:` registration document |
+| job 182422 | `COMPLETED`, `settled: true`, provider paid |
+| fulltext `Nice & Team` | resolves to the workspace profile |
+| workspace joins | `clientAgent`, `providerAgent` and a shared `Engagement` with job count and settled volume |
+
+Job 182422's six indexed events carry exactly the transaction hashes the product recorded
+when it ran that job, so the chain and the application agree without anyone reconciling them.
+
+The script reports **pending**, not failed, while the index is still syncing — a fresh
+deployment must not look like a broken graph.
+
 ## Two things that will bite
 
 **Clamp every timestamp that comes from an event param.** `BigInt.toI64()` checks
