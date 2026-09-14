@@ -1,0 +1,27 @@
+{
+  "name": "@bufi6900/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Terminal agent on the Vercel AI SDK that manages a demo BUFI treasury (weighted-multisig MSCA + agent MSCA session key) through @bufi6900/treasury-kit: every money move is a TreasuryConduit request the quorum signs and the agent submits.",
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "scripts": {
+    "demo": "bun run src/index.ts",
+    "demo:stub": "AGENT_KIT=stub bun run src/index.ts",
+    "check:type": "tsc -p tsconfig.json",
+    "test": "AGENT_KIT=stub bun test"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "3.0.118",
+    "@ai-sdk/openai": "3.0.112",
+    "@bufi6900/treasury-kit": "workspace:*",
+    "ai": "6.0.283",
+    "viem": "2.45.3",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.10",
+    "@types/node": "^24.0.0",
+    "typescript": "5.8.2"
+  }
+}

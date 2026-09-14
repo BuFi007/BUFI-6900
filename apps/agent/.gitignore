@@ -1,0 +1,4 @@
+# The agent's session key and deployed addresses. Never committed.
+.agent-state.json
+.env
+.env.local
