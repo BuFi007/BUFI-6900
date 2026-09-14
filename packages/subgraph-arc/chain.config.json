@@ -6,15 +6,15 @@
     "contracts": {
       "identity": {
         "address": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
-        "startBlock": 29241340
+        "startBlock": 59400000
       },
       "reputation": {
         "address": "0x8004B663056A597Dffe9eCcC1965A193B7388713",
-        "startBlock": 29241344
+        "startBlock": 59400000
       },
       "agenticCommerce": {
         "address": "0x0747EEf0706327138c69792bF28Cd525089e4583",
-        "startBlock": 33908011
+        "startBlock": 59400000
       }
     }
   },

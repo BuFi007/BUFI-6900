@@ -6,7 +6,8 @@
  * this standalone copy inlines the same truth below.
  * Start blocks are the contracts' creation blocks read from the Arc explorer on
  * 2026-09-13 (proxy creation transactions), pinned here because they are not
- * derivable from code. The mainnet escrow is unknown until Circle publishes it;
+ * derivable from code. A chain may also carry an INDEX FLOOR, which is what the
+ * manifest actually uses — see `INDEX_FLOOR` below. The mainnet escrow is unknown until Circle publishes it;
  * a chain with an empty escrow address is skipped by scripts/deploy.ts.
  */
 
@@ -41,6 +42,36 @@ const START_BLOCKS: Record<string, { identity: number; reputation: number; escro
   arc: { identity: 13344062, reputation: 13344072, escrow: 0 },
 };
 
+/**
+ * The earliest block the index actually reads, when it is later than a
+ * contract's creation block.
+ *
+ * Arc testnet's registries are SHARED, and between their creation (29.2M) and
+ * 2026-08-30 they accumulated a hackathon's worth of third-party traffic —
+ * dense enough that `eth_getLogs` refuses a 10,000-block window around block
+ * 52M, and measured at ~600 blocks/minute of indexing through it. Syncing that
+ * stretch takes roughly two weeks and yields nothing of BUFI's: every BUFI
+ * identity was minted on or after 2026-08-30 03:25 UTC and the first BUFI job
+ * the same day, both above block 59.5M.
+ *
+ * 59,400,000 is 2026-08-29, a few hours of margin before the first mint. The
+ * index therefore holds all of BUFI's history plus every third party active
+ * since then, and reaches the chain head in about an hour.
+ *
+ * Raising this is cheap and lowering it is not: a lower floor is a full
+ * re-sync. If BUFI ever needs the older third-party agents for discovery,
+ * deploy that as a SEPARATE Studio subgraph rather than re-cutting this one,
+ * so the live one keeps serving while the deep one catches up.
+ */
+const INDEX_FLOOR: Record<string, number> = {
+  'arc-testnet': 59_400_000,
+};
+
+function startBlock(chainKey: string, creationBlock: number): number {
+  const floor = INDEX_FLOOR[chainKey];
+  return floor === undefined ? creationBlock : Math.max(creationBlock, floor);
+}
+
 /** Arc settles in USDC; on Arc it is the native gas token exposed at this address. */
 const ARC_USDC = '0x3600000000000000000000000000000000000000';
 
@@ -58,9 +89,9 @@ for (const key of ['arc-testnet', 'arc'] as const) {
     chainId: chain.chainId,
     paymentToken: ARC_USDC,
     contracts: {
-      identity: { address: chain.identityRegistry, startBlock: blocks.identity },
-      reputation: { address: chain.reputationRegistry, startBlock: blocks.reputation },
-      agenticCommerce: { address: escrowFor(key), startBlock: blocks.escrow },
+      identity: { address: chain.identityRegistry, startBlock: startBlock(key, blocks.identity) },
+      reputation: { address: chain.reputationRegistry, startBlock: startBlock(key, blocks.reputation) },
+      agenticCommerce: { address: escrowFor(key), startBlock: startBlock(key, blocks.escrow) },
     },
   };
 }
