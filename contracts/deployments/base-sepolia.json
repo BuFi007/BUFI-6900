@@ -1,0 +1,17 @@
+{
+  "chainId": 84532,
+  "rpcUrl": "https://sepolia.base.org",
+  "conduit": {
+    "address": "0xA9817049F0a48d4653719465A7829E85b3A415e7",
+    "owner": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
+    "salt": "keccak256(\"bufi.treasury-conduit.v2\")",
+    "deployedAt": "2026-09-14",
+    "supersedes": "0x31DEB857f22504E38d4C1Bc58524730d8Bd4FABe",
+    "notes": "TreasuryConduit v2 \u2014 the intent carries a quorum-signed memo (memoId indexed on Executed). v1 has no memo and a different INTENT_TYPEHASH, so an authorisation signed for one is unredeemable at the other; that is deliberate. Arc's own Memo predeploy cannot wrap this rail (EOA-only). No venue registered on Base Sepolia yet: the first refused route names the address to register.",
+    "targets": {}
+  },
+  "notes": [
+    "Conduit-only record. The Circle MSCA stack is not deployed here yet; add it with DeployBufiPlugins before a treasury can live on this chain.",
+    "TreasuryConduit v2 deployed 2026-09-14 by the desk testnet deployer."
+  ]
+}
