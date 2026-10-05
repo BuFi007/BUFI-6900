@@ -27,7 +27,7 @@ import { join } from 'node:path'
 import { type Hex, createPublicClient, createWalletClient, defineChain, http, parseAbi } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 
-import { compileSquads, squadsSteps, type WeightedTreasurySpec } from '../src'
+import { compileSquads, squadsSteps, u256be as u256beBytes, type WeightedTreasurySpec } from '../src'
 
 const sdkDir = join(import.meta.dir, '..', '.squads-sdk', 'sdk', 'smart-account')
 const req = createRequire(join(sdkDir, 'package.json'))
@@ -131,12 +131,8 @@ function addDelegateIx(vault: InstanceType<typeof PublicKey>, delegate: Instance
 // ── burn intent: Circle's Solana binary layout (big-endian), signed with a 0xff… domain prefix ───
 const evmToHex32 = (a: string) => `0x${a.toLowerCase().replace(/^0x/, '').padStart(64, '0')}`
 const keyToHex32 = (k: InstanceType<typeof PublicKey>) => `0x${k.toBuffer().toString('hex')}`
-const u256be = (v: bigint) => {
-  const b = Buffer.alloc(32)
-  b.writeBigUInt64BE(v & 0xffffffffffffffffn, 24)
-  b.writeBigUInt64BE((v >> 64n) & 0xffffffffffffffffn, 16)
-  return b
-}
+// Full 256-bit big-endian encoding lives in src/encoding.ts (regression-tested, UT-8).
+const u256be = (v: bigint) => Buffer.from(u256beBytes(v))
 const u32be = (v: number) => {
   const b = Buffer.alloc(4)
   b.writeUInt32BE(v)

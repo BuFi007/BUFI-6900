@@ -188,7 +188,7 @@ GatewayIntentGuardModuleV08Test        14 passed
 142 passed, 0 failed
 ```
 
-Full default profile: 458 passed, 0 failed. Fuzz tests also pass at 1,024 runs (`FOUNDRY_PROFILE=ci`).
+Full default profile: 458 passed, 0 failed on the working tree at the time (454 on a clean checkout; see docs/EVIDENCE-LEDGER.md §6). Fuzz tests also pass at 1,024 runs (`FOUNDRY_PROFILE=ci`).
 Mutation checks: removing the nested ERC-1271 call fails 11 tests; making the v0.7 hook a no-op fails 24; making
 the v0.8 hook a no-op fails 7.
 

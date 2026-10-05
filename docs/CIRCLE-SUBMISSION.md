@@ -28,8 +28,8 @@ Circle Modular Wallets on the ERC-6900 v0.7 account generation; guidance on the 
 
 ## Testnet addresses (identical on Avalanche Fuji 43113 and Arc testnet 5042002)
 
-- `BufiSessionKeyPlugin` — `0x28504B34871Aa5a00269a960A9390187cbB5c070`, manifest `0xa32b3449ba437645e2386051ad0fcb64b0c2a9fed66b2eb4349505a2cb11ff5d`
-- `BufiEarnModule` — `0x57D446a9A9c23d939035a924F7D3643B6eedE4Cf`, manifest `0x5adab6895bc4f41df3405079667ae5103316a130ce3ebe225402958a96652e53`
+- `BufiSessionKeyPlugin` — `0xBd607dBAC82CF1351C352FB65fC29dE9D0095339` (post-fix redeploy; the earlier `0x28504B34871Aa5a00269a960A9390187cbB5c070` is pre-fix, never install it), manifest `0xa32b3449ba437645e2386051ad0fcb64b0c2a9fed66b2eb4349505a2cb11ff5d`
+- `BufiEarnModule` — `0xeb94A8b7412418B506b24dBeD4Aed0E9ba5453c2` (post-fix redeploy; the earlier `0x57D446a9A9c23d939035a924F7D3643B6eedE4Cf` is pre-fix, never install it), manifest `0x5adab6895bc4f41df3405079667ae5103316a130ce3ebe225402958a96652e53`
 
 Both install on your production `UpgradableMSCA` on those chains with `dependencies =
 [FunctionReference(WeightedWebauthnMultisigPlugin, 1), FunctionReference(WeightedWebauthnMultisigPlugin, 0)]`.

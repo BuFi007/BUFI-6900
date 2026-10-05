@@ -78,8 +78,8 @@ accounts are ephemeral and not listed.
 
 ## 6. Test counts (working tree at commit time, 2026-10-05)
 
-- `cd contracts && forge test --match-path "test/bufi/gateway-*/**"`: 142 passed (GatewayTreasuryTest 54, GatewayTreasuryNestedOwnersTest 28, GatewayTreasuryCircleMscaOwnerTest 4, GatewayIntentGuardPluginTest 42, GatewayIntentGuardModuleV08Test 14). Full default profile: 458 passed.
-- `cd packages/weighted-treasury && bun test test`: 28 passed.
+- `cd contracts && forge test --match-path "test/bufi/gateway-*/**"`: 142 passed (GatewayTreasuryTest 54, GatewayTreasuryNestedOwnersTest 28, GatewayTreasuryCircleMscaOwnerTest 4, GatewayIntentGuardPluginTest 42, GatewayIntentGuardModuleV08Test 14). Full default profile: 454 passed on a clean checkout of the committed tree (458 on the working tree, which also held 4 tests from an unrelated untracked file).
+- `cd packages/weighted-treasury && bun test test`: 36 passed (includes the UT-8 regression test).
 - `cd apps/ultimate-treasury && bun test server`: 22 passed.
 - `cd tools/frost-delegate && cargo test`: 5 passed.
 

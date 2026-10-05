@@ -4,10 +4,16 @@ An asset-first, chain-abstracted treasury app (Vite + React 19 + TypeScript, pla
 `apps/playground`). The user sees **assets and amounts first**; chains appear only when the position breakdown is
 opened or a send reports where it was delivered.
 
+Every address, hash and test count here is also in [docs/EVIDENCE-LEDGER.md](../../docs/EVIDENCE-LEDGER.md), the
+single source. This is a **local dev app**. It is not offered as a hosted preview, because signing is dev-only by
+design: a hosted build can read balances but cannot send.
+
 - **One USDC number**: the sum of the live Circle Gateway balances of
-  - the EVM `GatewayTreasury` contract on Arc testnet (domain 26, `0x692Db088…669daF`), and
-  - the Solana Squads vault on devnet (domain 5, `AtBgen53…1yy9B`),
-  read from `POST https://gateway-api-testnet.circle.com/v1/balances`.
+  - the EVM `GatewayTreasury` v2 contract on Arc testnet (domain 26,
+    `0xC3f4De2372167F7FFA0a1B3FbF221a8a7289e7d5`, the deployment of the current source), and
+  - the Solana Squads vault on devnet (domain 5, `AtBgen532MGQmGjhmKcXRHxaBpSDz1ML6WXuUYw1yy9B`),
+  read from `POST https://gateway-api-testnet.circle.com/v1/balances`. Base Sepolia and Fuji positions are not read.
+  The v1 treasury `0x692Db08885870fA99ADA4Acdee02633947669daF` is superseded and no longer used by the app.
 - **Asset rows**: USDC is live. EURC, cirBTC and other StableFX assets are shown disabled as "not on Gateway yet".
   No balance is ever invented for them.
 - **Send**: asset, amount, a recipient from the treasury allowlist (R), the policy (quorum, destinations, caps,
@@ -69,11 +75,19 @@ SendPanel ─ GET /api/ut/treasury ─────▶ readPolicy (GatewayTreasur
   one is consumed, so the Solana retry resubmits the same signed intent.
 - One send at a time (409 otherwise). Every send, refusal demos included, is capped at 1 USDC and at the per-intent
   cap, and must fit the source's balance: `expectRefusal` adds a check, it never removes one.
-- The Solana allowlist is NOT on-chain: this signer checks the recipient against the EVM treasury's on-chain
-  allowlist, then `frost-delegate sign` decodes the burn intent and checks `.sandbox/ultimate-treasury/frost/policy.json`
-  (recipient per destination domain, value and fee caps, expiry, depositor, minter) before any share signs, and a
-  sub-threshold quorum cannot produce a FROST signature at all. The UI says which layer refused. A Solana send is
-  refused outright (409) when the FROST share map differs from the on-chain weights (re-run the DKG after a rotation).
+- The Solana allowlist is NOT on-chain. Two separate off-chain gates stand in for it, and both must pass:
+  1. This app server checks the recipient against the EVM treasury's on-chain allowlist.
+  2. `frost-delegate sign` decodes the burn intent and checks `.sandbox/ultimate-treasury/frost/policy.json`
+     (recipient per destination domain, value and fee caps, expiry, depositor, minter) before any share signs.
+
+  The two lists are kept in sync **by hand**. `policy.json` lists R on domain 26 only. If an owner changes the EVM
+  allowlist, `policy.json` must be edited to match, or the gates disagree. Share holders who sign without
+  `frost-delegate` are bound by neither gate. A sub-threshold quorum cannot produce a FROST signature at all. The UI
+  says which layer refused. A Solana send is refused outright (409) when the FROST share map differs from the
+  on-chain weights (re-run the DKG and a new Squads `add_delegate` after a rotation).
+- **Sandbox DKG caveat.** `frost-delegate dkg` runs every participant in one process, and all shares sit in one
+  directory on one machine. In the sandbox that process could rebuild the group key, so the threshold property is
+  not real here. A production setup needs each owner to run their own DKG participant and hold their own share.
 - An accepted attestation is saved (memory + `.sandbox/ultimate-treasury/attestations/`, 0600) until a mint receipt
   succeeds. A failed mint is resumed with the SAME attestation (`POST /api/ut/jobs/:id/resume-mint`, the "Resume
   mint" button); a new send of the same amount to the same recipient is refused meanwhile. A successful mint receipt
@@ -97,15 +111,43 @@ Verification of a build (run after `vite build`):
 grep -rl "/api/ut\|privateKey\|frost-delegate\|deployer-wallet\|child_process" apps/ultimate-treasury/dist  # → nothing
 ```
 
+## Security review fixes in this app
+
+The 2026-10-05 review raised 9 findings in the app, the FROST tool and the scripts (UT-1 to UT-9; full mapping in
+[`docs/SECURITY-REVIEW-GATEWAY.md`](../../docs/SECURITY-REVIEW-GATEWAY.md)). Four are in this app and pinned by
+`server/hardening.test.ts` (`bun test server`: 22 passed), listed below. The other five are outside this app:
+
+- UT-3 (merged into GT-4 (spec)), UT-6 and UT-7 are fixed in `tools/frost-delegate` and pinned by its `cargo test`
+  (5 passed): `policy_accepts_the_canonical_intent`, `policy_refuses_each_violation`,
+  `refuses_anything_that_is_not_one_burn_intent`, `dkg_refuses_to_overwrite_and_writes_owner_only_files`,
+  `duplicate_or_unknown_signer_labels_are_refused`.
+- UT-9 is fixed in `scripts/gateway-treasury/canary.ts` (it validates `TREASURY` before sending). It was checked by
+  hand and has no regression test.
+- UT-8 is still open: `u256be` in `packages/weighted-treasury/scripts/gateway-solana-delegate.ts` encodes only the
+  low 128 bits.
+
+App findings and their tests:
+
+| Finding | Regression tests |
+| --- | --- |
+| UT-1 dev server file exposure (`/@fs` reading keys and shares) | `UT-1 dev server file exposure`: each `/@fs/...` key path is refused; the app itself still serves; OPTIONS on the signer is refused |
+| UT-2 send validation | `UT-2 send validation`: a refusal request cannot lift the sandbox cap or skip the balance check; the Solana leg refuses when on-chain weights drifted from the FROST share map; a consistent request still validates |
+| UT-4 `localOnly` origin checks | `UT-4 localOnly`: a LAN peer spoofing `Host: localhost`, a page on another localhost port and DNS rebinding are refused; loopback without Origin and the dev page are allowed |
+| UT-5 mint bookkeeping | `UT-5 mint bookkeeping`: a second send to the same recipient and amount is blocked while an attestation is unminted; the minted amount is read from the receipt `Transfer` log, not a lagging `balanceOf` |
+
 ## Verified live (2026-10-05)
+
+These runs were made while the app pointed at the **v1** treasury (pre-review bytecode, now superseded). The app now
+points at v2. The v2 contract itself is proven by `scripts/gateway-treasury/canary.ts` (ledger §1), but no app send
+against v2 is recorded yet.
 
 | Flow | Result |
 | --- | --- |
 | `GET /api/ut/balances` | both positions: treasury 2.9965, vault 1.85, total 4.8465 USDC |
 | Refusal, EVM, A+B → S | local `isValidSignature` `0xffffffff`; Gateway 400 `{"success":false,"message":"Invalid signature: contract signature verification request failed"}` |
 | Refusal, EVM, B+C → R | same Gateway 400 |
-| Refusal, Solana, B+C | FROST cannot sign (2 shares < 3) |
-| Refusal, Solana, A+B → S | coordinator refuses before signing |
+| Refusal, Solana, B+C | `frost-delegate` refuses below threshold (2 shares < 3; the sandbox process holds every share) |
+| Refusal, Solana, A+B → S | coordinator refuses before signing (as recorded at the time; current code refuses at the app server gate first) |
 | EVM send 0.25 USDC A+B → R | Gateway 201; `gatewayMint` Base Sepolia `0xd03bea29bcd9fd21fc170e2a1ce5417a36c7e154f2138b0a04e646e8c2e09238`; R 1 → 1.25 |
 | Solana send 0.25 USDC A+B → R | Gateway 201; `gatewayMint` Arc testnet `0xd04c6001a6c1b4e4850da81456bfc57354ffde6e34e7162f8d00db174b0d334d`; R 1 → 1.25 |
 | Balances after | treasury 2.743, vault 1.45 (fees: ~0.0035 EVM, ~0.15 Solana) |
