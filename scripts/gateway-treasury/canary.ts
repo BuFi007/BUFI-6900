@@ -25,7 +25,9 @@ import {
   createWalletClient,
   defineChain,
   encodeAbiParameters,
+  getAddress,
   hashTypedData,
+  isAddress,
   http,
   pad,
   parseAbi,
@@ -51,7 +53,10 @@ const BASE_DOMAIN = 6
 const EXPIRY_BLOCKS = 1_209_599n + 2_000n
 const MAX_FEE = 2_010_000n
 
-const TREASURY = process.env.TREASURY as Address
+// Fail fast on configuration before anything is sent: a wrong TREASURY would receive real funds in step 1.
+if (!process.env.DEPLOYER_PK || !/^0x[0-9a-fA-F]{64}$/.test(process.env.DEPLOYER_PK)) throw new Error('DEPLOYER_PK must be a 0x-prefixed 32-byte hex key')
+if (!isAddress(process.env.TREASURY ?? '', { strict: false })) throw new Error(`TREASURY is not an address: ${process.env.TREASURY}`)
+const TREASURY = getAddress(process.env.TREASURY as string)
 const deployer = privateKeyToAccount(process.env.DEPLOYER_PK as Hex)
 const keys = JSON.parse(readFileSync(join(import.meta.dir, '../../.sandbox/ultimate-treasury/keys.json'), 'utf8')) as Record<
   string,
@@ -71,7 +76,25 @@ const ERC20 = parseAbi([
 const TREASURY_ABI = parseAbi([
   'function sweepToGateway(address token)',
   'function isValidSignature(bytes32 hash, bytes signature) view returns (bytes4)',
+  'function getOwners() view returns (address[])',
+  'function gatewayWallet() view returns (address)',
 ])
+
+/** TREASURY must be the deployed GatewayTreasury of these owners on this Gateway, or nothing is sent. */
+async function assertTreasury() {
+  const code = await arc.getCode({ address: TREASURY })
+  if (!code || code === '0x') throw new Error(`TREASURY ${TREASURY} has no code on Arc testnet: refusing to send funds to it`)
+  const [owners, gw] = await Promise.all([
+    arc.readContract({ address: TREASURY, abi: TREASURY_ABI, functionName: 'getOwners' }) as Promise<Address[]>,
+    arc.readContract({ address: TREASURY, abi: TREASURY_ABI, functionName: 'gatewayWallet' }) as Promise<Address>,
+  ]).catch(() => {
+    throw new Error(`TREASURY ${TREASURY} is not a GatewayTreasury (getOwners/gatewayWallet failed)`)
+  })
+  const want = ['A', 'B', 'C'].map((id) => keys[id]!.address.toLowerCase()).sort()
+  const got = owners.map((o) => o.toLowerCase()).sort()
+  if (JSON.stringify(want) !== JSON.stringify(got)) throw new Error(`TREASURY owners ${got.join(',')} are not the sandbox owners A,B,C`)
+  if (gw.toLowerCase() !== GATEWAY_WALLET.toLowerCase()) throw new Error(`TREASURY uses GatewayWallet ${gw}, expected ${GATEWAY_WALLET}`)
+}
 const GW_ABI = parseAbi([
   'function depositWithAuthorization(address token, address from, uint256 value, uint256 validAfter, uint256 validBefore, bytes32 nonce, bytes signature)',
   'function availableBalance(address token, address depositor) view returns (uint256)',
@@ -174,6 +197,7 @@ async function postTransfer(message: Awaited<ReturnType<typeof buildIntent>>['me
 
 async function main() {
   log('treasury', TREASURY, '· payer', deployer.address)
+  await assertTreasury()
 
   if (!skipDeposit) {
     // 1. deposit A: transfer + sweep
@@ -243,7 +267,7 @@ async function main() {
     const local = await arc.readContract({ address: TREASURY, abi: TREASURY_ABI, functionName: 'isValidSignature', args: [hash, sig] })
     const r = await postTransfer(message, sig)
     log(`6a. recipient S (not allowlisted): local isValidSignature=${local} · Gateway ${r.status} ${r.text.slice(0, 200)}`)
-    if (r.ok) throw new Error('Gateway ACCEPTED a non-allowlisted recipient')
+    if (r.ok) throw new Error(`Gateway ACCEPTED a non-allowlisted recipient; live attestation: ${r.text}`)
   }
   {
     const { message, hash } = await buildIntent(keys.R!.address, 1_000_000n)
@@ -251,7 +275,7 @@ async function main() {
     const local = await arc.readContract({ address: TREASURY, abi: TREASURY_ABI, functionName: 'isValidSignature', args: [hash, sig] })
     const r = await postTransfer(message, sig)
     log(`6b. B+C (weight 2 < 3): local isValidSignature=${local} · Gateway ${r.status} ${r.text.slice(0, 200)}`)
-    if (r.ok) throw new Error('Gateway ACCEPTED a sub-threshold quorum')
+    if (r.ok) throw new Error(`Gateway ACCEPTED a sub-threshold quorum; live attestation (mint it to R): ${r.text}`)
   }
 
   // 4. the real transfer: A+B to R
@@ -263,6 +287,9 @@ async function main() {
   log(`   POST /v1/transfer contractSigner:true → ${r.status}`)
   if (!r.ok) throw new Error(`Gateway refused the valid transfer: ${r.text}`)
   const { attestation, signature: operatorSig } = JSON.parse(r.text) as { attestation: Hex; signature: Hex }
+  // Logged BEFORE the mint: if gatewayMint fails, this attestation (already debited) is what must be resubmitted.
+  log('   attestation:', attestation)
+  log('   operator signature:', operatorSig)
 
   // 5. mint on Base Sepolia
   const before = (await base.readContract({ address: BASE_USDC, abi: ERC20, functionName: 'balanceOf', args: [keys.R!.address] })) as bigint

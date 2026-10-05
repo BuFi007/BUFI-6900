@@ -183,16 +183,23 @@ function encodeIntent(bi: Intent): Buffer {
 
 const SIGNING_DOMAIN = Buffer.from([0xff, ...new Array(15).fill(0)])
 
-/** FROST-sign the prefixed intent with the given owners' shares. Returns null if they are below threshold. */
-function frostSign(signers: string[], message: Buffer): { signature: string; groupKey: string } | null {
+/**
+ * FROST-sign the prefixed intent with the given owners' shares. Returns null if they are below threshold. frost-delegate
+ * is also the policy coordinator: it decodes the intent and checks `<frost dir>/policy.json` against `currentSlot`
+ * before any share signs; a policy refusal throws here (this script only builds intents the policy allows).
+ */
+function frostSign(signers: string[], message: Buffer, currentSlot: bigint): { signature: string; groupKey: string } | null {
   try {
-    const out = execFileSync(FROST_BIN, ['sign', '--dir', FROST_DIR, '--signers', signers.join(','), '--message-hex', message.toString('hex')], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
+    const out = execFileSync(
+      FROST_BIN,
+      ['sign', '--dir', FROST_DIR, '--signers', signers.join(','), '--current-slot', currentSlot.toString(), '--message-hex', message.toString('hex')],
+      { stdio: ['ignore', 'pipe', 'pipe'] },
+    )
     return JSON.parse(out.toString())
   } catch (err) {
     const stderr = (err as { stderr?: Buffer }).stderr?.toString() ?? ''
     if (stderr.includes('below threshold')) return null
+    if (stderr.includes('"policy"')) throw new Error(`FROST coordinator policy refused the intent: ${stderr.trim()}`)
     throw err
   }
 }
@@ -216,7 +223,8 @@ async function main() {
     version: 1,
     owners: (['A', 'B', 'C'] as const).map((id, i) => ({ id, weight: [2, 1, 1][i]!, solana: owners[id]!.publicKey.toBase58() })),
     thresholdWeight: 3,
-    // The Solana allowlist is enforced by the signing coordinator for Gateway transfers; R is the Arc recipient.
+    // The Solana leg's Gateway allowlist is OFF-CHAIN: frost-delegate's policy.json (recipient per destination domain,
+    // caps, expiry) is checked before any share signs. It does not bind a share majority signing without the binary.
     allowlist: [{ label: 'R', solana: payer.publicKey.toBase58() }],
     assets: [{ symbol: 'USDC', solanaMint: SOL_USDC.toBase58(), solanaDecimals: 6 }],
     adminTimelockSeconds: 0,
@@ -286,7 +294,7 @@ async function main() {
   // 6a. B+C hold 2 of 4 shares, below 3: no Ed25519 signature exists for them to produce.
   {
     const bi = makeIntent({ depositor: vault, signer: delegate, recipient: R, maxBlockHeight })
-    const sig = frostSign(['B', 'C'], Buffer.concat([SIGNING_DOMAIN, encodeIntent(bi)]))
+    const sig = frostSign(['B', 'C'], Buffer.concat([SIGNING_DOMAIN, encodeIntent(bi)]), slot)
     log('6a. B+C (2 shares < 3):', sig === null ? 'cannot sign (below threshold)' : 'SIGNED?!')
     if (sig !== null) throw new Error('B+C produced a signature')
   }
@@ -302,13 +310,14 @@ async function main() {
     const sig = `0x${cryptoSign(null, Buffer.concat([SIGNING_DOMAIN, encodeIntent(bi)]), key).toString('hex')}`
     const r = await postTransfer(bi, sig)
     log(`6b. owner A's own key (not the delegate): Gateway ${r.status} ${r.text.slice(0, 160)}`)
-    if (r.ok) throw new Error('Gateway accepted a non-delegate signer')
+    // An unexpected acceptance is a live bearer attestation: print it in full so it can still be minted to R.
+    if (r.ok) throw new Error(`Gateway accepted a non-delegate signer; attestation (mint it to R): ${r.text}`)
     if (/maxBlockHeight/.test(r.text)) throw new Error('rogue-key probe failed on expiry, not on the signer: fix the expiry first')
   }
 
   // 4. A+B sign with their shares → one Ed25519 signature from the group key.
   const bi = makeIntent({ depositor: vault, signer: delegate, recipient: R, maxBlockHeight })
-  const signed = frostSign(['A', 'B'], Buffer.concat([SIGNING_DOMAIN, encodeIntent(bi)]))
+  const signed = frostSign(['A', 'B'], Buffer.concat([SIGNING_DOMAIN, encodeIntent(bi)]), slot)
   if (!signed) throw new Error('A+B could not sign')
   log('4. A+B FROST signature:', `${signed.signature.slice(0, 18)}…`)
 
@@ -324,6 +333,9 @@ async function main() {
   log(`5. POST /v1/transfer → ${r.status}`)
   if (!r.ok) throw new Error(`Gateway refused the threshold-signed transfer: ${r.text}`)
   const { attestation, signature: operatorSig } = JSON.parse(r.text) as { attestation: Hex; signature: Hex }
+  // Logged BEFORE the mint: if gatewayMint fails, this attestation (already debited) is what must be resubmitted.
+  log('   attestation:', attestation)
+  log('   operator signature:', operatorSig)
 
   const arcTestnet = defineChain({ id: 5042002, name: 'Arc Testnet', nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 }, rpcUrls: { default: { http: ['https://rpc.testnet.arc.network'] } } })
   const arc = createPublicClient({ chain: arcTestnet, transport: http() })
