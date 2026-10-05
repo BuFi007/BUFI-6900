@@ -19,9 +19,43 @@
 
 // Entry point of Circle's examples/circle-smart-account, kept at the package root like upstream. The `Example`
 // component moved to src/app.tsx so the BUFI panels can live next to it.
+import * as React from 'react'
 import * as ReactDOM from 'react-dom/client'
 
 import { Example } from './src/app'
 import './src/styles.css'
 
-ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(<Example />)
+// BUFI: two chains, one spec. `#solana` opens the Squads view; it is lazy-loaded so the EVM page never pulls in
+// web3.js / the Squads SDK.
+const SolanaView = React.lazy(() => import('./src/solana/solana-view').then((m) => ({ default: m.SolanaView })))
+
+function Root() {
+  const [hash, setHash] = React.useState(() => window.location.hash)
+  React.useEffect(() => {
+    const onHash = () => setHash(window.location.hash)
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+  const solana = hash === '#solana'
+  return (
+    <>
+      <nav className="chains" aria-label="Chain">
+        <a href="#evm" aria-current={solana ? undefined : 'page'}>
+          EVM · Circle MSCA
+        </a>
+        <a href="#solana" aria-current={solana ? 'page' : undefined}>
+          Solana · Squads
+        </a>
+      </nav>
+      {solana ? (
+        <React.Suspense fallback={<p>Loading the Solana view…</p>}>
+          <SolanaView />
+        </React.Suspense>
+      ) : (
+        <Example />
+      )}
+    </>
+  )
+}
+
+ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(<Root />)

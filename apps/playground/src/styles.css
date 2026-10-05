@@ -58,3 +58,10 @@ h3 { font-size: 0.95rem; margin: 0.9rem 0 0.3rem; }
 label.inline { display: inline; }
 label.inline input { vertical-align: middle; }
 .kv dd button { margin-left: 0.5rem; }
+nav.chains { display: flex; gap: 0.25rem; margin: 0 0 1rem; border-bottom: 1px solid var(--line); }
+nav.chains a { padding: 0.45rem 0.9rem; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+nav.chains a[aria-current='page'] { color: #111; border-bottom-color: #111; font-weight: 600; }
+fieldset.field { border: 0; padding: 0; margin: 0.35rem 0; min-width: 12rem; }
+.note { color: #333; }
+.error { color: var(--bad); }
+.pending { color: var(--muted); }

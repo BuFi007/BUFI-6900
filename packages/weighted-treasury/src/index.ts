@@ -14,3 +14,4 @@ export { minimalWinningCoalitions, isWinning, MAX_ENUMERABLE_OWNERS, type Weight
 export { compileEvm, type EvmTreasuryConfig } from './evm'
 export * from './squads/compile'
 export * from './squads/sdk-args'
+export * from './squads/flow'

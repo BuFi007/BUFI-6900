@@ -31,6 +31,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@bufi/modular-wallets-core": "workspace:*",
+        "@bufi6900/weighted-treasury": "workspace:*",
         "react": "19.2.7",
         "react-dom": "19.2.7",
         "viem": "2.45.3",

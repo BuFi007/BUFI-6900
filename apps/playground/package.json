@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "BUFI-6900 playground: a fork of Circle's circle-smart-account example (Vite + React, passkey owner) pointed at the local sandbox, with BUFI panels that drive the ERC-6900 plugins through @bufi/modular-wallets-core — plus the headless e2e drive.",
+  "description": "BUFI-6900 playground: a fork of Circle's circle-smart-account example (Vite + React, passkey owner) pointed at the local sandbox, with BUFI panels that drive the ERC-6900 plugins through @bufi/modular-wallets-core \u2014 plus the headless e2e drive.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -15,7 +15,8 @@
     "@bufi/modular-wallets-core": "workspace:*",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "viem": "2.45.3"
+    "viem": "2.45.3",
+    "@bufi6900/weighted-treasury": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "1.3.10",

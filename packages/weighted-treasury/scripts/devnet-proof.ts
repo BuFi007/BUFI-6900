@@ -22,7 +22,7 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { compileSquads, toSdkPolicyCreateActions, toSdkSigners, type WeightedTreasurySpec } from '../src'
+import { compileSquads, squadsSteps, type WeightedTreasurySpec } from '../src'
 
 const sdkDir = join(import.meta.dir, '..', '.squads-sdk', 'sdk', 'smart-account')
 const req = createRequire(join(sdkDir, 'package.json'))
@@ -32,13 +32,17 @@ const spl = req('@solana/spl-token') as typeof import('@solana/spl-token')
 const BN = req('bn.js')
 const sa = req(join(sdkDir, 'lib', 'index.js'))
 
-const { Connection, Keypair, PublicKey, LAMPORTS_PER_SOL, SystemProgram, Transaction, sendAndConfirmTransaction } = web3
+const { Connection, Keypair, LAMPORTS_PER_SOL } = web3
 const RPC = process.env.SOLANA_RPC_URL ?? 'https://api.devnet.solana.com'
 const connection = new Connection(RPC, 'confirmed')
-const programId = new PublicKey('SMRTzfY6DfH5ik3TKiyLFfXexV8uSG3d2UksSCYdunG')
 const ADMIN_TIMELOCK = 8
 
-const payer = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(join(homedir(), '.config/solana/id.json'), 'utf8'))))
+// Localnet (the playground's `solana-test-validator` with SMRT… cloned from mainnet): a fresh payer, airdropped.
+// Devnet: the Solana CLI key, which must hold ~0.2 SOL.
+const LOCAL = /127\.0\.0\.1|localhost/.test(RPC)
+const payer = LOCAL
+  ? Keypair.generate()
+  : Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(join(homedir(), '.config/solana/id.json'), 'utf8'))))
 const [A, B, C, R, S] = Array.from({ length: 5 }, () => Keypair.generate())
 
 const log = (step: string, detail = '') => console.log(`${step}${detail ? `  ${detail}` : ''}`)
@@ -63,17 +67,12 @@ async function expectFailure(label: string, run: () => Promise<unknown>, pattern
 }
 
 async function main() {
+  if (LOCAL) await confirm(await connection.requestAirdrop(payer.publicKey, 10 * LAMPORTS_PER_SOL))
   log('payer', `${payer.publicKey.toBase58()} · ${(await connection.getBalance(payer.publicKey)) / LAMPORTS_PER_SOL} SOL`)
+  // Owners hold ZERO SOL: the payer covers every fee and rent, as a sponsor would for Circle user wallets.
 
-  // Owners need a little SOL only because Squads requires signers to be writable-free signers; they
-  // pay nothing here (the payer funds everything). Fund A..C with dust for safety on sends.
-  const fund = new Transaction()
-  for (const k of [A, B, C]) fund.add(SystemProgram.transfer({ fromPubkey: payer.publicKey, toPubkey: k!.publicKey, lamports: 0.03 * LAMPORTS_PER_SOL }))
-  await sendAndConfirmTransaction(connection, fund, [payer])
-
+  const steps = squadsSteps({ web3, spl, BN, sa }, connection)
   const decimals = 6
-  const mint = await spl.createMint(connection, payer, payer.publicKey, null, decimals)
-  log('test mint', mint.toBase58())
 
   const spec: WeightedTreasurySpec = {
     version: 1,
@@ -84,112 +83,59 @@ async function main() {
     ],
     thresholdWeight: 3,
     allowlist: [{ label: 'R', solana: R!.publicKey.toBase58() }],
-    assets: [{ symbol: 'TUSD', solanaMint: mint.toBase58(), solanaDecimals: decimals }],
+    // The mint is created after compiling the admin plan's shape; any valid key works as a placeholder
+    // because the real mint is substituted below before anything reaches the chain.
+    assets: [{ symbol: 'TUSD', solanaMint: payer.publicKey.toBase58(), solanaDecimals: decimals }],
     adminTimelockSeconds: ADMIN_TIMELOCK,
   }
-  const plan = compileSquads(spec)
+
+  const { settingsPda, vault } = await steps.createTreasury(payer, compileSquads(spec))
+  log('smart account', `settings ${settingsPda.toBase58()} · vault ${vault.toBase58()}`)
+
+  const { mint, vaultAta } = await steps.fundVault(payer, vault, decimals, 1_000_000_000n)
+  log('test mint', `${mint.toBase58()} · vault holds 1000 TUSD`)
+  const plan = compileSquads({ ...spec, assets: [{ ...spec.assets[0]!, solanaMint: mint.toBase58() }] })
   log('plan', `${plan.policies.length} policies: ${plan.policies.map((p) => `{${p.coalition.join(',')}}`).join(' ')}`)
   for (const note of plan.notes) log('  note', note)
 
-  // ── create the smart account: all owners, threshold = all, admin timelock ─────────────────
-  const [programConfigPda] = sa.getProgramConfigPda({ programId })
-  let settingsPda: InstanceType<typeof PublicKey> | undefined
-  for (let attempt = 0; attempt < 5 && !settingsPda; attempt++) {
-    const cfg = await sa.accounts.ProgramConfig.fromAccountAddress(connection, programConfigPda)
-    const accountIndex = BigInt(cfg.smartAccountIndex.toString()) + 1n
-    const [candidate] = sa.getSettingsPda({ accountIndex, programId })
-    try {
-      await confirm(
-        await sa.rpc.createSmartAccount({
-          connection,
-          treasury: cfg.treasury,
-          creator: payer,
-          settings: candidate,
-          settingsAuthority: null,
-          threshold: plan.settings.threshold,
-          signers: toSdkSigners(plan.settings.signers, { PublicKey }),
-          timeLock: plan.settings.timeLock,
-          rentCollector: null,
-          programId,
-        }),
-      )
-      settingsPda = candidate
-    } catch (err) {
-      log('  index race, retrying', String(err).slice(0, 80))
-    }
-  }
-  if (!settingsPda) throw new Error('could not create smart account')
-  const [vault] = sa.getSmartAccountPda({ settingsPda, accountIndex: 0, programId })
-  log('smart account', `settings ${settingsPda.toBase58()} · vault ${vault.toBase58()}`)
-
   // ── 1. admin: PolicyCreate for every (coalition × asset), needs ALL owners + timelock ──────
-  const actions = toSdkPolicyCreateActions(plan, { PublicKey, BN })
-  const policyPdas = actions.map((a) => sa.getPolicyPda({ settingsPda, policySeed: a.seed, programId })[0])
-  const txIndex = 1n
-  await confirm(await sa.rpc.createSettingsTransaction({ connection, feePayer: payer, settingsPda, transactionIndex: txIndex, creator: A!.publicKey, rentPayer: payer.publicKey, actions, programId, signers: [A!] }))
-  await confirm(await sa.rpc.createProposal({ connection, feePayer: payer, settingsPda, transactionIndex: txIndex, creator: A, programId }))
-  await confirm(await sa.rpc.approveProposal({ connection, feePayer: payer, settingsPda, transactionIndex: txIndex, signer: A, programId }))
-  await confirm(await sa.rpc.approveProposal({ connection, feePayer: payer, settingsPda, transactionIndex: txIndex, signer: B, programId }))
+  const txIndex = await steps.nextAdminIndex(settingsPda)
+  const policyPdas = steps.policyPdas(settingsPda, plan)
+  await steps.proposePolicies(payer, A!, settingsPda, plan, txIndex)
+  await steps.approve(payer, settingsPda, txIndex, A!)
+  await steps.approve(payer, settingsPda, txIndex, B!)
   log('1. admin change with A+B approved (weight 3, enough on EVM)')
-  await expectFailure(
-    'admin executes with 2 of 3 owners',
-    () => sa.rpc.executeSettingsTransaction({ connection, feePayer: payer, settingsPda, transactionIndex: txIndex, signer: A, rentPayer: payer, policies: policyPdas, programId }),
-    /InvalidProposalStatus|ProposalNotApproved|0x17/,
-  )
-  await confirm(await sa.rpc.approveProposal({ connection, feePayer: payer, settingsPda, transactionIndex: txIndex, signer: C, programId }))
-  await expectFailure(
-    'admin executes before the timelock',
-    () => sa.rpc.executeSettingsTransaction({ connection, feePayer: payer, settingsPda, transactionIndex: txIndex, signer: A, rentPayer: payer, policies: policyPdas, programId }),
-    /TimeLockNotReleased|TimeLock/,
-  )
+  await expectFailure('admin executes with 2 of 3 owners', () => steps.executeAdmin(payer, settingsPda, txIndex, A!, policyPdas), /InvalidProposalStatus/)
+  await steps.approve(payer, settingsPda, txIndex, C!)
+  await expectFailure('admin executes before the timelock', () => steps.executeAdmin(payer, settingsPda, txIndex, A!, policyPdas), /TimeLockNotReleased/)
   await sleep((ADMIN_TIMELOCK + 3) * 1000)
-  await confirm(await sa.rpc.executeSettingsTransaction({ connection, feePayer: payer, settingsPda, transactionIndex: txIndex, signer: A, rentPayer: payer, policies: policyPdas, programId }))
+  await steps.executeAdmin(payer, settingsPda, txIndex, A!, policyPdas)
   log('  ✓ policies created after all 3 owners + timelock', policyPdas.map((p: { toBase58(): string }) => p.toBase58()).join(' '))
 
-  // ── fund the vault ────────────────────────────────────────────────────────────────────────
-  const vaultAta = await spl.getOrCreateAssociatedTokenAccount(connection, payer, mint, vault, true)
-  const rAta = await spl.getOrCreateAssociatedTokenAccount(connection, payer, mint, R!.publicKey)
-  const sAta = await spl.getOrCreateAssociatedTokenAccount(connection, payer, mint, S!.publicKey)
-  await spl.mintTo(connection, payer, mint, vaultAta.address, payer, 1_000_000_000n)
-
-  const spend = (policyIdx: number, signers: InstanceType<typeof Keypair>[], to: InstanceType<typeof Keypair>, toAta: InstanceType<typeof PublicKey>, amount: number) =>
-    sa.rpc.executePolicyPayloadSync({
-      connection,
-      feePayer: payer,
-      policy: policyPdas[policyIdx],
-      accountIndex: 0,
-      numSigners: signers.length,
-      policyPayload: { __kind: 'SpendingLimit', fields: [{ amount: new BN(amount), destination: to.publicKey, decimals }] },
-      instruction_accounts: [
-        ...signers.map((k) => ({ pubkey: k.publicKey, isWritable: false, isSigner: true })),
-        { pubkey: vault, isWritable: false, isSigner: false },
-        { pubkey: vaultAta.address, isWritable: true, isSigner: false },
-        { pubkey: toAta, isWritable: true, isSigner: false },
-        { pubkey: mint, isWritable: false, isSigner: false },
-        { pubkey: spl.TOKEN_PROGRAM_ID, isWritable: false, isSigner: false },
-      ],
-      signers,
-      programId,
-    })
-
+  const rAta = await steps.ata(payer, mint, R!.publicKey)
+  const sAta = await steps.ata(payer, mint, S!.publicKey)
   const idx = (ids: string) => plan.policies.findIndex((p) => p.coalition.join(',') === ids)
+  const spend = (policyIdx: number, signers: InstanceType<typeof Keypair>[], to: InstanceType<typeof Keypair>, toAta: unknown, amount: bigint) =>
+    steps.spend({ payer, policy: policyPdas[policyIdx], signers, vault, vaultAta, mint, destination: to.publicKey, destinationAta: toAta, amount, decimals })
 
   // ── 2. winning coalitions spend to the allowlisted wallet ─────────────────────────────────
-  await confirm(await spend(idx('A,B'), [A!, B!], R!, rAta.address, 100_000_000))
+  await spend(idx('A,B'), [A!, B!], R!, rAta, 100_000_000n)
   log('2. ✓ {A,B} sent 100 TUSD to R')
-  await confirm(await spend(idx('A,C'), [A!, C!], R!, rAta.address, 50_000_000))
+  await spend(idx('A,C'), [A!, C!], R!, rAta, 50_000_000n)
   log('   ✓ {A,C} sent 50 TUSD to R')
 
   // ── 3–5. everything the weighted rule + allowlist forbids ──────────────────────────────────
-  await expectFailure('3. {A,B} to non-allowlisted S', () => spend(idx('A,B'), [A!, B!], S!, sAta.address, 1_000_000), /InvalidDestination/)
-  await expectFailure('4. {B,C} on the {A,B} policy (weight 2 < 3)', () => spend(idx('A,B'), [B!, C!], R!, rAta.address, 1_000_000), /NotASigner|InvalidSignerCount|Unauthorized|InsufficientVotePermissions|InvalidThreshold|0x/)
-  await expectFailure('5. A alone (weight 2 < 3)', () => spend(idx('A,B'), [A!], R!, rAta.address, 1_000_000), /InvalidSignerCount|InsufficientAggregatePermissions|InsufficientVotePermissions|Threshold|0x/)
+  await expectFailure('3. {A,B} to non-allowlisted S', () => spend(idx('A,B'), [A!, B!], S!, sAta, 1_000_000n), /InvalidDestination/)
+  await expectFailure('4. {B,C} on the {A,B} policy (weight 2 < 3)', () => spend(idx('A,B'), [B!, C!], R!, rAta, 1_000_000n), /NotASigner/)
+  await expectFailure('5. A alone (weight 2 < 3)', () => spend(idx('A,B'), [A!], R!, rAta, 1_000_000n), /InvalidSignerCount/)
 
-  const rBal = await connection.getTokenAccountBalance(rAta.address)
-  const sBal = await connection.getTokenAccountBalance(sAta.address)
-  log('balances', `R=${rBal.value.uiAmountString} TUSD · S=${sBal.value.uiAmountString} TUSD`)
-  if (rBal.value.amount !== '150000000' || sBal.value.amount !== '0') throw new Error('unexpected final balances')
-  log('\nPROOF PASSED', `settings ${settingsPda.toBase58()} (devnet)`)
+  const rBal = await steps.balance(rAta)
+  const sBal = await steps.balance(sAta)
+  log('balances', `R=${Number(rBal) / 1e6} TUSD · S=${Number(sBal) / 1e6} TUSD`)
+  if (rBal !== 150_000_000n || sBal !== 0n) throw new Error('unexpected final balances')
+  for (const k of [A, B, C]) if ((await connection.getBalance(k!.publicKey)) !== 0) throw new Error('an owner was charged SOL')
+  log('   owners A, B, C still hold 0 SOL')
+  log('\nPROOF PASSED', `settings ${settingsPda.toBase58()} (${LOCAL ? 'localnet' : 'devnet'})`)
 }
 
 main().catch((err) => {

@@ -17,8 +17,16 @@
  * limitations under the License.
  */
 
+import { fileURLToPath } from 'node:url'
+
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+
+// BUFI: the Solana view uses @sqds/smart-account built from source at a pinned commit
+// (`bun run --cwd packages/weighted-treasury squads:sdk`). The aliases point web3.js / spl-token / bn.js / buffer
+// at the SDK's own node_modules so there is exactly one copy of each (PublicKey instanceof checks).
+const squadsSdk = fileURLToPath(new URL('../../packages/weighted-treasury/.squads-sdk/sdk/smart-account/', import.meta.url))
+const sdkModules = `${squadsSdk}node_modules/`
 
 // https://vitejs.dev/config/
 // BUFI: the deployment file (contracts/deployments/local.json) and the forge artifacts (contracts/out) live
@@ -26,6 +34,17 @@ import { defineConfig } from 'vite'
 // in both `vite` and `vite build`.
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@sqds/smart-account': `${squadsSdk}lib/index.mjs`,
+      '@solana/web3.js': `${sdkModules}@solana/web3.js`,
+      '@solana/spl-token': `${sdkModules}@solana/spl-token`,
+      'bn.js': `${sdkModules}bn.js`,
+      buffer: `${sdkModules}buffer`,
+    },
+  },
+  define: { 'process.env.NODE_DEBUG': 'false' },
+  optimizeDeps: { include: ['@solana/web3.js', '@solana/spl-token', 'bn.js', 'buffer'] },
   server: {
     host: 'localhost',
     port: 5173,

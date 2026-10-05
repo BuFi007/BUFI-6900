@@ -2,7 +2,11 @@
   "compilerOptions": {
     "target": "ESNext",
     "useDefineForClassFields": true,
-    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext"
+    ],
     "allowJs": false,
     "skipLibCheck": true,
     "esModuleInterop": false,
@@ -15,7 +19,28 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["vite/client"]
+    "types": [
+      "vite/client"
+    ],
+    "paths": {
+      "@solana/web3.js": [
+        "../../packages/weighted-treasury/.squads-sdk/sdk/smart-account/node_modules/@solana/web3.js"
+      ],
+      "@solana/spl-token": [
+        "../../packages/weighted-treasury/.squads-sdk/sdk/smart-account/node_modules/@solana/spl-token"
+      ],
+      "bn.js": [
+        "../../packages/weighted-treasury/.squads-sdk/sdk/smart-account/node_modules/@types/bn.js"
+      ],
+      "buffer": [
+        "../../packages/weighted-treasury/.squads-sdk/sdk/smart-account/node_modules/buffer"
+      ]
+    }
   },
-  "include": ["src", "index.tsx", "vite.config.ts", "vite-env.d.ts"]
+  "include": [
+    "src",
+    "index.tsx",
+    "vite.config.ts",
+    "vite-env.d.ts"
+  ]
 }
