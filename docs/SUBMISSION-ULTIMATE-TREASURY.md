@@ -150,13 +150,22 @@ minimal winning group", and each group becomes one all-of-k SpendingLimit policy
 subset of 200 random configurations plus fixed edge cases: the EVM rule and the Squads policies accept exactly the
 same sets.
 
-### 2.5 Proven in forge only
+### 2.5 Guard and nested owners: proven live (2026-10-05)
 
-- **GatewayIntentGuard** v0.7 plugin and v0.8 module: 42 + 14 tests, on Circle's canonical bytecode harnesses.
-- **Nested ERC-1271 owners** in `GatewayTreasury`: 28 tests with mock owners, plus 4 with a real Circle v0.7 MSCA as
-  an owner.
+- **Nested ERC-1271 owner** (ledger §7): GatewayTreasury v3 `0x7671e34415652194Adc7Db58aF98f0EF123755E5` owned by
+  EOA A (weight 2) and a real Circle v0.7 MSCA `0x96D2534Cce5b4C90E6EA75926Dc976813b2A45D7` (weight 1, itself
+  2-of-3). Gateway refused the intent when the MSCA signed 1-of-3 and accepted it at 2-of-3; mint on Base Sepolia
+  `0x339baf468daa19d275b7d2c2b40725612ecae05c35a097cead9ae97fb692c71f`.
+- **GatewayIntentGuardPlugin on a real Circle MSCA** (ledger §8): MSCA `0x44033b5b17B52DdF92d4B3b209031a0D0c9e3B85`
+  from Circle's factory, guard `0x9586776fa5eFAa0DD1251dF947A3Df8113EF9B59` installed by a multisig-signed user
+  operation (`0x37487851878e234d9cc8997c45c62037ef9ef3c2ed47e9b64baa60c1d3824203`). Deposit through the guard
+  (`depositWithAuthorization`, `0xaa526a37848bf70ad6ec5f784bf8e8638c9d9b5e4be67b25ec6203d90286021e`). Gateway refused
+  a full-quorum intent to a non-allowlisted recipient and a full-quorum signature without the intent envelope, and
+  accepted the conforming intent; mint on Base Sepolia `0x7ab0f39afc0af7313a90d91202ed800f35b543846da6bbd3958cc1c7349b5146`.
+- Forge coverage: guard v0.7 42 tests, v0.8 14 tests; nested owners 28 + 4. The **v0.8 module** is forge only.
 
-Neither has run against live Gateway. Full counts are in the ledger, section 6.
+This answers the enclave questions in 4.1.D for v0.7: Gateway follows nested calls, runs the pre-runtime hook,
+passes the signature trailer through, and treats a hook revert as an invalid signature.
 
 ## 3. Architecture
 
@@ -251,8 +260,8 @@ recipients, for EVM destination domains only.
 **Revert semantics.** A hook cannot change an ERC-1271 return value in either generation, so on any violation the
 guard reverts with a specific error (`RecipientNotAllowed`, `DigestMismatch`, `IntentShapeRejected`, and others).
 In v0.7 the error arrives wrapped in `PreRuntimeValidationHookFailed(guard, 0, reason)`; in v0.8 it is the raw
-revert. USDC's `SignatureChecker` treats a revert as invalid. Whether Gateway's enclave treats a revert the same as
-`0xffffffff` is not yet confirmed (ask 4.1.D). With a quorum below threshold, v0.7 `checkNSignatures` reads into
+revert. USDC's `SignatureChecker` treats a revert as invalid, and so does Gateway's enclave: observed live on Arc testnet
+(ledger §8), not documented by Circle (ask 4.1.D). With a quorum below threshold, v0.7 `checkNSignatures` reads into
 the trailer and reverts instead of returning `0xffffffff`. It is still a refusal, and trailer bytes cannot add
 weight.
 
@@ -309,13 +318,12 @@ blocks).
 Smallest change: publish the per-chain minimum `maxBlockHeight` delta and whether it can change, and say whether an
 intent can be cancelled before expiry other than by draining the balance.
 
-**D. Confirm enclave behaviour for nested calls and hook reverts.**
-Why: only a single-contract `isValidSignature` is proven live. The GatewayIntentGuard and nested owners need the
-simulation to follow an ERC-1967 proxy DELEGATECALL, the account fallback, and nested CALL or STATICCALL into the
-guard, the multisig plugin or module, and an owner contract.
-Smallest change: state whether the contract-signer verification follows those calls, its gas budget, the block it
-evaluates against, whether a REVERT is treated the same as `0xffffffff`, and whether the API accepts contract
-signatures of about 1 KB. If the enclave keeps an allowlist of callable contracts, it must include the account
+**D. Document the enclave behaviour we now rely on.**
+Why: we observed on Arc testnet (ledger §7, §8) that the contract-signer verification follows an ERC-1967 proxy
+DELEGATECALL, the v0.7 account fallback, the pre-runtime hook and nested owner calls, accepts signatures of about
+1 KB, and treats a REVERT the same as `0xffffffff`. Observed behaviour is not a commitment.
+Smallest change: document these as supported, plus the simulation gas budget (heavier owners such as passkeys
+verified without the P-256 precompile are unmeasured) and the block it evaluates against. If the enclave keeps an allowlist of callable contracts, it must include the account
 implementation, `WeightedWebauthnMultisigPlugin` (`0x0000000C984AFf541D6cE86Bb697e68ec57873C8`) and the guard
 address once deployed.
 
@@ -389,8 +397,9 @@ test are Apache-2.0.
   hold only its own shares.
 - **The app is dev-only.** Its signer is a Vite dev-server plugin. A production build cannot send and says "connect
   a signer", so there is no hosted preview by design.
-- **Nested ERC-1271 owners and the guard are unproven live.** The canary used EOA owners. The 1,000,000-gas cap on
-  a nested owner call is not checked against Gateway's simulation limits.
+- **Nested owners and the v0.7 guard are proven live for the shapes tested** (2-of-3 EOA-owned MSCA owner; guard
+  with a 2+1 quorum). Heavier owners (passkeys verified without the P-256 precompile) are not measured against
+  Gateway's simulation gas. The v0.8 module is forge only.
 - **Passkey owners cannot hold an Ed25519 FROST share.** They would need a second key type on Solana.
 - **Squads rule changes need all owners**, not the weighted quorum. Stricter than EVM, never looser.
 - **Per-intent cap only.** A period budget would need state, and Gateway's validation is read-only.

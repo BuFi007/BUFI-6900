@@ -66,7 +66,7 @@
 9. `GatewayIntentGuard` makes an unguarded Circle MSCA refuse burn intents outside the same policy
    (`test_baseline_unguardedMsca_signsAnyRecipient` shows the gap it closes). Tests:
    `test/bufi/gateway-guard/GatewayIntentGuardPlugin.t.sol` (v0.7), `GatewayIntentGuardModuleV08.t.sol` (v0.8).
-   Forge only.
+   v0.7 plugin also proven live against Gateway on a real Circle MSCA (`docs/EVIDENCE-LEDGER.md` §8); v0.8 forge only.
 
 ## Where to spend the review
 

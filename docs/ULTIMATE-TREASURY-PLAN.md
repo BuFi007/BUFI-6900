@@ -52,7 +52,7 @@ full `BurnIntent` (or `ReceiveWithAuthorization` for deposits) plus the owners' 
 1. Re-derive the EIP-712 hash from the carried struct and require it equals `hash` (no blind signing).
 2. Weighted check: owner signatures (EOA, or a nested ERC-1271 contract such as a Circle MSCA whose own owners
    may be passkeys) sum to `thresholdWeight` (same rule and the same spec as `packages/weighted-treasury`). There
-   is no direct P-256 owner type. Nested owners are tested in forge only.
+   is no direct P-256 owner type. Nested owners are proven live with a real Circle MSCA owner (ledger §7).
 3. Policy, all view-only so Gateway's simulation can run it: `sourceDomain` = the local domain;
    `destinationDomain` in allowed domains and `destinationContract` = that domain's configured GatewayMinter;
    `destinationRecipient` in the allowlist and shaped for that domain (20-byte EVM address or 32-byte Solana key);
@@ -67,12 +67,14 @@ Two packagings, same logic:
   Emergency levers `revokeIntent` and `pause` need the quorum but no timelock; Gateway sees them after its block
   lag of up to about 5 minutes. Unpausing is a timelocked admin op.
   Anyone (Squads, Altitude, a DAO) can deploy one. No Circle allowlist needed.
-- **(b) ERC-6900 guard for Circle MSCAs (built, forge only):** `GatewayIntentGuard`, a v0.7 plugin and a v0.8
+- **(b) ERC-6900 guard for Circle MSCAs (v0.7 proven live, v0.8 forge only):** `GatewayIntentGuard`, a v0.7 plugin and a v0.8
   module in `contracts/src/bufi/gateway-guard/` (design in `docs/GATEWAY-INTENT-GUARD.md`). It applies the same
   policy to the account's ERC-1271 route and reads Circle's AddressBook for EVM-domain recipients only. Tested in
-  forge only (GatewayIntentGuardPluginTest 42, GatewayIntentGuardModuleV08Test 14, ledger §6). Never deployed and
-  never run against live Gateway. Using it on a Circle MSCA still needs Circle to support it (founder note
-  2026-09-27: our plugins are not on Circle's allowlist), so it is a submission item, not a dependency.
+  forge (GatewayIntentGuardPluginTest 42, GatewayIntentGuardModuleV08Test 14, ledger §6). The v0.7 plugin is proven
+  live: installed on a real Circle MSCA on Arc testnet with a multisig-signed user operation, Gateway refused a
+  non-allowlisted recipient and a blind quorum signature and accepted the policy-conformant intent (ledger §8).
+  Circle's factory allowlist governs only plugins installed at creation, so no Circle change was needed to install it
+  on-chain; Circle's Modular Wallets API and app surfaces would still need to support it (founder note 2026-09-27).
 
 **Budgets:** per-period caps need state, and Gateway's simulation is read-only. Options for the plan:
 per-intent cap only (v1), or a period budget the quorum pre-books on-chain (`book(periodId, amount)`) that the
@@ -149,8 +151,8 @@ Every hash for a ticked item is in [EVIDENCE-LEDGER.md](EVIDENCE-LEDGER.md) in f
   GatewayTreasuryNestedOwnersTest 28, GatewayTreasuryCircleMscaOwnerTest 4, GatewayIntentGuardPluginTest 42,
   GatewayIntentGuardModuleV08Test 14), including the parity matrix, every policy rejection and the regression tests
   for the security-review fixes. Full default profile: 458 passed on the working tree (ledger §6), which includes
-  4 tests from an untracked file; 454 on a clean export of the tracked tree at `d332422`. The guard is proven in
-  forge only.
+  4 tests from an untracked file; 454 on a clean export of the tracked tree at `d332422`. The v0.7 guard and nested
+  owners are also proven live (ledger §7, §8).
 - [x] Live: ERC-1271 burn from the treasury contract minted on a second chain. Current source, v2 treasury
   `0xC3f4De2372167F7FFA0a1B3FbF221a8a7289e7d5`, mint on Base Sepolia (ledger §1). The v1 run (ledger §2) is
   superseded: it predates the review fixes.
@@ -169,9 +171,9 @@ Every hash for a ticked item is in [EVIDENCE-LEDGER.md](EVIDENCE-LEDGER.md) in f
 
 ## 7. Open questions
 
-1. **Still open.** Does Gateway's enclave simulation resolve **nested** ERC-1271 (treasury contract → MSCA owner)?
-   Nested owners are built and pass in forge (GatewayTreasuryNestedOwnersTest 28, GatewayTreasuryCircleMscaOwnerTest
-   4). They have never been run against Gateway's enclave. Every live run used EOA owners.
+1. **Answered (2026-10-05).** Gateway's enclave resolves nested ERC-1271: a treasury owned by an EOA and a real
+   Circle MSCA was refused at 1-of-3 inner signatures and accepted at 2-of-3 (ledger §7). It also runs the v0.7
+   guard's pre-runtime hook and treats a hook revert as invalid (ledger §8). Unmeasured: gas for heavier owners.
 2. **Proven on Arc testnet only.** `depositWithAuthorization` with the treasury contract as the 1271 `from` was
    credited on Arc testnet (v1 and v2, ledger §1 and §2). Every other Gateway chain's USDC version (FiatToken v2.2+
    needed) is still unchecked. Check each before listing a chain.

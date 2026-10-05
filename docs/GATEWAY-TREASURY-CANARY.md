@@ -39,8 +39,9 @@ What this proves: the bytecode of the current source is what Gateway's enclave r
 `isValidSignature` enforces the weighted quorum and the recipient allowlist end to end, and a correct quorum to an
 allowlisted recipient is minted on a second chain.
 
-Not proven by this run: nested ERC-1271 owners against Gateway (forge only), `GatewayIntentGuard` (v0.7 plugin and
-v0.8 module, forge only, never against live Gateway), EURC, any mainnet flow.
+Not proven by this run (EOA owners only). Proven since, by `scripts/gateway-treasury/live-nested-and-guard.ts`:
+nested ERC-1271 owners (ledger §7) and the v0.7 `GatewayIntentGuardPlugin` on a real Circle MSCA (ledger §8).
+Still unproven live: the v0.8 module, EURC, any mainnet flow.
 
 ## v1 run: pre-review bytecode (superseded)
 

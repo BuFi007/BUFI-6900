@@ -138,13 +138,16 @@ superseded). Every address and hash is in `docs/EVIDENCE-LEDGER.md`. Review find
   also checks the EVM on-chain allowlist; `policy.json` and that allowlist are kept in sync by hand.
 - The sandbox DKG runs every participant in one process, so the sandbox threshold property is not real.
 - The app's signer is dev-only by design; the app is not deployable as a hosted preview.
-- Nested ERC-1271 owners are tested in forge only, never against Gateway's enclave.
+- Nested ERC-1271 owners: proven live on Arc testnet with a real Circle MSCA owner (ledger §7). The 1,000,000-gas cap
+  on a nested owner call held for a 2-of-3 EOA-owned MSCA; heavier owners (passkeys without the P-256 precompile)
+  are not measured against Gateway.
 
 # GatewayIntentGuard (`contracts/src/bufi/gateway-guard/`)
 
 The same intent policy for Circle ERC-6900 accounts: a v0.7 plugin (pre-runtime hook on `isValidSignature`, intent
 carried as a trailer after Circle's multisig signature) and a v0.8 validation-hook module. Design in
-`docs/GATEWAY-INTENT-GUARD.md`. **Tested in forge only. Never deployed, never run against live Gateway.**
+`docs/GATEWAY-INTENT-GUARD.md`. **The v0.7 plugin is proven live on a real Circle MSCA on Arc testnet (ledger §8): Gateway runs the pre-runtime
+hook and treats its revert as an invalid signature. The v0.8 module is tested in forge only.**
 
 ## Invariants
 

@@ -108,7 +108,7 @@ These are open after the fixes. They come from the fix step's open issues.
 8. **UT-8 was fixed late.** The fact-check found that `0ac347d` claimed a fix it did not make. It is now fixed with a
    regression test. Live runs were unaffected: every value and block height was far below 2^128.
 
-Also open and not a finding: the guard (v0.7 plugin and v0.8 module) and nested ERC-1271 owners are tested in
-forge only and have never run against live Gateway (ledger, "Not proven live"). Whether Gateway's enclave
-simulation follows the nested calls, passes the signature trailer through unchanged, and treats a hook revert as
-an invalid signature is unknown. The nested-owner gas cap is a 1,000,000 constant.
+Closed after the review: the v0.7 guard and nested ERC-1271 owners are proven live against Gateway (ledger §7, §8):
+the enclave follows nested calls, passes the signature trailer through unchanged, and treats a hook revert as an
+invalid signature. Still open: the v0.8 module is forge only, and the 1,000,000-gas nested-owner cap is unmeasured
+against Gateway for heavier owners such as passkeys.

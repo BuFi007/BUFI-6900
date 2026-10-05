@@ -47,10 +47,12 @@ Mutual recursion (an owner that calls back into the treasury) is cut by the gas 
 invalid (`test_nested_mutualRecursion_terminatesInvalid`). The cap (1,000,000) is sized for an owner MSCA whose
 signers are P-256 passkeys verified in Solidity (~300k each without RIP-7212).
 
-**Unproven live:** Gateway's enclave simulation has only ever resolved our *single-contract* `isValidSignature`
-(docs/GATEWAY-TREASURY-CANARY.md). A nested owner adds a second contract call (and, for a Circle MSCA owner, an
-ERC-1967 proxy DELEGATECALL plus a plugin CALL). Whether the simulation follows those calls, with what gas and at
-what block, is not known until a live canary signs with a nested owner.
+**Proven live (2026-10-05, `docs/EVIDENCE-LEDGER.md` §7, §8):** Gateway's enclave follows a nested owner call
+(treasury → Circle MSCA proxy DELEGATECALL → weighted multisig plugin) and accepted a 2-of-3 MSCA owner while
+refusing a 1-of-3 one. On a real Circle MSCA with the v0.7 guard installed it ran the pre-runtime hook, passed the
+signature trailer through, refused a non-allowlisted recipient and a blind quorum signature, and accepted the
+conforming intent. Gas limits beyond these shapes (for example passkey owners without the P-256 precompile) are not
+measured against Gateway.
 
 Measured (forge): EOA + nested Circle v0.7 MSCA (2-of-3 inner quorum) `isValidSignature` = 99,561 gas.
 

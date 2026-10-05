@@ -83,7 +83,44 @@ accounts are ephemeral and not listed.
 - `cd apps/ultimate-treasury && bun test server`: 22 passed.
 - `cd tools/frost-delegate && cargo test`: 5 passed.
 
+## 7. Nested ERC-1271 owner, live against Gateway — 2026-10-05
+
+Setup `contracts/script/gateway-guard/LiveGatewaySetup.s.sol` (addresses in `contracts/deployments/arc-testnet.gateway-live.json`);
+canary `scripts/gateway-treasury/live-nested-and-guard.ts --only nested`.
+
+| Step | Hash / result |
+| --- | --- |
+| Circle v0.7 MSCA M1 `0x96D2534Cce5b4C90E6EA75926Dc976813b2A45D7` via Circle's factory `createAccount` (owners N1/N2/N3, 2-of-3) | `0xdde8a38c4fff4149a819afe01406110d87c7ae1f39afec677bddecb33bd7b398` |
+| GatewayTreasury v3 `0x7671e34415652194Adc7Db58aF98f0EF123755E5`: owners EOA A (2) + MSCA M1 (1), threshold 3 | `0xca79d1ff6fe3ccddee4984f43700af0e76cb7648aa56852a069e13fdac7ba30b` |
+| Deposit: transfer / `sweepToGateway` (3 USDC) | `0x875ff812e00535f221b27df388be276ebe4ef7d6a3ebe88048c0b01a970a549c` / `0x12be40f1c922dc9efde5e80409c05a691b8e8b25d7ef08806f75c13b6bab7cfe` |
+| A + M1 where M1 signed 1-of-3 (below its own threshold) | Gateway 400 "Invalid signature: contract signature verification request failed" (reproducible) |
+| A + M1 (2-of-3), `contractSigner:true` | Gateway 201 |
+| `gatewayMint` on Base Sepolia, R 2.25 → 3.25 USDC | `0x339baf468daa19d275b7d2c2b40725612ecae05c35a097cead9ae97fb692c71f` |
+
+Gateway's enclave follows a nested call: treasury `isValidSignature` → Circle MSCA `isValidSignature` (proxy delegatecall,
+weighted multisig plugin), within its simulation gas.
+
+## 8. GatewayIntentGuardPlugin on a real Circle MSCA, live against Gateway — 2026-10-05
+
+| Step | Hash / result |
+| --- | --- |
+| Circle v0.7 MSCA M2 `0x44033b5b17B52DdF92d4B3b209031a0D0c9e3B85` via `createAccount` (owners A=2, B=1, C=1, threshold 3) | `0x37aa412419331a87ee21753474f931a1b757500cafdb2b3a705aeaa231af0134` |
+| GatewayIntentGuardPlugin `0x9586776fa5eFAa0DD1251dF947A3Df8113EF9B59` deployed | `0xea10b0f519fcd107eb84cb609df768a93d8893f6b13d77ffee56f18d1df3d0ac` |
+| M2 prefund (0.5 native USDC for its own gas) | `0xdc4437273f7cb672ad3808e65e4bc0ae1a9b9e3d03597071dec30c898720b5d0` |
+| First self-bundled `handleOps` (installPlugin) | `0x6a92111b63c7b25afbdec0533e1d0dd1d4e37a93a7130707f94bf82a27ef4ca0` failed: transaction gas below the op's declared limits |
+| `handleOps` → `installPlugin(guard)`, multisig-signed user operation (UserOperationEvent success = 1) | `0x37487851878e234d9cc8997c45c62037ef9ef3c2ed47e9b64baa60c1d3824203` |
+| `getInstalledPlugins(M2)` | `[0x0000000C984AFf541D6cE86Bb697e68ec57873C8 (weighted multisig), 0x9586776fa5eFAa0DD1251dF947A3Df8113EF9B59 (guard)]` |
+| Deposit: guard-checked ERC-3009 `depositWithAuthorization` (3 USDC, kind-1 envelope) | `0xaa526a37848bf70ad6ec5f784bf8e8638c9d9b5e4be67b25ec6203d90286021e` |
+| Full quorum → S (not allowlisted), with envelope | guard reverts locally; Gateway 400 "Invalid signature: contract signature verification request failed" (reproducible) |
+| Full quorum → R, quorum signature with NO intent envelope (blind) | guard reverts locally; Gateway 400, same message (reproducible) |
+| A+B → R with the intent envelope, `contractSigner:true` | Gateway 201 |
+| `gatewayMint` on Base Sepolia, R 3.25 → 4.25 USDC | `0x7ab0f39afc0af7313a90d91202ed800f35b543846da6bbd3958cc1c7349b5146` |
+
+Gateway's enclave runs Circle's v0.7 pre-runtime validation hook on `isValidSignature`, passes the signature bytes through
+unchanged (the trailer included), and treats a hook revert as an invalid signature. No Circle contract change was needed:
+the plugin was installed with an ordinary multisig-signed user operation after creation (the factory allowlist only
+governs plugins installed at creation).
+
 ## Not proven live
 
-GatewayIntentGuard (v0.7 plugin / v0.8 module) on a real Circle MSCA against Gateway; nested ERC-1271 owners against
-Gateway's enclave; EURC; any mainnet flow.
+The v0.8 `GatewayIntentGuardModule` (forge only); EURC; any mainnet flow.
