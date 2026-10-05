@@ -6,50 +6,46 @@ import "../../src/bufi/gateway-treasury/GatewayTreasury.sol";
 
 contract Deploy is Script {
     function run() external {
-        address[] memory _owners = _parseAddresses(vm.envString("OWNERS"));
-        uint16[] memory _weights = _parseWeights(vm.envString("WEIGHTS"));
-        uint256 _threshold = vm.envUint("THRESHOLD");
-        address _gatewayWallet = vm.envAddress("GATEWAY_WALLET");
-        bytes32[] memory _recipients = _parseBytes32s(vm.envString("RECIPIENTS"));
-        uint32[] memory _domains = _parseDomains(vm.envString("DESTINATION_DOMAINS"));
-        address[] memory _tokenAddresses = _parseAddresses(vm.envString("TOKEN_ADDRESSES"));
-        string[] memory _tokenNames = _parseStrings(vm.envString("TOKEN_NAMES"), "|");
-        string[] memory _tokenVersions = _parseStrings(vm.envString("TOKEN_VERSIONS"), "|");
-        bytes32[] memory _destTokens = _parseBytes32s(vm.envString("DESTINATION_TOKENS"));
-        uint256 _perIntentCap = vm.envUint("PER_INTENT_CAP");
-        uint256 _maxFeeCap = vm.envUint("MAX_FEE_CAP");
-        uint256 _maxExpiryBlocks = vm.envUint("MAX_EXPIRY_BLOCKS");
-        uint32 _adminTimelock = uint32(vm.envUint("ADMIN_TIMELOCK"));
+        SignerParams memory signers = SignerParams({
+            owners: _parseAddresses(vm.envString("OWNERS")),
+            weights: _parseWeights(vm.envString("WEIGHTS")),
+            thresholdWeight: vm.envUint("THRESHOLD"),
+            gatewayWallet: vm.envAddress("GATEWAY_WALLET")
+        });
+        PolicyParams memory policy = _policy();
 
         console.log("Deploying GatewayTreasury...");
-        console.log("Owners:", _owners.length);
-        console.log("Threshold:", _threshold);
-        console.log("Gateway wallet:", _gatewayWallet);
-
-        SignerParams memory signers = SignerParams({
-            owners: _owners,
-            weights: _weights,
-            thresholdWeight: _threshold,
-            gatewayWallet: _gatewayWallet
-        });
-
-        PolicyParams memory policy = PolicyParams({
-            allowedRecipients: _recipients,
-            allowedDestinationDomains: _domains,
-            tokenAddresses: _tokenAddresses,
-            tokenNames: _tokenNames,
-            tokenVersions: _tokenVersions,
-            allowedDestinationTokens: _destTokens,
-            perIntentCap: _perIntentCap,
-            maxFeeCap: _maxFeeCap,
-            maxExpiryBlocks: _maxExpiryBlocks,
-            adminTimelock: _adminTimelock
-        });
+        console.log("Owners:", signers.owners.length);
+        console.log("Threshold:", signers.thresholdWeight);
+        console.log("Gateway wallet:", signers.gatewayWallet);
+        console.log("Local domain:", policy.localDomain);
 
         vm.broadcast();
         GatewayTreasury treasury = new GatewayTreasury(signers, policy);
 
         console.log("GatewayTreasury deployed at:", address(treasury));
+    }
+
+    /// @dev Built field by field to stay under the stack limit.
+    function _policy() internal view returns (PolicyParams memory p) {
+        p.allowedRecipients = _parseBytes32s(vm.envString("RECIPIENTS"));
+        p.allowedDestinationDomains = _parseDomains(vm.envString("DESTINATION_DOMAINS"));
+        p.tokenAddresses = _parseAddresses(vm.envString("TOKEN_ADDRESSES"));
+        p.tokenNames = _parseStrings(vm.envString("TOKEN_NAMES"), "|");
+        p.tokenVersions = _parseStrings(vm.envString("TOKEN_VERSIONS"), "|");
+        p.allowedDestinationTokens = _parseBytes32s(vm.envString("DESTINATION_TOKENS"));
+        p.perIntentCap = vm.envUint("PER_INTENT_CAP");
+        p.maxFeeCap = vm.envUint("MAX_FEE_CAP");
+        p.maxExpiryBlocks = vm.envUint("MAX_EXPIRY_BLOCKS");
+        p.adminTimelock = uint32(vm.envUint("ADMIN_TIMELOCK"));
+        // This chain's Gateway domain (Arc = 26) and the GatewayMinter of each DESTINATION_DOMAINS entry, same order.
+        p.localDomain = uint32(vm.envUint("LOCAL_DOMAIN"));
+        p.destinationMinters = _parseBytes32s(vm.envString("DESTINATION_MINTERS"));
+        p.allowedDestinationCallers = _parseBytes32s(vm.envOr("DESTINATION_CALLERS", string("")));
+        require(
+            p.destinationMinters.length == p.allowedDestinationDomains.length,
+            "DESTINATION_MINTERS must match DESTINATION_DOMAINS"
+        );
     }
 
     function _parseAddresses(string memory input) internal view returns (address[] memory) {

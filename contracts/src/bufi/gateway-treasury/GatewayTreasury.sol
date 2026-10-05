@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "../gateway-guard/GatewayIntentPolicy.sol";
 
 interface IERC20 {
     function balanceOf(address) external view returns (uint256);
@@ -48,6 +49,13 @@ struct PolicyParams {
     /// ~7-day MINIMUM (Arc testnet 1,209,599 blocks), so this is set just above that floor. A signed intent is
     /// a bearer withdrawal until it expires; an unbounded one never does.
     uint256 maxExpiryBlocks;
+    /// @notice This chain's Gateway domain; every burn intent must name it as sourceDomain.
+    uint32 localDomain;
+    /// @notice GatewayMinter (as bytes32) for each entry of `allowedDestinationDomains`, same order. A burn intent's
+    /// destinationContract must equal the minter of its destination domain.
+    bytes32[] destinationMinters;
+    /// @notice Destination callers (relayers) allowed to mint. Kept apart from recipients: a relayer is not a payee.
+    bytes32[] allowedDestinationCallers;
 }
 
 /// @notice Convenience wrapper used by the deploy script.
@@ -56,58 +64,34 @@ struct ConstructorParams {
     PolicyParams policy;
 }
 
-/// @dev Circle Gateway TransferSpec (EIP-712 typed struct).
-struct TransferSpec {
-    uint32 version;
-    uint32 sourceDomain;
-    uint32 destinationDomain;
-    bytes32 sourceContract;
-    bytes32 destinationContract;
-    bytes32 sourceToken;
-    bytes32 destinationToken;
-    bytes32 sourceDepositor;
-    bytes32 destinationRecipient;
-    bytes32 sourceSigner;
-    bytes32 destinationCaller;
-    uint256 value;
-    bytes32 salt;
-    bytes hookData;
-}
-
-/// @dev Circle Gateway BurnIntent (EIP-712 typed struct).
-struct BurnIntent {
-    uint256 maxBlockHeight;
-    uint256 maxFee;
-    TransferSpec spec;
-}
-
 contract GatewayTreasury {
     // ============================================================
     // Constants
     // ============================================================
 
-    bytes32 private constant TRANSFER_SPEC_TYPEHASH = keccak256(
-        "TransferSpec(uint32 version,uint32 sourceDomain,uint32 destinationDomain,bytes32 sourceContract,bytes32 destinationContract,bytes32 sourceToken,bytes32 destinationToken,bytes32 sourceDepositor,bytes32 destinationRecipient,bytes32 sourceSigner,bytes32 destinationCaller,uint256 value,bytes32 salt,bytes hookData)"
-    );
-
-    bytes32 private constant BURN_INTENT_TYPEHASH = keccak256(
-        "BurnIntent(uint256 maxBlockHeight,uint256 maxFee,TransferSpec spec)TransferSpec(uint32 version,uint32 sourceDomain,uint32 destinationDomain,bytes32 sourceContract,bytes32 destinationContract,bytes32 sourceToken,bytes32 destinationToken,bytes32 sourceDepositor,bytes32 destinationRecipient,bytes32 sourceSigner,bytes32 destinationCaller,uint256 value,bytes32 salt,bytes hookData)"
-    );
-
-    bytes32 private constant EIP712_DOMAIN_TYPEHASH_NOCHAIN = keccak256("EIP712Domain(string name,string version)");
-
     bytes32 private constant EIP712_DOMAIN_TYPEHASH_FULL =
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
-    bytes32 private constant RWA_TYPEHASH = keccak256(
-        "ReceiveWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)"
-    );
-
-    bytes32 private constant ADMIN_OP_TYPEHASH = keccak256("AdminOp(bytes32 callHash,uint256 nonce)");
+    /// @dev `deadline` bounds how long a collected-but-unsubmitted signature set stays usable; `epoch` binds it to
+    ///      the owner set / timelock it was signed under (see `adminEpoch`).
+    bytes32 private constant ADMIN_OP_TYPEHASH =
+        keccak256("AdminOp(bytes32 callHash,uint256 nonce,uint256 deadline,uint256 epoch)");
     bytes32 private constant CANCEL_ADMIN_OP_TYPEHASH = keccak256("CancelAdminOp(uint256 nonce)");
+    bytes32 private constant REVOKE_INTENT_TYPEHASH = keccak256("RevokeIntent(bytes32 digest)");
+    bytes32 private constant PAUSE_TYPEHASH = keccak256("Pause(uint256 nonce)");
+
+    /// @notice A queued admin op must execute within this long after its eta, or it is dead (re-queue it). Stops a
+    ///         failed op (e.g. a transfer that lacked balance, a removal that would empty the allowlist) from staying
+    ///         live indefinitely and firing, permissionlessly, once conditions change.
+    uint256 public constant ADMIN_OP_GRACE = 7 days;
 
     bytes4 private constant ERC1271_MAGICVALUE = 0x1626ba7e;
     bytes4 private constant ERC1271_INVALID = 0xffffffff;
+
+    /// @dev Gas forwarded to a contract owner's own `isValidSignature`. Sized for a Circle MSCA or Safe whose
+    ///      owners include P-256 passkeys verified in Solidity (no RIP-7212 precompile): ~300k per passkey. A call
+    ///      that needs more reads as invalid; it never reverts the treasury.
+    uint256 private constant NESTED_SIG_GAS = 1_000_000;
 
     uint256 private constant SECP256K1N_DIV_2 =
         0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0;
@@ -126,6 +110,9 @@ contract GatewayTreasury {
     bytes4 private constant SEL_SET_MAX_EXPIRY = bytes4(keccak256("setMaxExpiryBlocks(uint256)"));
     bytes4 private constant SEL_TRANSFER_RECIPIENT =
         bytes4(keccak256("transferToRecipient(address,bytes32,uint256)"));
+    bytes4 private constant SEL_SET_DEST_MINTER = bytes4(keccak256("setDestinationMinter(uint32,bytes32)"));
+    bytes4 private constant SEL_SET_DEST_CALLER = bytes4(keccak256("setAllowedDestinationCaller(bytes32,bool)"));
+    bytes4 private constant SEL_SET_PAUSED = bytes4(keccak256("setPaused(bool)"));
 
     // ============================================================
     // Storage
@@ -151,6 +138,16 @@ contract GatewayTreasury {
 
     mapping(address => TokenInfo) public allowedTokens;
     mapping(bytes32 => bool) public allowedDestinationTokens;
+    /// @notice Destination callers allowed on a burn intent (bytes32(0) = anyone may mint, always allowed).
+    mapping(bytes32 => bool) public allowedDestinationCallers;
+    /// @notice GatewayMinter for each destination domain; zero = no burn intent to that domain validates.
+    mapping(uint32 => bytes32) public destinationMinters;
+    /// @notice This chain's Gateway domain (TransferSpec.sourceDomain).
+    uint32 public immutable localDomain;
+
+    // Emergency stops (no timelock): a quorum can refuse all burn intents, or one signed intent, immediately.
+    bool public paused;
+    mapping(bytes32 => bool) public revokedIntents;
 
     // Caps
     uint256 public perIntentCap;
@@ -168,13 +165,18 @@ contract GatewayTreasury {
         uint256 eta;
         bool executed;
         bool cancelled;
+        uint256 epoch;
     }
 
     mapping(uint256 => AdminOp) public adminOps;
     mapping(uint256 => bool) public usedNonces;
 
-    // Domain separators
-    bytes32 private immutable _gatewayDomainSep;
+    /// @notice Bumped by every owner-set or timelock change. Admin signatures and queued ops carry the epoch they
+    ///         were made under and are dead in any other: a rotation (or a timelock change) never inherits pending
+    ///         ops or uncollected signatures from the previous configuration.
+    uint256 public adminEpoch;
+
+    // Domain separator for admin ops (Gateway's own is GatewayIntentPolicy.GATEWAY_DOMAIN_SEPARATOR)
     bytes32 private immutable _adminDomainSep;
 
     // ============================================================
@@ -197,6 +199,10 @@ contract GatewayTreasury {
     event GatewayWithdrawalInitiated(address indexed token, uint256 value);
     event GatewayWithdrawn(address indexed token);
     event TransferredToRecipient(address indexed token, bytes32 indexed recipient, uint256 amount);
+    event DestinationMinterUpdated(uint32 indexed domain, bytes32 minter);
+    event DestinationCallerUpdated(bytes32 indexed caller, bool allowed);
+    event IntentRevoked(bytes32 indexed digest);
+    event PausedSet(bool paused);
 
     // ============================================================
     // Errors
@@ -224,6 +230,10 @@ contract GatewayTreasury {
     error RecipientNotAllowed();
     error ZeroRecipient();
     error InvalidTokenConfig();
+    error InvalidDestinationConfig();
+    error SignatureExpired();
+    error OpExpired();
+    error OpStale();
 
     // ============================================================
     // Modifiers
@@ -249,6 +259,7 @@ contract GatewayTreasury {
         if (pol.tokenAddresses.length != pol.tokenNames.length || pol.tokenAddresses.length != pol.tokenVersions.length) {
             revert InvalidTokenConfig();
         }
+        if (pol.destinationMinters.length != pol.allowedDestinationDomains.length) revert InvalidDestinationConfig();
 
         // Owner/weight validation + storage (extracted to reduce stack depth)
         _initOwners(s.owners, s.weights, s.thresholdWeight);
@@ -265,10 +276,18 @@ contract GatewayTreasury {
         }
         if (_recipientCount == 0) revert EmptyRecipientAllowlist();
 
-        // Destination domains
+        // Destination domains, each with its GatewayMinter
         for (uint256 i = 0; i < pol.allowedDestinationDomains.length; i++) {
+            if (pol.destinationMinters[i] == bytes32(0)) revert InvalidDestinationConfig();
             allowedDestinationDomains[pol.allowedDestinationDomains[i]] = true;
+            destinationMinters[pol.allowedDestinationDomains[i]] = pol.destinationMinters[i];
         }
+
+        // Destination callers (relayers), a set separate from payees
+        for (uint256 i = 0; i < pol.allowedDestinationCallers.length; i++) {
+            allowedDestinationCallers[pol.allowedDestinationCallers[i]] = true;
+        }
+        localDomain = pol.localDomain;
 
         // Source tokens (must have non-empty EIP-712 name)
         for (uint256 i = 0; i < pol.tokenAddresses.length; i++) {
@@ -287,11 +306,6 @@ contract GatewayTreasury {
         maxFeeCap = pol.maxFeeCap;
         adminTimelock = pol.adminTimelock;
         maxExpiryBlocks = pol.maxExpiryBlocks;
-
-        // Gateway domain separator: name="GatewayWallet", version="1", no chainId, no verifyingContract
-        _gatewayDomainSep = keccak256(
-            abi.encode(EIP712_DOMAIN_TYPEHASH_NOCHAIN, keccak256(bytes("GatewayWallet")), keccak256(bytes("1")))
-        );
 
         // Admin domain separator: name="GatewayTreasury", version="1", with chainId + verifyingContract
         _adminDomainSep = keccak256(
@@ -312,7 +326,7 @@ contract GatewayTreasury {
         uint256 totalWeight;
         for (uint256 i = 0; i < _owners.length; i++) {
             address owner = _owners[i];
-            if (owner == address(0)) revert InvalidOwnerSet();
+            if (owner == address(0) || owner == address(this)) revert InvalidOwnerSet();
 
             uint16 weight = _weights[i];
             if (weight < 1) revert InvalidWeights(); // uint16: weights are 1..65,535
@@ -362,57 +376,51 @@ contract GatewayTreasury {
     }
 
     function _validateBurnIntent(bytes32 hash, bytes memory payload, bytes memory ownerSigs) internal view returns (bool) {
+        // Emergency stops first. NOTE: Gateway evaluates this view off-chain against a block that may lag by up to
+        // ~5 minutes, so a pause / revocation takes effect for Gateway only after that lag. Moving funds to the
+        // Gateway withdrawing balance does NOT protect them: Gateway burns from withdrawing balance too.
+        if (paused || revokedIntents[hash]) return false;
+
         BurnIntent memory intent = abi.decode(payload, (BurnIntent));
 
-        bytes32 specHash = keccak256(
-            abi.encode(
-                TRANSFER_SPEC_TYPEHASH,
-                intent.spec.version,
-                intent.spec.sourceDomain,
-                intent.spec.destinationDomain,
-                intent.spec.sourceContract,
-                intent.spec.destinationContract,
-                intent.spec.sourceToken,
-                intent.spec.destinationToken,
-                intent.spec.sourceDepositor,
-                intent.spec.destinationRecipient,
-                intent.spec.sourceSigner,
-                intent.spec.destinationCaller,
-                intent.spec.value,
-                intent.spec.salt,
-                keccak256(intent.spec.hookData)
-            )
+        if (GatewayIntentPolicy.burnIntentDigest(intent) != hash) return false;
+
+        (bool shapeOk, address sourceTokenAddress) = GatewayIntentPolicy.checkIntentShape(
+            intent,
+            IntentLimits({
+                gatewayWallet: gatewayWallet,
+                sourceDomain: localDomain,
+                depositor: address(this),
+                maxExpiryBlocks: maxExpiryBlocks,
+                perIntentCap: perIntentCap,
+                maxFeeCap: maxFeeCap
+            })
         );
+        if (!shapeOk) return false;
 
-        bytes32 intentHash = keccak256(abi.encode(BURN_INTENT_TYPEHASH, intent.maxBlockHeight, intent.maxFee, specHash));
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", _gatewayDomainSep, intentHash));
-
-        if (digest != hash) return false;
-
-        if (intent.spec.version != 1) return false;
-        if (intent.spec.sourceContract != _toBytes32Address(gatewayWallet)) return false;
-        if (intent.spec.sourceDepositor != _toBytes32Address(address(this))) return false;
-        if (intent.spec.sourceSigner != _toBytes32Address(address(this))) return false;
-
-        // Bounded expiry: refuse intents that stay valid longer than the configured window.
-        if (intent.maxBlockHeight > block.number + maxExpiryBlocks) return false;
-
-        // The token must be a canonical left-padded address: dirty upper bytes would truncate to an allowed token.
-        if (uint256(intent.spec.sourceToken) >> 160 != 0) return false;
-        address sourceTokenAddress = address(uint160(uint256(intent.spec.sourceToken)));
         if (bytes(allowedTokens[sourceTokenAddress].eip712Name).length == 0) return false;
-
-        if (!allowedDestinationTokens[intent.spec.destinationToken]) return false;
-        if (!allowedDestinationDomains[intent.spec.destinationDomain]) return false;
-        if (!allowedRecipients[intent.spec.destinationRecipient]) return false;
-
-        if (intent.spec.destinationCaller != bytes32(0) && !allowedRecipients[intent.spec.destinationCaller]) return false;
-
-        if (intent.spec.hookData.length != 0) return false;
-        if (intent.spec.value == 0 || intent.spec.value > perIntentCap) return false;
-        if (intent.maxFee > maxFeeCap) return false;
+        if (!_destinationAllowed(intent.spec)) return false;
 
         return _checkWeightedSigs(hash, ownerSigs);
+    }
+
+    /// @dev Set membership plus domain binding: every destination word must have its domain's address shape (an
+    ///      allowlisted Solana key is not a valid Base recipient and vice versa), and the intent must name the
+    ///      domain's own GatewayMinter.
+    function _destinationAllowed(TransferSpec memory spec) internal view returns (bool) {
+        uint32 domain = spec.destinationDomain;
+        if (!allowedDestinationDomains[domain]) return false;
+        bytes32 minter = destinationMinters[domain];
+        if (minter == bytes32(0) || spec.destinationContract != minter) return false;
+        if (!allowedDestinationTokens[spec.destinationToken]) return false;
+        if (!GatewayIntentPolicy.matchesDomainShape(domain, spec.destinationToken)) return false;
+        if (!allowedRecipients[spec.destinationRecipient]) return false;
+        if (!GatewayIntentPolicy.matchesDomainShape(domain, spec.destinationRecipient)) return false;
+        if (spec.destinationCaller != bytes32(0)) {
+            if (!allowedDestinationCallers[spec.destinationCaller]) return false;
+            if (!GatewayIntentPolicy.matchesDomainShape(domain, spec.destinationCaller)) return false;
+        }
+        return true;
     }
 
     function _validateReceiveWithAuth(bytes32 hash, bytes memory payload, bytes memory ownerSigs, address caller)
@@ -420,24 +428,15 @@ contract GatewayTreasury {
         view
         returns (bool)
     {
-        if (bytes(allowedTokens[caller].eip712Name).length == 0) return false;
+        TokenInfo storage ti = allowedTokens[caller];
+        if (bytes(ti.eip712Name).length == 0) return false;
 
         (address from, address to, uint256 value, uint256 validAfter, uint256 validBefore, bytes32 nonce) =
             abi.decode(payload, (address, address, uint256, uint256, uint256, bytes32));
 
-        TokenInfo storage ti = allowedTokens[caller];
-        bytes32 domainSep = keccak256(
-            abi.encode(
-                EIP712_DOMAIN_TYPEHASH_FULL,
-                keccak256(bytes(ti.eip712Name)),
-                keccak256(bytes(ti.eip712Version)),
-                block.chainid,
-                caller
-            )
+        bytes32 digest = GatewayIntentPolicy.receiveWithAuthorizationDigest(
+            ti.eip712Name, ti.eip712Version, caller, from, to, value, validAfter, validBefore, nonce
         );
-
-        bytes32 structHash = keccak256(abi.encode(RWA_TYPEHASH, from, to, value, validAfter, validBefore, nonce));
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSep, structHash));
 
         if (digest != hash) return false;
         if (from != address(this)) return false;
@@ -446,19 +445,35 @@ contract GatewayTreasury {
         return _checkWeightedSigs(hash, ownerSigs);
     }
 
+    /// @dev Weighted quorum over `ownerSigs`, a Safe-style signature blob:
+    ///
+    ///      static part: k slots of 65 bytes, ordered by STRICTLY ascending owner address across both kinds:
+    ///        - EOA owner:      `r ‖ s ‖ v` with v in {27, 28} and low-s, recovered over `hash`;
+    ///        - contract owner: `r ‖ s ‖ v` with v = 0, r = owner address (left-padded, upper 96 bits zero) and
+    ///                          s = byte offset (from the start of `ownerSigs`) of that owner's dynamic signature.
+    ///      dynamic part: for each contract owner, at its offset, a 32-byte big-endian length L followed by L bytes,
+    ///        passed verbatim to `IERC1271(owner).isValidSignature(hash, sig)`.
+    ///
+    ///      The static part ends exactly at the lowest dynamic offset (or at the end of the blob when every owner
+    ///      is an EOA, which keeps the pre-existing "length % 65 == 0" rule). Any offset that points into the
+    ///      static part, a length word or body that runs past the end, an offset that leaves a partial slot, a
+    ///      contract owner equal to this treasury, or a nested call that reverts / runs out of its gas cap / does
+    ///      not return exactly the magic word, makes the whole blob invalid. Nothing here reverts.
     function _checkWeightedSigs(bytes32 hash, bytes memory ownerSigs) internal view returns (bool) {
-        if (ownerSigs.length == 0 || ownerSigs.length % 65 != 0) return false;
+        uint256 len = ownerSigs.length;
+        if (len == 0) return false;
 
-        uint256 numSigs = ownerSigs.length / 65;
+        uint256 staticEnd = len;
+        uint256 i;
         address prevSigner = address(0);
         uint256 totalWeight;
 
-        for (uint256 i = 0; i < numSigs; i++) {
+        while ((i + 1) * 65 <= staticEnd) {
             bytes32 r;
             bytes32 s;
             uint8 v;
 
-            // Reads only from ownerSigs (already allocated memory) — safe.
+            // Reads only inside ownerSigs: (i + 1) * 65 <= staticEnd <= len.
             assembly ("memory-safe") {
                 let base := add(add(ownerSigs, 0x20), mul(i, 65))
                 r := mload(base)
@@ -466,21 +481,68 @@ contract GatewayTreasury {
                 v := byte(0, mload(add(base, 0x40)))
             }
 
-            if (uint256(s) > SECP256K1N_DIV_2) return false;
+            address signer;
+            if (v == 0) {
+                // Contract owner (ERC-1271), Safe encoding.
+                if (!GatewayIntentPolicy.isCanonicalAddress(r)) return false;
+                signer = address(uint160(uint256(r)));
+                // No recursion into ourselves (also refused at configuration time).
+                if (signer == address(this)) return false;
 
-            (address recovered, ECDSA.RecoverError err,) = ECDSA.tryRecover(hash, v, r, s);
-            if (err != ECDSA.RecoverError.NoError) return false;
+                uint256 offset = uint256(s);
+                // The dynamic part must start after this slot, and its length word must be in bounds
+                // (len >= 65 here, so len - 32 cannot underflow).
+                if (offset < (i + 1) * 65 || offset > len - 32) return false;
+                uint256 dynLen;
+                assembly ("memory-safe") {
+                    dynLen := mload(add(add(ownerSigs, 0x20), offset))
+                }
+                if (dynLen > len - offset - 32) return false;
+                if (offset < staticEnd) staticEnd = offset;
 
-            if (recovered <= prevSigner) return false;
+                if (signer <= prevSigner) return false;
+                if (weights[signer] == 0) return false;
 
-            uint16 w = weights[recovered];
-            if (w == 0) return false;
+                bytes memory nestedSig = _slice(ownerSigs, offset + 32, dynLen);
+                if (!GatewayIntentPolicy.isValidERC1271(signer, hash, nestedSig, NESTED_SIG_GAS)) return false;
+            } else {
+                if (uint256(s) > SECP256K1N_DIV_2) return false;
 
-            totalWeight += w;
-            prevSigner = recovered;
+                (address recovered, ECDSA.RecoverError err,) = ECDSA.tryRecover(hash, v, r, s);
+                if (err != ECDSA.RecoverError.NoError) return false;
+                signer = recovered;
+
+                if (signer <= prevSigner) return false;
+                if (weights[signer] == 0) return false;
+            }
+
+            totalWeight += weights[signer];
+            prevSigner = signer;
+            unchecked {
+                ++i;
+            }
         }
 
+        // The static part must be whole slots and end exactly where the first dynamic part starts.
+        if (i == 0 || i * 65 != staticEnd) return false;
+
         return totalWeight >= thresholdWeight;
+    }
+
+    /// @dev Copies `ownerSigs[start : start + length]` into a fresh `bytes`. Caller guarantees the range is in bounds.
+    function _slice(bytes memory data, uint256 start, uint256 length) private pure returns (bytes memory out) {
+        out = new bytes(length);
+        for (uint256 j = 0; j < length; j += 32) {
+            assembly ("memory-safe") {
+                mstore(add(add(out, 0x20), j), mload(add(add(data, 0x20), add(start, j))))
+            }
+        }
+        // The last word may have copied bytes past `length` into out's tail padding; zero them so the ABI
+        // encoding of `out` is canonical.
+        assembly ("memory-safe") {
+            let end := add(add(out, 0x20), length)
+            mstore(end, 0)
+        }
     }
 
     // ============================================================
@@ -505,19 +567,21 @@ contract GatewayTreasury {
         emit Swept(token, bal);
     }
 
-    function queueAdmin(bytes calldata call, uint256 nonce, bytes calldata ownerSigs) external {
+    /// @param deadline Last timestamp at which these signatures may be submitted (part of the signed struct).
+    function queueAdmin(bytes calldata call, uint256 nonce, uint256 deadline, bytes calldata ownerSigs) external {
         if (usedNonces[nonce]) revert NonceAlreadyUsed();
+        if (block.timestamp > deadline) revert SignatureExpired();
 
         bytes32 callHash = keccak256(call);
-        bytes32 structHash = keccak256(abi.encode(ADMIN_OP_TYPEHASH, callHash, nonce));
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", _adminDomainSep, structHash));
+        uint256 epoch = adminEpoch;
+        bytes32 digest = _adminDigest(keccak256(abi.encode(ADMIN_OP_TYPEHASH, callHash, nonce, deadline, epoch)));
 
         if (!_checkWeightedSigs(digest, ownerSigs)) revert QuorumNotReached();
 
         usedNonces[nonce] = true;
         uint256 eta = block.timestamp + adminTimelock;
 
-        adminOps[nonce] = AdminOp({callHash: callHash, eta: eta, executed: false, cancelled: false});
+        adminOps[nonce] = AdminOp({callHash: callHash, eta: eta, executed: false, cancelled: false, epoch: epoch});
 
         emit AdminQueued(nonce, callHash, eta);
     }
@@ -528,7 +592,9 @@ contract GatewayTreasury {
         if (op.callHash == bytes32(0)) revert OpNotFound();
         if (op.executed) revert OpAlreadyExecuted();
         if (op.cancelled) revert OpAlreadyCancelled();
+        if (op.epoch != adminEpoch) revert OpStale();
         if (block.timestamp < op.eta) revert TimelockNotExpired();
+        if (block.timestamp > op.eta + ADMIN_OP_GRACE) revert OpExpired();
         if (keccak256(call) != op.callHash) revert OpNotFound();
         if (call.length < 4) revert InvalidCallTarget();
 
@@ -547,21 +613,53 @@ contract GatewayTreasury {
         emit AdminExecuted(nonce);
     }
 
+    /// @notice Cancels a queued op, OR burns a nonce that was never queued so that admin signatures collected for
+    ///         it (and never submitted) can no longer be queued by whoever holds them.
     function cancelAdmin(uint256 nonce, bytes calldata ownerSigs) external {
         AdminOp storage op = adminOps[nonce];
 
-        if (op.callHash == bytes32(0)) revert OpNotFound();
-        if (op.executed) revert OpAlreadyExecuted();
-        if (op.cancelled) revert OpAlreadyCancelled();
+        if (op.callHash == bytes32(0)) {
+            if (usedNonces[nonce]) revert OpNotFound();
+        } else {
+            if (op.executed) revert OpAlreadyExecuted();
+            if (op.cancelled) revert OpAlreadyCancelled();
+        }
 
-        bytes32 structHash = keccak256(abi.encode(CANCEL_ADMIN_OP_TYPEHASH, nonce));
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", _adminDomainSep, structHash));
+        bytes32 digest = _adminDigest(keccak256(abi.encode(CANCEL_ADMIN_OP_TYPEHASH, nonce)));
 
         if (!_checkWeightedSigs(digest, ownerSigs)) revert QuorumNotReached();
 
+        usedNonces[nonce] = true;
         op.cancelled = true;
 
         emit AdminCancelled(nonce);
+    }
+
+    /// @notice Immediately (no timelock) refuses one burn intent by its EIP-712 digest. Quorum-signed; replaying the
+    ///         signature only re-revokes. Gateway sees it after its block lag (up to ~5 minutes).
+    function revokeIntent(bytes32 digest, bytes calldata ownerSigs) external {
+        if (!_checkWeightedSigs(_adminDigest(keccak256(abi.encode(REVOKE_INTENT_TYPEHASH, digest))), ownerSigs)) {
+            revert QuorumNotReached();
+        }
+        revokedIntents[digest] = true;
+        emit IntentRevoked(digest);
+    }
+
+    /// @notice Immediately (no timelock) refuses every burn intent. Quorum-signed over a nonce from the admin nonce
+    ///         space, so an old pause signature cannot be replayed after an unpause. Unpause is the timelocked
+    ///         `setPaused(false)` admin op.
+    function pause(uint256 nonce, bytes calldata ownerSigs) external {
+        if (usedNonces[nonce]) revert NonceAlreadyUsed();
+        if (!_checkWeightedSigs(_adminDigest(keccak256(abi.encode(PAUSE_TYPEHASH, nonce))), ownerSigs)) {
+            revert QuorumNotReached();
+        }
+        usedNonces[nonce] = true;
+        paused = true;
+        emit PausedSet(true);
+    }
+
+    function _adminDigest(bytes32 structHash) private view returns (bytes32) {
+        return keccak256(abi.encodePacked("\x19\x01", _adminDomainSep, structHash));
     }
 
     // ============================================================
@@ -577,7 +675,7 @@ contract GatewayTreasury {
 
         for (uint256 i = 0; i < newOwners.length; i++) {
             address owner = newOwners[i];
-            if (owner == address(0)) revert InvalidOwnerSet();
+            if (owner == address(0) || owner == address(this)) revert InvalidOwnerSet();
 
             uint16 weight = newWeights[i];
             if (weight < 1) revert InvalidWeights(); // uint16: weights are 1..65,535
@@ -603,6 +701,7 @@ contract GatewayTreasury {
         }
 
         thresholdWeight = newThreshold;
+        adminEpoch++;
 
         emit OwnersUpdated(newOwners, newWeights, newThreshold);
     }
@@ -639,6 +738,21 @@ contract GatewayTreasury {
         emit TokenUpdated(token, allowed);
     }
 
+    function setDestinationMinter(uint32 domain, bytes32 minter) external onlySelf {
+        destinationMinters[domain] = minter;
+        emit DestinationMinterUpdated(domain, minter);
+    }
+
+    function setAllowedDestinationCaller(bytes32 caller, bool allowed) external onlySelf {
+        allowedDestinationCallers[caller] = allowed;
+        emit DestinationCallerUpdated(caller, allowed);
+    }
+
+    function setPaused(bool paused_) external onlySelf {
+        paused = paused_;
+        emit PausedSet(paused_);
+    }
+
     function setAllowedDestinationToken(bytes32 tok, bool allowed) external onlySelf {
         allowedDestinationTokens[tok] = allowed;
         emit DestinationTokenUpdated(tok, allowed);
@@ -663,6 +777,7 @@ contract GatewayTreasury {
 
     function setAdminTimelock(uint32 secs) external onlySelf {
         adminTimelock = secs;
+        adminEpoch++;
         emit TimelockUpdated(secs);
     }
 
@@ -709,6 +824,12 @@ contract GatewayTreasury {
         return _recipientCount;
     }
 
+    /// @notice The most one approved burn intent can debit from the Gateway balance: Gateway charges the fee ON TOP
+    ///         of the value, so this is `perIntentCap + maxFeeCap`, not `perIntentCap`.
+    function maxDebitPerIntent() external view returns (uint256) {
+        return perIntentCap + maxFeeCap;
+    }
+
     // ============================================================
     // Internal helpers
     // ============================================================
@@ -717,10 +838,7 @@ contract GatewayTreasury {
         return sel == SEL_SET_OWNERS || sel == SEL_SET_RECIPIENT || sel == SEL_SET_DOMAIN || sel == SEL_SET_TOKEN
             || sel == SEL_SET_DEST_TOKEN || sel == SEL_SET_PER_INTENT_CAP || sel == SEL_SET_MAX_FEE_CAP
             || sel == SEL_SET_TIMELOCK || sel == SEL_GW_INITIATE_WITHDRAWAL || sel == SEL_GW_WITHDRAW
-            || sel == SEL_TRANSFER_RECIPIENT || sel == SEL_SET_MAX_EXPIRY;
-    }
-
-    function _toBytes32Address(address a) internal pure returns (bytes32) {
-        return bytes32(uint256(uint160(a)));
+            || sel == SEL_TRANSFER_RECIPIENT || sel == SEL_SET_MAX_EXPIRY || sel == SEL_SET_DEST_MINTER
+            || sel == SEL_SET_DEST_CALLER || sel == SEL_SET_PAUSED;
     }
 }

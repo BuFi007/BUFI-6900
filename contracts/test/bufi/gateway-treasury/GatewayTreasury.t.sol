@@ -165,12 +165,19 @@ contract GatewayTreasuryTest is Test {
     bytes32 internal constant DEST_TOKEN =
         bytes32(uint256(0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB11));
     uint32  internal constant DEST_DOMAIN = 5; // Solana
+    uint32  internal constant SOURCE_DOMAIN = 26; // Arc
+    /// Gateway's Solana minter program id is non-EVM-shaped; any non-zero value works for the pin.
+    bytes32 internal constant SOL_MINTER =
+        bytes32(uint256(0x6d696e7465726d696e7465726d696e7465726d696e7465726d696e746572aaaa));
+    bytes32 internal constant EVM_MINTER = bytes32(uint256(uint160(0x0022222ABE238Cc2C7Bb1f21003F0a260052475B)));
 
     uint256 internal constant PER_INTENT_CAP = 1_000_000e6;
     uint256 internal constant FEE_CAP = 1_000e6;
     uint32  internal constant TIMELOCK = 1 hours;
     // Arc testnet's Gateway expiry floor is 1,209,599 blocks; the treasury's ceiling sits just above it.
     uint256 internal constant EXPIRY = 1_250_000;
+    /// Admin signatures in these tests are valid until this timestamp.
+    uint256 internal constant ADMIN_DEADLINE = 4_000_000_000;
 
     // ── Setup ────────────────────────────────────────────────────────────────
 
@@ -530,7 +537,7 @@ contract GatewayTreasuryTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(PKS[1], digest); // weight=1 only
         bytes memory sigs = abi.encodePacked(r, s, v);
         vm.expectRevert(GatewayTreasury.QuorumNotReached.selector);
-        treasuryA.queueAdmin(call_, 1, sigs);
+        treasuryA.queueAdmin(call_, 1, ADMIN_DEADLINE, sigs);
     }
 
     function test_admin_executesAfterTimelock() public {
@@ -545,7 +552,7 @@ contract GatewayTreasuryTest is Test {
         bytes32 callHash = keccak256(call_);
         bytes32 digest = _adminDigest(treasuryA, callHash, 10);
         bytes memory sigs = _signSorted(_allPrivKeys(3), digest);
-        treasuryA.queueAdmin(call_, 10, sigs);
+        treasuryA.queueAdmin(call_, 10, ADMIN_DEADLINE, sigs);
 
         vm.expectRevert(GatewayTreasury.TimelockNotExpired.selector);
         treasuryA.executeAdmin(call_, 10);
@@ -559,7 +566,7 @@ contract GatewayTreasuryTest is Test {
         bytes32 digest = _adminDigest(treasuryA, callHash, 42);
         bytes memory sigs = _signSorted(_allPrivKeys(3), digest);
         vm.expectRevert(GatewayTreasury.NonceAlreadyUsed.selector);
-        treasuryA.queueAdmin(call_, 42, sigs);
+        treasuryA.queueAdmin(call_, 42, ADMIN_DEADLINE, sigs);
     }
 
     function test_admin_cancel_preventsExecution() public {
@@ -567,7 +574,7 @@ contract GatewayTreasuryTest is Test {
         bytes32 callHash = keccak256(call_);
         bytes32 qDigest = _adminDigest(treasuryA, callHash, 77);
         bytes memory qSigs = _signSorted(_allPrivKeys(3), qDigest);
-        treasuryA.queueAdmin(call_, 77, qSigs);
+        treasuryA.queueAdmin(call_, 77, ADMIN_DEADLINE, qSigs);
 
         // Cancel
         bytes32 cDigest = _cancelDigest(treasuryA, 77);
@@ -588,7 +595,7 @@ contract GatewayTreasuryTest is Test {
         bytes32 callHash = keccak256(call_);
         bytes32 digest = _adminDigest(treasuryA, callHash, 100);
         bytes memory sigs = _signSorted(_allPrivKeys(3), digest);
-        treasuryA.queueAdmin(call_, 100, sigs);
+        treasuryA.queueAdmin(call_, 100, ADMIN_DEADLINE, sigs);
         vm.warp(block.timestamp + TIMELOCK + 1);
 
         // Should revert with SelfCallFailed
@@ -602,7 +609,7 @@ contract GatewayTreasuryTest is Test {
         bytes32 callHash = keccak256(call_);
         bytes32 digest = _adminDigest(treasuryA, callHash, 200);
         bytes memory sigs = _signSorted(_allPrivKeys(3), digest);
-        treasuryA.queueAdmin(call_, 200, sigs);
+        treasuryA.queueAdmin(call_, 200, ADMIN_DEADLINE, sigs);
         vm.warp(block.timestamp + TIMELOCK + 1);
 
         vm.expectRevert(GatewayTreasury.InvalidCallTarget.selector);
@@ -641,7 +648,7 @@ contract GatewayTreasuryTest is Test {
             GatewayTreasury.transferToRecipient.selector, address(token), DEST_RECIPIENT, uint256(50e6)
         );
         bytes32 digest = _adminDigest(treasuryA, keccak256(call_), 401);
-        treasuryA.queueAdmin(call_, 401, _signSorted(_allPrivKeys(3), digest));
+        treasuryA.queueAdmin(call_, 401, ADMIN_DEADLINE, _signSorted(_allPrivKeys(3), digest));
         vm.warp(block.timestamp + TIMELOCK + 1);
         vm.expectRevert();
         treasuryA.executeAdmin(call_, 401);
@@ -674,11 +681,203 @@ contract GatewayTreasuryTest is Test {
         bytes32 callHash = keccak256(call_);
         bytes32 digest = _adminDigest(treasuryA, callHash, 500);
         bytes memory sigs = _signSorted(_allPrivKeys(3), digest);
-        treasuryA.queueAdmin(call_, 500, sigs);
+        treasuryA.queueAdmin(call_, 500, ADMIN_DEADLINE, sigs);
         vm.warp(block.timestamp + TIMELOCK + 1);
 
         vm.expectRevert(); // SelfCallFailed wrapping RecipientNotAllowed
         treasuryA.executeAdmin(call_, 500);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // § 7  Review findings (2026-10-05)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    bytes32 internal constant R_EVM_B32 = bytes32(uint256(uint160(0xF7D0520C36717e25c5b77F977A89741d2974589C)));
+    bytes32 internal constant BASE_TOKEN = bytes32(uint256(uint160(0x036CbD53842c5426634e7929541eC2318f3dCF7e)));
+    uint32 internal constant BASE_DOMAIN = 6;
+
+    /// @dev treasuryA plus an EVM leg: recipient R_EVM_B32, domain 6, Base USDC destination token.
+    function _withEvmLeg() internal returns (GatewayTreasury t) {
+        t = treasuryA;
+        _queueAndExecute(t, abi.encodeWithSelector(GatewayTreasury.setAllowedRecipient.selector, R_EVM_B32, true), 9001);
+        _queueAndExecute(t, abi.encodeWithSelector(GatewayTreasury.setAllowedDestinationDomain.selector, BASE_DOMAIN, true), 9002);
+        _queueAndExecute(t, abi.encodeWithSelector(GatewayTreasury.setAllowedDestinationToken.selector, BASE_TOKEN, true), 9003);
+        _queueAndExecute(t, abi.encodeWithSelector(GatewayTreasury.setDestinationMinter.selector, BASE_DOMAIN, EVM_MINTER), 9004);
+    }
+
+    function _isValid(GatewayTreasury t, BurnIntent memory intent) internal view returns (bool) {
+        return t.isValidSignature(_rehash(intent), _buildKind0Sig(intent, _allPrivKeys(3))) == bytes4(0x1626ba7e);
+    }
+
+    // GT-1 / GG-1: recipients, callers and destination tokens must have the address shape of their domain.
+    function test_GT1_recipientShapeBoundToDomain() public {
+        GatewayTreasury t = _withEvmLeg();
+        (, BurnIntent memory evmOk) = _buildIntentWith(t, address(token), R_EVM_B32, BASE_TOKEN, BASE_DOMAIN, 1e6, 0);
+        assertTrue(_isValid(t, evmOk), "control: EVM recipient on EVM domain");
+        (, BurnIntent memory solOk) = _buildIntentWith(t, address(token), DEST_RECIPIENT, DEST_TOKEN, DEST_DOMAIN, 1e6, 0);
+        assertTrue(_isValid(t, solOk), "control: Solana recipient on Solana domain");
+
+        // EVM recipient on Solana: Gateway would mint to a left-padded word nobody owns.
+        (, BurnIntent memory a) = _buildIntentWith(t, address(token), R_EVM_B32, DEST_TOKEN, DEST_DOMAIN, 1e6, 0);
+        assertFalse(_isValid(t, a), "EVM recipient on Solana domain");
+        // Solana key on EVM: the EVM minter truncates it to an address nobody controls.
+        (, BurnIntent memory b) = _buildIntentWith(t, address(token), DEST_RECIPIENT, BASE_TOKEN, BASE_DOMAIN, 1e6, 0);
+        assertFalse(_isValid(t, b), "Solana recipient on EVM domain");
+        // Destination token shape too.
+        (, BurnIntent memory c) = _buildIntentWith(t, address(token), R_EVM_B32, DEST_TOKEN, BASE_DOMAIN, 1e6, 0);
+        assertFalse(_isValid(t, c), "Solana token on EVM domain");
+        (, BurnIntent memory d) = _buildIntentWith(t, address(token), DEST_RECIPIENT, BASE_TOKEN, DEST_DOMAIN, 1e6, 0);
+        assertFalse(_isValid(t, d), "EVM token on Solana domain");
+    }
+
+    // GT-6: a destination caller is not a payee, and a payee is not a destination caller.
+    function test_GT6_destinationCallerNotImpliedByRecipientAllowlist() public {
+        bytes32 relayer = bytes32(uint256(0xCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC11));
+        _queueAndExecute(treasuryA, abi.encodeWithSelector(GatewayTreasury.setAllowedRecipient.selector, relayer, true), 9010);
+        (, BurnIntent memory i) = _buildIntent(treasuryA, address(token));
+        i.spec.destinationCaller = relayer;
+        assertFalse(_isValid(treasuryA, i), "recipient allowlist must not admit a destination caller");
+
+        // The caller set admits it; it does not make the relayer a payee.
+        _queueAndExecute(treasuryA, abi.encodeWithSelector(GatewayTreasury.setAllowedDestinationCaller.selector, relayer, true), 9011);
+        assertTrue(_isValid(treasuryA, i), "allowlisted destination caller");
+        BurnIntent memory payRelayer = _copy(i);
+        payRelayer.spec.destinationCaller = bytes32(0);
+        payRelayer.spec.destinationRecipient = relayer;
+        _queueAndExecute(treasuryA, abi.encodeWithSelector(GatewayTreasury.setAllowedRecipient.selector, relayer, false), 9012);
+        assertFalse(_isValid(treasuryA, payRelayer), "a caller is not a payee");
+    }
+
+    // GT-4: the burn must name this chain's domain and the destination domain's GatewayMinter.
+    function test_GT4_destinationContractAndSourceDomainPinned() public {
+        (, BurnIntent memory i) = _buildIntent(treasuryA, address(token));
+        assertTrue(_isValid(treasuryA, i), "control");
+        BurnIntent memory a = _copy(i);
+        a.spec.destinationContract = bytes32(uint256(0xdeadbeef));
+        assertFalse(_isValid(treasuryA, a), "unknown destination contract");
+        BurnIntent memory b = _copy(i);
+        b.spec.sourceDomain = 77;
+        assertFalse(_isValid(treasuryA, b), "foreign source domain");
+    }
+
+    // GT-2 (admin): a queued op expires; it cannot fire weeks after it failed.
+    function test_GT2_adminOpExpiresAfterGrace() public {
+        bytes memory rm = abi.encodeWithSelector(GatewayTreasury.setAllowedRecipient.selector, DEST_RECIPIENT, false);
+        _queueOnly(treasuryA, rm, 77);
+        vm.warp(block.timestamp + TIMELOCK + 1);
+        vm.expectRevert();
+        treasuryA.executeAdmin(rm, 77); // WouldEmptyAllowlist: op stays pending
+        // Weeks later the quorum adds an unrelated recipient...
+        _queueAndExecute(treasuryA, abi.encodeWithSelector(GatewayTreasury.setAllowedRecipient.selector, R_EVM_B32, true), 78);
+        vm.warp(block.timestamp + 30 days);
+        // ...and nobody can fire the stale removal any more.
+        vm.expectRevert(GatewayTreasury.OpExpired.selector);
+        treasuryA.executeAdmin(rm, 77);
+        assertTrue(treasuryA.allowedRecipients(DEST_RECIPIENT));
+    }
+
+    // GT-2 (admin): rotating owners invalidates ops queued under the old set.
+    function test_GT2_ownerRotationInvalidatesPendingOps() public {
+        bytes memory capCall = abi.encodeWithSelector(GatewayTreasury.setPerIntentCap.selector, uint256(5e6));
+        _queueOnly(treasuryA, capCall, 80);
+        address[] memory owners = treasuryA.getOwners();
+        uint16[] memory wts = new uint16[](3);
+        wts[0] = 2; wts[1] = 1; wts[2] = 1;
+        _queueAndExecute(treasuryA, abi.encodeWithSelector(GatewayTreasury.setOwners.selector, owners, wts, uint256(3)), 81);
+        vm.expectRevert(GatewayTreasury.OpStale.selector);
+        treasuryA.executeAdmin(capCall, 80);
+        assertEq(treasuryA.perIntentCap(), PER_INTENT_CAP);
+    }
+
+    // GT-2 (admin): an op queued under an old timelock does not keep its old eta.
+    function test_GT2_timelockChangeInvalidatesPendingOps() public {
+        bytes memory capCall = abi.encodeWithSelector(GatewayTreasury.setPerIntentCap.selector, uint256(5e6));
+        _queueOnly(treasuryA, capCall, 82);
+        _queueAndExecute(treasuryA, abi.encodeWithSelector(GatewayTreasury.setAdminTimelock.selector, uint32(7 days)), 83);
+        vm.expectRevert(GatewayTreasury.OpStale.selector);
+        treasuryA.executeAdmin(capCall, 82);
+    }
+
+    // GT-3 (admin): owners can revoke a signed admin op that was never queued.
+    function test_GT3_cancelNeverQueuedNonce_burnsIt() public {
+        bytes memory capCall = abi.encodeWithSelector(GatewayTreasury.setPerIntentCap.selector, uint256(5e6));
+        bytes memory leaked = _adminSigs(treasuryA, capCall, 90);
+        treasuryA.cancelAdmin(90, _signSorted(_allPrivKeys(3), _cancelDigest(treasuryA, 90)));
+        vm.expectRevert(GatewayTreasury.NonceAlreadyUsed.selector);
+        _queueWithSigs(treasuryA, capCall, 90, leaked);
+    }
+
+    // GT-3 (admin): admin signatures carry a deadline and the owner-set epoch.
+    function test_GT3_adminSignaturesExpireAndDieOnRotation() public {
+        bytes memory capCall = abi.encodeWithSelector(GatewayTreasury.setPerIntentCap.selector, uint256(5e6));
+        bytes memory sigs = _adminSigs(treasuryA, capCall, 91);
+        vm.warp(ADMIN_DEADLINE + 1);
+        vm.expectRevert(GatewayTreasury.SignatureExpired.selector);
+        treasuryA.queueAdmin(capCall, 91, ADMIN_DEADLINE, sigs);
+        vm.warp(1);
+
+        // Signed under epoch 0, rotation bumps the epoch: the same owners' old signatures no longer verify.
+        bytes memory oldSigs = _adminSigs(treasuryA, capCall, 92);
+        address[] memory owners = treasuryA.getOwners();
+        uint16[] memory wts = new uint16[](3);
+        wts[0] = 2; wts[1] = 1; wts[2] = 1;
+        _queueAndExecute(treasuryA, abi.encodeWithSelector(GatewayTreasury.setOwners.selector, owners, wts, uint256(3)), 93);
+        vm.expectRevert(GatewayTreasury.QuorumNotReached.selector);
+        treasuryA.queueAdmin(capCall, 92, ADMIN_DEADLINE, oldSigs);
+    }
+
+    // GT-2 (spec): a signed intent can be killed immediately, without the timelock.
+    function test_GT2_revokeIntent_immediate() public {
+        (bytes32 h, BurnIntent memory i) = _buildIntent(treasuryA, address(token));
+        assertTrue(_isValid(treasuryA, i));
+        bytes32 d = _typedDigest(treasuryA, keccak256(abi.encode(keccak256("RevokeIntent(bytes32 digest)"), h)));
+        vm.expectRevert(GatewayTreasury.QuorumNotReached.selector);
+        treasuryA.revokeIntent(h, _signSorted(_onePk(PKS[1]), d));
+        treasuryA.revokeIntent(h, _signSorted(_allPrivKeys(3), d));
+        assertFalse(_isValid(treasuryA, i), "revoked");
+        // Other intents are unaffected.
+        BurnIntent memory other = _copy(i);
+        other.spec.salt = bytes32(uint256(1));
+        assertTrue(_isValid(treasuryA, other));
+    }
+
+    // GT-2 (spec): pause refuses every burn intent immediately; unpause is timelocked; pause sigs do not replay.
+    function test_GT2_pause_immediate_unpauseTimelocked() public {
+        (, BurnIntent memory i) = _buildIntent(treasuryA, address(token));
+        bytes32 d = _typedDigest(treasuryA, keccak256(abi.encode(keccak256("Pause(uint256 nonce)"), uint256(700))));
+        bytes memory sigs = _signSorted(_allPrivKeys(3), d);
+        treasuryA.pause(700, sigs);
+        assertTrue(treasuryA.paused());
+        assertFalse(_isValid(treasuryA, i), "paused");
+        _queueAndExecute(treasuryA, abi.encodeWithSelector(GatewayTreasury.setPaused.selector, false), 701);
+        assertTrue(_isValid(treasuryA, i), "unpaused");
+        vm.expectRevert(GatewayTreasury.NonceAlreadyUsed.selector);
+        treasuryA.pause(700, sigs);
+    }
+
+    // GT-3 (spec): one approved intent can debit value + fee; the contract says so.
+    function test_GT3_maxDebitPerIntent_includesFee() public view {
+        assertEq(treasuryA.maxDebitPerIntent(), PER_INTENT_CAP + FEE_CAP);
+    }
+
+    // GT-4: every destination domain needs its minter at construction.
+    function test_GT4_constructor_requiresMinterPerDomain() public {
+        address[] memory owners = treasuryA.getOwners();
+        uint16[] memory wts = new uint16[](3);
+        wts[0] = 2; wts[1] = 1; wts[2] = 1;
+        PolicyParams memory pol;
+        pol.allowedRecipients = new bytes32[](1);
+        pol.allowedRecipients[0] = DEST_RECIPIENT;
+        pol.allowedDestinationDomains = new uint32[](1);
+        pol.allowedDestinationDomains[0] = DEST_DOMAIN;
+        pol.perIntentCap = 1;
+        pol.maxExpiryBlocks = 1;
+        SignerParams memory sp = SignerParams({owners: owners, weights: wts, thresholdWeight: 3, gatewayWallet: address(gw)});
+        vm.expectRevert(GatewayTreasury.InvalidDestinationConfig.selector);
+        new GatewayTreasury(sp, pol);
+        pol.destinationMinters = new bytes32[](1);
+        vm.expectRevert(GatewayTreasury.InvalidDestinationConfig.selector);
+        new GatewayTreasury(sp, pol);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -764,7 +963,10 @@ contract GatewayTreasuryTest is Test {
             perIntentCap: PER_INTENT_CAP,
             maxFeeCap: FEE_CAP,
             adminTimelock: TIMELOCK,
-            maxExpiryBlocks: EXPIRY
+            maxExpiryBlocks: EXPIRY,
+            localDomain: SOURCE_DOMAIN,
+            destinationMinters: _minters(domains.length),
+            allowedDestinationCallers: new bytes32[](0)
         });
         return new GatewayTreasury(s, pol);
     }
@@ -804,7 +1006,10 @@ contract GatewayTreasuryTest is Test {
             perIntentCap: PER_INTENT_CAP,
             maxFeeCap: FEE_CAP,
             adminTimelock: TIMELOCK,
-            maxExpiryBlocks: EXPIRY
+            maxExpiryBlocks: EXPIRY,
+            localDomain: SOURCE_DOMAIN,
+            destinationMinters: _minters(domains.length),
+            allowedDestinationCallers: new bytes32[](0)
         });
         return new GatewayTreasury(s, pol);
     }
@@ -830,10 +1035,10 @@ contract GatewayTreasuryTest is Test {
             maxFee: maxFee_,
             spec: TransferSpec({
                 version: 1,
-                sourceDomain: 0,
+                sourceDomain: SOURCE_DOMAIN,
                 destinationDomain: destDomain_,
                 sourceContract: bytes32(uint256(uint160(address(gw)))),
-                destinationContract: bytes32(0),
+                destinationContract: destDomain_ == DEST_DOMAIN ? SOL_MINTER : EVM_MINTER,
                 sourceToken: bytes32(uint256(uint160(tok))),
                 destinationToken: destToken_,
                 sourceDepositor: bytes32(uint256(uint160(address(t)))),
@@ -916,7 +1121,8 @@ contract GatewayTreasuryTest is Test {
             block.chainid, address(t)
         ));
         bytes32 structHash = keccak256(abi.encode(
-            keccak256("AdminOp(bytes32 callHash,uint256 nonce)"), callHash, nonce
+            keccak256("AdminOp(bytes32 callHash,uint256 nonce,uint256 deadline,uint256 epoch)"),
+            callHash, nonce, ADMIN_DEADLINE, t.adminEpoch()
         ));
         return keccak256(abi.encodePacked("\x19\x01", domSep, structHash));
     }
@@ -933,12 +1139,47 @@ contract GatewayTreasuryTest is Test {
         return keccak256(abi.encodePacked("\x19\x01", domSep, structHash));
     }
 
+    function _onePk(uint256 pk) internal pure returns (uint256[] memory a) {
+        a = new uint256[](1);
+        a[0] = pk;
+    }
+
+    function _typedDigest(GatewayTreasury t, bytes32 structHash) internal view returns (bytes32) {
+        bytes32 domSep = keccak256(abi.encode(
+            keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+            keccak256("GatewayTreasury"), keccak256("1"),
+            block.chainid, address(t)
+        ));
+        return keccak256(abi.encodePacked("\x19\x01", domSep, structHash));
+    }
+
+    function _minters(uint256 n) internal pure returns (bytes32[] memory m) {
+        m = new bytes32[](n);
+        for (uint256 i = 0; i < n; i++) m[i] = SOL_MINTER;
+    }
+
+    function _copy(BurnIntent memory i) internal pure returns (BurnIntent memory) {
+        return abi.decode(abi.encode(i), (BurnIntent));
+    }
+
+    function _adminSigs(GatewayTreasury t, bytes memory call_, uint256 nonce) internal view returns (bytes memory) {
+        return _signSorted(_allPrivKeys(3), _adminDigest(t, keccak256(call_), nonce));
+    }
+
+    function _queueWithSigs(GatewayTreasury t, bytes memory call_, uint256 nonce, bytes memory sigs) internal {
+        t.queueAdmin(call_, nonce, ADMIN_DEADLINE, sigs);
+    }
+
+    function _queueOnly(GatewayTreasury t, bytes memory call_, uint256 nonce) internal {
+        _queueWithSigs(t, call_, nonce, _adminSigs(t, call_, nonce));
+    }
+
     /// @dev Helper to queue+warp+execute an admin call on treasury.
     function _queueAndExecute(GatewayTreasury t, bytes memory call_, uint256 nonce) internal {
         bytes32 callHash = keccak256(call_);
         bytes32 digest   = _adminDigest(t, callHash, nonce);
         bytes memory sigs = _signSorted(_allPrivKeys(3), digest);
-        t.queueAdmin(call_, nonce, sigs);
+        t.queueAdmin(call_, nonce, ADMIN_DEADLINE, sigs);
         vm.warp(block.timestamp + TIMELOCK + 1);
         t.executeAdmin(call_, nonce);
     }
