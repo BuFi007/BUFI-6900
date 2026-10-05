@@ -27,7 +27,7 @@ export interface PositionInfo {
   feeEstimate: number
 }
 
-export const EVM_TREASURY = '0x692Db08885870fA99ADA4Acdee02633947669daF' as const
+export const EVM_TREASURY = '0xC3f4De2372167F7FFA0a1B3FbF221a8a7289e7d5' as const
 export const SOLANA_VAULT = 'AtBgen532MGQmGjhmKcXRHxaBpSDz1ML6WXuUYw1yy9B'
 export const SOLANA_SMART_ACCOUNT = 'AVfkRovDYbmb3Nf7nUGdrubYWykeoY4vtphPusjnMshz'
 export const SOLANA_DELEGATE = 'EBjX3U8y1S1weZBNGooB7Ab3YmsFLNGK5W6EVYKhL3c2'
