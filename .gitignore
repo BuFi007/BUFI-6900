@@ -19,3 +19,6 @@ contracts/deployments/local/
 contracts/out-*/
 contracts/cache-*/
 junit.xml
+
+# gstack QA reports (local evidence)
+.gstack/

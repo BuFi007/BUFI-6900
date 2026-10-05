@@ -102,3 +102,22 @@ the account's own ETH.
    install signed by the passkey. Without the `verificationGasLimit` override the first op fails with `AA26`.
 
 The same scenario runs headlessly with `bun run e2e` (exit 0 = `ALL GREEN`); the UI mirrors `scripts/e2e.ts` step by step.
+
+## Solana · Squads tab (`#solana`)
+
+The same weighted-treasury spec, enforced by the Squads Smart Account Program (`SMRTzfY6…dunG`) instead of a
+Circle MSCA. Built on `@bufi6900/weighted-treasury`: the UI and the headless proof call the same `squadsSteps`.
+
+```bash
+bun run solana:sandbox                    # repo root: solana-test-validator with the MAINNET program + config cloned
+bun run --cwd apps/playground dev         # open http://localhost:5173/#solana
+bun run solana:proof                      # headless: same flow, asserts every outcome (exit 0 = PROOF PASSED)
+```
+
+Flow: edit weights/threshold (both compilers rerun; impossible specs are refused) → Airdrop → Create smart account
+(all owners, admin timelock) → fund vault → Propose → Approve as each owner (2 of 3 cannot execute; the timelock
+countdown runs on the chain's clock) → Execute → Spend. Every spend is judged twice: what Circle's weighted
+multisig + AddressBook + ERC-20 would do, and what Squads did; "Same?" must always be ✓.
+
+Owners are browser keypairs (localStorage) standing in for Circle user-controlled Solana wallets and hold 0 SOL;
+the fee payer covers everything. The cluster selector also targets devnet.
