@@ -14,6 +14,7 @@ easy to miss, so it is stated here rather than left to be discovered.
 | `contracts/src/bufi/v0.8/gateway/**` | **GPL-3.0-or-later** | New BUFI code. |
 | `contracts/src/bufi/v0.7/earn/BufiEarnModule.sol` | **AGPL-3.0-only** | Port of fluidkey/fluidkey-earn-module, which is AGPL-3.0-only. |
 | `packages/modular-wallets-core`, `packages/msca-recovery` | **Apache-2.0** | Forks of Circle's SDKs, which are Apache-2.0. |
+| `packages/weighted-treasury` | **Apache-2.0** | New BUFI code, permissive so Squads, Altitude and Circle can adopt it. Depends on nothing from the AGPL Squads repo. |
 | `packages/mock-circle`, repo root | **GPL-3.0-or-later** | New BUFI code. |
 | `packages/subgraph-arc` (`src/bufi/**`, `src/commerce/**`, `scripts/**`, BUFI schema additions) | **GPL-3.0-or-later** | New BUFI code. |
 | `packages/subgraph-arc` (`src/identity/**`, `src/shared/**`, document parsers) | **Used with permission** | Adapted from Space Object's ETHGlobal hackathon subgraphs, which ship no license file; permission granted to BUFI's founder 2026-09-13. Not redistributable under this repo's GPL on their own — treat as permissioned third-party code. |

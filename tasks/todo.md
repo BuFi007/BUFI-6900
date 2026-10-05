@@ -87,3 +87,21 @@ to auditors and to Circle. Plus a fork of Circle's web SDK that speaks our plugi
 - [ ] Redeploy the recipient hook to Fuji/Arc (it exists only on the audit vnet and locally) and add it to the deployment records
 - [ ] mock-circle: raise passkey verification-gas tiers on anvil (no P-256 precompile) or run anvil `--odyssey`
 - [ ] Live Fuji canary: extend it with the over-budget and off-scope rejections (only forge/mock prove those today)
+
+## Weighted-allowlist treasury on Squads (2026-10-04, /squads-protocol)
+
+Goal: one chain-neutral treasury spec (weighted owners + recipient allowlist) that compiles to the
+Circle MSCA stack on EVM AND to the Squads Smart Account Program on Solana, with identical
+"who can move money where" semantics. Vendor-neutral and Apache-2.0 so Squads / Altitude can adopt it.
+Decision (founder): Squads-only v1, no custom Solana program; weighted admin = v2 proposal.
+
+- [x] `packages/weighted-treasury` — spec + validation, minimal-winning-coalition enumeration
+- [x] EVM compiler → `{ owners[{address,weight}], thresholdWeight, allowlist }` (treasury-kit shape)
+- [x] Squads compiler → settings (all owners, threshold = N, admin timelock) + one SpendingLimit
+      policy per (minimal coalition × asset), destinations = allowlist; reject-don't-weaken rules
+- [x] parity test: for every owner subset, EVM accepts ⇔ some Squads policy accepts
+- [x] Squads instruction adapter (peer dep on `@sqds/smart-account`, SDK built from pinned commit, not vendored: repo LICENSE is AGPL, SDK package.json says MIT)
+- [x] devnet proof: winning group spends to allowlisted wallet; losing group has no policy; winning group to non-allowlisted wallet rejected; admin edit needs all owners
+- [x] `docs/WEIGHTED-TREASURY-SQUADS.md` — proposal for Squads / Altitude / Circle
+- [ ] v2: weighted-approver program as `settings_authority` (weighted admin parity) — needs Squads co-design + audit
+- [ ] mainnet: only after Squads adds an upgrade timelock to the Smart Account Program (or we accept and disclose it)

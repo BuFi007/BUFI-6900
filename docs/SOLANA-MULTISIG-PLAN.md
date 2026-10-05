@@ -1,6 +1,6 @@
 # Solana multisig support — plan
 
-**Status: design. No Rust written.** Whether BUFI's weighted-multisig treasury + agentic-wallet model
+**Status: design. No Rust written.** **Update 2026-10-04:** the weighted + allowlist treasury is built and proven on devnet with no custom program, by encoding weights as one Squads Smart Account policy per minimal winning coalition. See `docs/WEIGHTED-TREASURY-SQUADS.md`; that supersedes §3 (nesting) and §7.1–2 below. Whether BUFI's weighted-multisig treasury + agentic-wallet model
 can exist on Solana, what carries across from `BUFI-6900`, and what has to be rebuilt. Companion to
 `docs/VAULT-BOOK-PLAN.md`, which assumes EVM throughout.
 

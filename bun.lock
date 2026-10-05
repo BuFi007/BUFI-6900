@@ -148,6 +148,15 @@
         "typescript": "^5.9.0",
       },
     },
+    "packages/weighted-treasury": {
+      "name": "@bufi6900/weighted-treasury",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@templates/tsconfig": "workspace:*",
+        "@types/node": "^24.0.0",
+        "typescript": "^5.9.0",
+      },
+    },
     "tooling/eslint-config": {
       "name": "@templates/eslint-config",
       "version": "1.0.0",
@@ -295,6 +304,8 @@
     "@bufi6900/the-graph": ["@bufi6900/the-graph@workspace:packages/the-graph"],
 
     "@bufi6900/treasury-kit": ["@bufi6900/treasury-kit@workspace:packages/treasury-kit"],
+
+    "@bufi6900/weighted-treasury": ["@bufi6900/weighted-treasury@workspace:packages/weighted-treasury"],
 
     "@chainsafe/is-ip": ["@chainsafe/is-ip@2.1.0", "", {}, "sha512-KIjt+6IfysQ4GCv66xihEitBjvhU/bixbbbFxdJ1sqCp4uJ0wuZiYBPhksZoy4lfaF0k9cwNzY5upEW/VWdw3w=="],
 
@@ -2351,6 +2362,8 @@
     "@bufi6900/subgraph-arc/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "@bufi6900/treasury-kit/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+
+    "@bufi6900/weighted-treasury/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "@cspotcode/source-map-support/@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.9", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.0.3", "@jridgewell/sourcemap-codec": "^1.4.10" } }, "sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ=="],
 
