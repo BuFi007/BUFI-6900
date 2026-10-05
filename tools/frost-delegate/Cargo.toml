@@ -1,0 +1,17 @@
+[package]
+name = "frost-delegate"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Weighted FROST(Ed25519) threshold key for a Circle Gateway delegate on Solana: DKG, then t-of-n signing that yields one standard Ed25519 signature."
+publish = false
+
+[dependencies]
+frost-ed25519 = { version = "3.0.0", features = ["serde"] }
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+hex = "0.4"
+ed25519-dalek = "2"
+
+[workspace]

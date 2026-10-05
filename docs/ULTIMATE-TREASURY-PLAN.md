@@ -118,7 +118,7 @@ Arc. Uses `packages/weighted-treasury` for the Squads side.
 - [x] Live: ERC-1271 burn from the treasury contract minted on a second chain (`0x9c5b49d4…`, docs/GATEWAY-TREASURY-CANARY.md).
 - [x] Live: Gateway refuses a non-allowlisted recipient and a sub-threshold quorum (refusals recorded).
 - [x] Live: deposit by quorum-signed `depositWithAuthorization` (no user operation), `0xb9d5bc6e…`.
-- [ ] Solana: Squads deposit + FROST-delegate burn → EVM mint on devnet/testnet, or S1 marked blocked with the reason.
+- [x] Solana: Squads deposit + FROST-delegate burn → mint on Arc testnet (`0x24f28de3…`, docs/GATEWAY-TREASURY-CANARY.md).
 - [ ] Ultimate Treasury app: one balance, asset-first send, approvals, status; deployed preview URL.
 - [ ] Submission doc for Circle: the ERC-6900 plugin (§3b) and the Solana program-signer ask (§4 S3).
 
