@@ -153,6 +153,15 @@ export function squadsSteps(rt: SquadsRuntime, connection: Any) {
     ata: async (payer: Any, mint: Any, owner: Any) =>
       (await spl.getOrCreateAssociatedTokenAccount(connection, payer, mint, owner, true)).address,
 
+    /** The chain's unix time (what the program's timelock check uses), or null if the RPC cannot say. */
+    chainTime: async (): Promise<number | null> => {
+      try {
+        return await connection.getBlockTime(await connection.getSlot())
+      } catch {
+        return null
+      }
+    },
+
     balance: async (tokenAccount: Any): Promise<bigint> => {
       try {
         return BigInt((await connection.getTokenAccountBalance(tokenAccount)).value.amount)

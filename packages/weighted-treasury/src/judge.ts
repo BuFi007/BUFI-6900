@@ -34,3 +34,11 @@ function units(value: bigint, decimals: number): string {
   const frac = (value % base).toString().padStart(decimals, '0').replace(/0+$/, '')
   return frac ? `${value / base}.${frac}` : `${value / base}`
 }
+
+/**
+ * Seconds until an approved proposal can execute. Squads compares against the chain's Clock sysvar, so pass the
+ * CHAIN's current unix time (e.g. `getBlockTime(getSlot())`), never the local wall clock.
+ */
+export function timelockRemaining(input: { approvedAt: number; timeLock: number; chainNow: number }): number {
+  return Math.max(0, input.approvedAt + input.timeLock - input.chainNow)
+}

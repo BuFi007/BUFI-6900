@@ -66,13 +66,34 @@ const defaults = (): Persisted => ({
   timelock: 10,
 })
 
+const KEY_LABELS = [...OWNER_IDS, 'R', 'S', 'payer'] as const
+
+/** Stored state with every keypair present: missing ones are generated and saved here, never during render. */
 const load = (): Persisted => {
+  let state = defaults()
   try {
     const raw = localStorage.getItem(STORE)
-    return raw ? { ...defaults(), ...(JSON.parse(raw) as Persisted) } : defaults()
+    if (raw) state = { ...state, ...(JSON.parse(raw) as Persisted) }
   } catch {
-    return defaults()
+    /* unreadable or blocked storage: start fresh */
   }
+  const keys = { ...state.keys }
+  let generated = false
+  for (const label of KEY_LABELS) {
+    if (!keys[label]) {
+      keys[label] = toB64(Keypair.generate().secretKey)
+      generated = true
+    }
+  }
+  state = { ...state, keys }
+  if (generated) {
+    try {
+      localStorage.setItem(STORE, JSON.stringify(state))
+    } catch {
+      /* storage blocked: keys live for this tab only */
+    }
+  }
+  return state
 }
 
 const toB64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes))
@@ -95,19 +116,12 @@ export function useSquadsDemo() {
     })
   }, [])
 
-  // Generate any missing keypair once, then keep it.
+  // `load()` guarantees every keypair exists, so this is a pure decode.
   const keys = React.useMemo(() => {
     const out: Record<string, Keypair> = {}
-    const fresh: Record<string, string> = {}
-    for (const label of [...OWNER_IDS, 'R', 'S', 'payer']) {
-      const existing = store.keys[label]
-      const kp = existing ? Keypair.fromSecretKey(fromB64(existing)) : Keypair.generate()
-      if (!existing) fresh[label] = toB64(kp.secretKey)
-      out[label] = kp
-    }
-    if (Object.keys(fresh).length) queueMicrotask(() => save({ keys: { ...store.keys, ...fresh } }))
+    for (const label of KEY_LABELS) out[label] = Keypair.fromSecretKey(fromB64(store.keys[label]!))
     return out
-  }, [store.keys, save])
+  }, [store.keys])
 
   const connection = React.useMemo(() => new Connection(store.rpc, 'confirmed'), [store.rpc])
   const steps = React.useMemo(() => squadsSteps({ web3, spl, BN, sa }, connection), [connection])
@@ -144,7 +158,9 @@ export function useSquadsDemo() {
     proposal?: { status: string; approved: string[]; timestamp?: number } | null
     policies: ({ address: string; signers: string[]; threshold: number } | null)[]
     balances: { vault: bigint; R: bigint; S: bigint }
-  }>({ online: false, programDeployed: false, payerSol: 0, ownerSol: {}, policies: [], balances: { vault: 0n, R: 0n, S: 0n } })
+    /** Chain clock minus this browser's clock, in seconds. Timelocks are judged on the chain's clock. */
+    chainClockOffset: number
+  }>({ online: false, programDeployed: false, payerSol: 0, ownerSol: {}, policies: [], balances: { vault: 0n, R: 0n, S: 0n }, chainClockOffset: 0 })
   const [tick, setTick] = React.useState(0)
   const refresh = React.useCallback(() => setTick((t) => t + 1), [])
 
@@ -174,7 +190,9 @@ export function useSquadsDemo() {
           return steps.balance(addr)
         }
         const balances = { vault: await bal(undefined, store.token?.vaultAta), R: await bal(keys.R), S: await bal(keys.S) }
-        if (!cancelled) setChain({ online: true, programDeployed: !!program?.executable, payerSol, ownerSol, settings, proposal, policies, balances })
+        const chainNow = await steps.chainTime()
+        const chainClockOffset = chainNow === null ? 0 : chainNow - Date.now() / 1000
+        if (!cancelled) setChain({ online: true, programDeployed: !!program?.executable, payerSol, ownerSol, settings, proposal, policies, balances, chainClockOffset })
       } catch {
         if (!cancelled) setChain((c) => ({ ...c, online: false }))
       }

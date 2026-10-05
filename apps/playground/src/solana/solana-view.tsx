@@ -6,6 +6,8 @@
  */
 import * as React from 'react'
 
+import { timelockRemaining } from '@bufi6900/weighted-treasury'
+
 import { Field, Mono, Panel, Tag } from '../ui'
 import { DEVNET, LOCALNET, OWNER_IDS, short, useSquadsDemo } from './use-squads-demo'
 
@@ -26,9 +28,23 @@ export function SolanaView() {
   }, [])
 
   const approvedAt = proposal?.status === 'Approved' ? proposal.timestamp : undefined
-  const unlocksIn = approvedAt !== undefined ? Math.max(0, approvedAt + (chain.settings?.timeLock ?? store.timelock) - now) : undefined
+  // While a change waits on its timelock, re-read the chain (and its clock) so the countdown tracks it.
+  const { refresh } = demo
+  React.useEffect(() => {
+    if (approvedAt === undefined || policiesLive) return
+    const t = setInterval(refresh, 3000)
+    return () => clearInterval(t)
+  }, [approvedAt, policiesLive, refresh])
+  // The program checks the timelock against the CHAIN's clock, which can lag this browser's (localnet often does).
+  const unlocksIn =
+    approvedAt !== undefined
+      ? timelockRemaining({ approvedAt, timeLock: chain.settings?.timeLock ?? store.timelock, chainNow: Math.floor(now + chain.chainClockOffset) })
+      : undefined
   const tusd = (raw: bigint) => (Number(raw) / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })
+  // Every on-chain step is paid by the fee payer; with no SOL each one fails with a raw "no prior credit" error.
+  const payerFunded = chain.payerSol >= 0.05
   const disabled = busy !== undefined
+  const chainDisabled = disabled || !payerFunded
   const explorer = (address: string) =>
     store.rpc === DEVNET
       ? `https://explorer.solana.com/address/${address}?cluster=devnet`
@@ -52,6 +68,12 @@ export function SolanaView() {
         <button id="airdrop" onClick={actions.airdrop} disabled={disabled || !chain.online}>
           Airdrop 10 SOL
         </button>
+        {chain.online && !payerFunded && (
+          <span className="error" id="payer-hint">
+            {' '}
+            The fee payer has no SOL. Airdrop first: every step below is paid by it.
+          </span>
+        )}
         {!chain.online && (
           <span className="muted">
             {' '}
@@ -164,10 +186,10 @@ export function SolanaView() {
 
       <div className="grid">
         <Panel title="2 · Treasury" id="treasury" badge={chain.settings ? <Tag kind="ok">on-chain</Tag> : <Tag kind="off">not created</Tag>}>
-          <button className="primary" id="create-treasury" onClick={actions.createTreasury} disabled={disabled || !plan || !chain.online}>
+          <button className="primary" id="create-treasury" onClick={actions.createTreasury} disabled={chainDisabled || !plan || !chain.online}>
             Create smart account
           </button>
-          <button id="fund-vault" onClick={actions.fundVault} disabled={disabled || !store.treasury}>
+          <button id="fund-vault" onClick={actions.fundVault} disabled={chainDisabled || !store.treasury}>
             Create test token, fund vault
           </button>
           <button id="reset" onClick={actions.reset} disabled={disabled}>
@@ -207,20 +229,20 @@ export function SolanaView() {
           badge={policiesLive ? <Tag kind="ok">policies live</Tag> : proposal ? <Tag kind="info">{proposal.status}</Tag> : <Tag kind="off">none</Tag>}
         >
           <p className="muted">Rule changes need every owner on Squads, then the timelock. On EVM the weighted quorum is enough.</p>
-          <button id="propose" onClick={actions.propose} disabled={disabled || !store.token || !!store.admin}>
+          <button id="propose" onClick={actions.propose} disabled={chainDisabled || !store.token || !!store.admin}>
             Propose policies (as A)
           </button>
           <div>
             {owners.map((id) => {
               const key = keys[id]!.publicKey.toBase58()
               return (
-                <button key={id} id={`approve-${id}`} onClick={() => actions.approve(id)} disabled={disabled || !proposal || approved.has(key) || policiesLive}>
+                <button key={id} id={`approve-${id}`} onClick={() => actions.approve(id)} disabled={chainDisabled || !proposal || approved.has(key) || policiesLive}>
                   {approved.has(key) ? `${id} approved ✓` : `Approve as ${id}`}
                 </button>
               )
             })}
           </div>
-          <button className="primary" id="execute" onClick={actions.execute} disabled={disabled || !proposal || policiesLive}>
+          <button className="primary" id="execute" onClick={actions.execute} disabled={chainDisabled || !proposal || policiesLive}>
             Execute
           </button>
           {proposal && (
@@ -273,7 +295,7 @@ export function SolanaView() {
             <input id="amount" type="number" min={0.000001} step="any" value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
           </Field>
         </div>
-        <button className="primary" id="send" onClick={() => actions.spend(group, destination, amount)} disabled={disabled || !policiesLive || group.length === 0 || !(amount > 0)}>
+        <button className="primary" id="send" onClick={() => actions.spend(group, destination, amount)} disabled={chainDisabled || !policiesLive || group.length === 0 || !(amount > 0)}>
           Send
         </button>
         {attempts.length > 0 && (
