@@ -21,7 +21,7 @@ import {
   type WeightedTreasurySpec,
   compileEvm,
   compileSquads,
-  isWinning,
+  expectedSpendOutcome,
   programErrorName,
   squadsSteps,
 } from '@bufi6900/weighted-treasury'
@@ -268,16 +268,19 @@ export function useSquadsDemo() {
     spend: (group: string[], destination: 'R' | 'S', amount: number) =>
       act(`Spend ${amount} TUSD from {${group.join(',')}} to ${destination}`, async () => {
         if (!store.treasury || !store.token || !store.admin || !savedPlan) throw new Error('create the policies first')
-        // Judge against the spec the on-chain policies were compiled from, not the editor's current values.
-        const weights = store.admin.owners
-        const threshold = store.admin.threshold
-        const ids = new Set(group)
-        const weightOk = isWinning(weights, threshold, ids)
-        const destOk = destination === 'R'
-        const expected = {
-          pass: weightOk && destOk,
-          why: !weightOk ? `weight ${sumWeights(weights, ids)} < ${threshold}` : !destOk ? 'S is not on the allowlist' : 'weight reached, R is allowlisted',
-        }
+        // Judge against the spec the on-chain policies were compiled from (not the editor's current values),
+        // and against the vault's balance right now: an underfunded transfer fails on EVM too.
+        const raw = BigInt(Math.round(amount * 10 ** DECIMALS))
+        const available = await steps.balance(new PublicKey(store.token.vaultAta))
+        const expected = expectedSpendOutcome({
+          owners: store.admin.owners,
+          thresholdWeight: store.admin.threshold,
+          approvers: new Set(group),
+          destinationAllowlisted: destination === 'R',
+          amount: raw,
+          available,
+          decimals: DECIMALS,
+        })
         // A policy whose signers are all in the group; otherwise the closest one, to show the program reject it.
         const groupKeys = new Set(group.map((id) => keys[id]!.publicKey.toBase58()))
         let idx = savedPlan.policies.findIndex((p) => p.signers.every((s) => groupKeys.has(s.key)))
@@ -292,7 +295,6 @@ export function useSquadsDemo() {
         const mint = new PublicKey(store.token.mint)
         const dest = keys[destination]!
         const destinationAta = await steps.ata(payer, mint, dest.publicKey)
-        const raw = BigInt(Math.round(amount * 10 ** DECIMALS))
         let actual: Attempt['actual']
         try {
           const sig = await steps.spend({
@@ -325,9 +327,6 @@ export function useSquadsDemo() {
   return { store, keys, owners, spec, compiled, chain, busy, message, attempts, actions, refresh, savedPlan }
 }
 
-function sumWeights(owners: readonly { id: string; weight: number }[], ids: Set<string>) {
-  return owners.filter((o) => ids.has(o.id)).reduce((a, o) => a + o.weight, 0)
-}
 function bestOverlap(plan: SquadsTreasuryPlan, keys: Set<string>) {
   let best = 0
   let score = -1

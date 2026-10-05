@@ -34,6 +34,8 @@ export function programErrorName(err: unknown): string {
   const text = `${e?.logs?.join('\n') ?? ''}\n${e?.message ?? String(err)}`
   const named = text.match(/Error Code: (\w+)/) ?? text.match(/\b(InvalidDestination|NotASigner|InvalidSignerCount|InvalidProposalStatus|TimeLockNotReleased|InsufficientVotePermissions|Unauthorized|AlreadyApproved|InvalidThreshold|SpendingLimitExceeded\w*)\b/)
   if (named) return named[1]!
+  // SPL Token's InsufficientFunds is error 0x1, which says nothing on its own.
+  if (/insufficient funds/i.test(text)) return 'InsufficientFunds'
   const custom = text.match(/custom program error: (0x[0-9a-f]+)/i)
   return custom ? `custom error ${custom[1]}` : (e?.message ?? String(err)).slice(0, 200)
 }
