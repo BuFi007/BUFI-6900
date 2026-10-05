@@ -74,7 +74,7 @@ produce one. So:
 
 | Option | How | Who can move the money | Status |
 | --- | --- | --- | --- |
-| **S1. Threshold delegate (recommended for v1)** | The Squads quorum deposits from its vault and registers ONE delegate whose Ed25519 key is a **FROST threshold key** split among the same owners (weights = share counts). Squads can revoke it (`closeable_at_block`). | A weighted quorum, at the signature layer. The allowlist is enforced by the signing coordinator, not on-chain; disclosed. | Buildable now; FROST Ed25519 libs exist (e.g. `frost-ed25519` Rust, ZcashFoundation). |
+| **S1. Threshold delegate (recommended for v1)** | The Squads quorum deposits from its vault and registers ONE delegate whose Ed25519 key is a **FROST threshold key** split among the same owners (weights = share counts). Squads can revoke it (`closeable_at_block`). | A weighted quorum, at the signature layer. The allowlist is enforced by the signing coordinator (`frost-delegate` checks `policy.json` before any share signs), not on-chain; disclosed. | Buildable now; FROST Ed25519 libs exist (e.g. `frost-ed25519` Rust, ZcashFoundation). |
 | S2. Single delegate key | Squads registers a plain key | Whoever holds the key | Works today; **not acceptable** as "multisig". |
 | **S3. "Solana ERC-1271" (ask Circle)** | Gateway's enclave reads a Squads-approved intent record (a PDA created by a quorum-executed `approve_intent(hash)`), the read-only equivalent of `isValidSignature` / Safe's approved hashes | The Squads quorum, on-chain, with Squads policies | Needs Circle. This is the ask in the submission. |
 

@@ -51,5 +51,6 @@ Measured on the way (Gateway testnet, 2026-10-05):
 - The Solana burn intent is Circle's binary layout (magic `0x070afbc2` / `0xca85def7`, big-endian), signed with a
   16-byte `0xff00…` domain prefix.
 
-What this leg does NOT give: an on-chain allowlist. The coordinator that runs the FROST rounds enforces it. The fix is
+What this leg does NOT give: an on-chain allowlist. The coordinator that runs the FROST rounds enforces it
+(`frost-delegate sign` checks `policy.json` before any share signs); a share majority bypassing it is not bound. The fix is
 a Solana counterpart to ERC-1271 in Gateway (read a Squads-approved intent), which is in the Circle ask.
