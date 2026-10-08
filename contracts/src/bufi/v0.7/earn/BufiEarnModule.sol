@@ -21,7 +21,7 @@ import {IPluginExecutor} from "@circle/msca/6900/v0.7/interfaces/IPluginExecutor
 /**
  * @title BufiEarnModule
  * @notice ERC-6900 port of Fluidkey's FluidkeyEarnModule (a Safe module, itself
- * based on Rhinestone's AutoSavings): an authorized relayer can sweep a
+ * based on Rhinestone's AutoSavings): the account's own relayer can sweep a
  * treasury MSCA's idle ERC-20 balance into a pre-configured ERC-4626 vault.
  * Deposit-only by design — vault shares always mint to the account itself and
  * redemption remains a multisig action. Worst case for a compromised relayer is
@@ -33,12 +33,21 @@ import {IPluginExecutor} from "@circle/msca/6900/v0.7/interfaces/IPluginExecutor
  *    relayer authorization moved into the account-side runtime validation.
  *  - No native-token wrap path — BUFI treasuries hold USDC/EURC only, and Arc
  *    uses USDC as native gas, which makes wrapped-native semantics ambiguous.
- *  - No signature-relay overload — the relayer (Shiva key or CRE extractor)
+ *  - No signature-relay overload — the account's relayer (its team's agent DCW)
  *    calls the account directly; less surface for the first audit pass.
- *  - Relayer add/remove is onlyOwner — relayers cannot mint more relayers.
- *  - Ownership is two-step (Ownable2Step) and the owner is NOT implicitly a
- *    relayer: only an address the owner explicitly authorized can trigger
- *    `autoEarn` (plan 398 freeze). The production owner is the chain's Safe.
+ *  - PER-ACCOUNT relayer (plan 398, founder 2026-10-08). There is no global
+ *    relayer set: each account names exactly one relayer in its own install
+ *    data (`abi.encode(configHash, relayer)`), so installing the module — a
+ *    userOp under the account's own owners' signatures — is what authorizes it.
+ *    In production it is the team's own agent Circle DCW. Only the account can
+ *    change it afterwards (`setRelayer`, same owner-gated validation as
+ *    `changeConfigHash`); uninstall clears it. A relayer can only ever act on
+ *    the one account that named it.
+ *  - Ownership is two-step (Ownable2Step), renounce is disabled, and the owner
+ *    (the chain's Safe) has exactly ONE power: `setConfig`, publishing vault
+ *    sets to the global, content-addressed registry. It cannot name, change or
+ *    remove any account's relayer, cannot re-point any account's adopted
+ *    config, and is never implicitly a relayer.
  *  - SentinelList dependency replaced with a plain array + membership mapping.
  *  - `changeConfigHash` is an ERC-6900 execution function routed through the
  *    account (see "Deviation (BUFI-6900)" below), not a bare
@@ -56,7 +65,8 @@ import {IPluginExecutor} from "@circle/msca/6900/v0.7/interfaces/IPluginExecutor
  * `[FunctionReference(weightedPlugin, 1), FunctionReference(weightedPlugin, 0)]`
  * — id 1 is deliberately unimplemented on the weighted plugin, so the runtime
  * path is fail-closed and only a threshold-signed userOp can re-point the
- * account's vault set. `autoEarn` is unchanged: runtime-only, relayer-gated.
+ * account's vault set. `setRelayer` uses the identical arrangement. `autoEarn`
+ * is runtime-only, gated on the calling account's own relayer.
  *
  * DEVELOPMENT ONLY: gated off in production by `isCircleEarnModuleEnabled()`
  * in packages/env/src/circle.ts. Target chains: Avalanche + Arc, where
@@ -98,8 +108,9 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable2Step {
     uint256 public constant OWNER_RUNTIME_VALIDATION_DEPENDENCY_INDEX = 0;
     uint256 public constant OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX = 1;
 
-    /// @dev Relayer addresses allowed to trigger autoEarn on installed accounts.
-    mapping(address => bool) public authorizedRelayers;
+    /// @dev relayerOf[account] = the one address allowed to trigger autoEarn on that account. Set by the account
+    /// at install, changed only by the account (`setRelayer`), cleared on uninstall. Never set by the owner.
+    mapping(address account => address relayer) public relayerOf;
 
     /// @dev config[configHash][chainId][token] = vault. The chainId dimension
     /// lets one configHash cover Avalanche + Arc when the module is deployed at
@@ -113,8 +124,7 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable2Step {
     /// @dev accountConfig[account] = configHash the account opted into at install.
     mapping(address => uint256) public accountConfig;
 
-    event AddAuthorizedRelayer(address indexed relayer);
-    event RemoveAuthorizedRelayer(address indexed relayer);
+    event RelayerSet(address indexed account, address indexed relayer);
     event ModuleInitialized(address indexed account);
     event ModuleUninitialized(address indexed account);
     event ConfigSet(uint256 indexed configHash, uint256 indexed chainId, address token);
@@ -141,11 +151,9 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable2Step {
                                  CONSTRUCTOR
     //////////////////////////////////////////////////////////////////////////*/
 
-    constructor(address _authorizedRelayer, address _owner) Ownable(_owner) {
-        if (_authorizedRelayer == address(0)) revert ZeroAddress();
-        authorizedRelayers[_authorizedRelayer] = true;
-        emit AddAuthorizedRelayer(_authorizedRelayer);
-    }
+    /// @dev Owner only. With no relayer argument, the init code — and so the CREATE2 address — depends on the
+    /// deployer, the salt and the bootstrap owner alone: one module address on every chain.
+    constructor(address _owner) Ownable(_owner) {}
 
     /// @notice Disabled (plan 398, founder 2026-10-08). An ownerless registry is frozen forever, so the
     /// Safe can only ever hand ownership on through the two-step transfer, never drop it.
@@ -156,17 +164,6 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable2Step {
     /*//////////////////////////////////////////////////////////////////////////
                                      CONFIG
     //////////////////////////////////////////////////////////////////////////*/
-
-    function addAuthorizedRelayer(address newRelayer) external onlyOwner {
-        if (newRelayer == address(0)) revert ZeroAddress();
-        authorizedRelayers[newRelayer] = true;
-        emit AddAuthorizedRelayer(newRelayer);
-    }
-
-    function removeAuthorizedRelayer(address relayer) external onlyOwner {
-        delete authorizedRelayers[relayer];
-        emit RemoveAuthorizedRelayer(relayer);
-    }
 
     /**
      * @dev Registers a (chainId, token, vault) set under its content hash.
@@ -223,6 +220,22 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable2Step {
         uint256 oldConfigHash = accountConfig[account];
         accountConfig[account] = newConfigHash;
         emit ConfigHashChanged(account, oldConfigHash, newConfigHash);
+    }
+
+    /// @notice Execution function installed on the account: the account replaces its own relayer. Reached through
+    /// the account's fallback, so msg.sender is the MSCA itself and the change can only ever touch that account's
+    /// slot. Bound to the same owner-gated dependency slots as `changeConfigHash`: on a weighted account only a
+    /// threshold-signed userOp can rotate the relayer — never the current relayer, never the module owner.
+    function setRelayer(address newRelayer) external {
+        address account = msg.sender;
+        if (!isInitialized(account)) revert ModuleNotInitialized(account);
+        _setRelayer(account, newRelayer);
+    }
+
+    function _setRelayer(address account, address newRelayer) internal {
+        if (newRelayer == address(0)) revert ZeroAddress();
+        relayerOf[account] = newRelayer;
+        emit RelayerSet(account, newRelayer);
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -308,15 +321,18 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable2Step {
                               IPlugin IMPLEMENTATION
     //////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev pluginInstallData = abi.encode(uint256 configHash).
+    /// @dev pluginInstallData = abi.encode(uint256 configHash, address relayer). The relayer is the account's own
+    /// choice, authorized by the same owner signatures that authorize the install (in production: the team's agent
+    /// Circle DCW on this chain). Zero is refused.
     function onInstall(bytes calldata data) external override {
         address account = msg.sender;
         if (isInitialized(account)) revert ModuleAlreadyInitialized(account);
 
-        uint256 configHash_ = abi.decode(data, (uint256));
+        (uint256 configHash_, address relayer_) = abi.decode(data, (uint256, address));
         if (configHash_ == 0) revert InvalidConfigHash();
 
         accountConfig[account] = configHash_;
+        _setRelayer(account, relayer_);
 
         emit ModuleInitialized(account);
         emit ConfigHashChanged(account, 0, configHash_);
@@ -325,13 +341,16 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable2Step {
     function onUninstall(bytes calldata) external override {
         address account = msg.sender;
         accountConfig[account] = 0;
+        delete relayerOf[account];
+        emit RelayerSet(account, address(0));
         emit ModuleUninitialized(account);
     }
 
     /// @dev The only validation this plugin provides: the runtime caller of
-    /// account.autoEarn must be an explicitly authorized relayer. The owner is
-    /// deliberately NOT accepted here (plan 398): the owner is the chain's Safe,
-    /// and a governance key must not double as an operational one.
+    /// account.autoEarn must be THAT account's relayer. The account calls this
+    /// function itself during its runtime validation, so msg.sender is the
+    /// account being acted on and the check is per account: a relayer named by
+    /// one account is refused on every other. The owner is never accepted.
     function runtimeValidationFunction(uint8 functionId, address sender, uint256, bytes calldata)
         external
         view
@@ -340,7 +359,8 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable2Step {
         if (functionId != FUNCTION_ID_RUNTIME_VALIDATION_RELAYER) {
             revert InvalidFunctionId(functionId);
         }
-        if (!authorizedRelayers[sender]) revert NotAuthorized(sender);
+        address relayer_ = relayerOf[msg.sender];
+        if (relayer_ == address(0) || sender != relayer_) revert NotAuthorized(sender);
     }
 
     function preUserOpValidationHook(uint8, PackedUserOperation calldata, bytes32)
@@ -380,9 +400,9 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable2Step {
     function pluginMetadata() external pure override returns (PluginMetadata memory) {
         PluginMetadata memory metadata;
         metadata.name = "BufiEarnModule";
-        metadata.version = "0.1.0-dev";
+        metadata.version = "0.2.0-dev";
         metadata.author = "BUFI";
-        metadata.permissionDescriptors = new SelectorPermission[](2);
+        metadata.permissionDescriptors = new SelectorPermission[](3);
         metadata.permissionDescriptors[0] = SelectorPermission({
             functionSelector: this.autoEarn.selector,
             permissionDescription: "Deposit account ERC-20 balance into its pre-configured ERC-4626 vault"
@@ -390,6 +410,10 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable2Step {
         metadata.permissionDescriptors[1] = SelectorPermission({
             functionSelector: this.changeConfigHash.selector,
             permissionDescription: "Adopt a different owner-registered vault set (multisig-only)"
+        });
+        metadata.permissionDescriptors[2] = SelectorPermission({
+            functionSelector: this.setRelayer.selector,
+            permissionDescription: "Replace this account's earn relayer (multisig-only)"
         });
         return metadata;
     }
@@ -404,7 +428,7 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable2Step {
      * is still only IERC20.approve + IERC4626.deposit toward the account's
      * adopted config — autoEarn is the only execution function that moves
      * funds. autoEarn has no userOp validation: it is runtime-callable only.
-     * changeConfigHash is owner-gated through two dependency slots, the same
+     * changeConfigHash and setRelayer are owner-gated through two dependency slots, the same
      * arrangement ColdStorageAddressBookPlugin uses for its management
      * functions: `dependencyInterfaceIds = [IPlugin, IPlugin]`, runtime
      * validation -> slot 0, userOp validation -> slot 1.
@@ -412,15 +436,16 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable2Step {
     function _manifest() internal pure returns (PluginManifest memory) {
         PluginManifest memory manifest;
 
-        manifest.executionFunctions = new bytes4[](2);
+        manifest.executionFunctions = new bytes4[](3);
         manifest.executionFunctions[0] = this.autoEarn.selector;
         manifest.executionFunctions[1] = this.changeConfigHash.selector;
+        manifest.executionFunctions[2] = this.setRelayer.selector;
 
         manifest.dependencyInterfaceIds = new bytes4[](2);
         manifest.dependencyInterfaceIds[OWNER_RUNTIME_VALIDATION_DEPENDENCY_INDEX] = type(IPlugin).interfaceId;
         manifest.dependencyInterfaceIds[OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX] = type(IPlugin).interfaceId;
 
-        manifest.userOpValidationFunctions = new ManifestAssociatedFunction[](1);
+        manifest.userOpValidationFunctions = new ManifestAssociatedFunction[](2);
         manifest.userOpValidationFunctions[0] = ManifestAssociatedFunction({
             executionSelector: this.changeConfigHash.selector,
             associatedFunction: ManifestFunction({
@@ -429,8 +454,16 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable2Step {
                 dependencyIndex: OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX
             })
         });
+        manifest.userOpValidationFunctions[1] = ManifestAssociatedFunction({
+            executionSelector: this.setRelayer.selector,
+            associatedFunction: ManifestFunction({
+                functionType: ManifestAssociatedFunctionType.DEPENDENCY,
+                functionId: 0, // unused for dependency
+                dependencyIndex: OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX
+            })
+        });
 
-        manifest.runtimeValidationFunctions = new ManifestAssociatedFunction[](2);
+        manifest.runtimeValidationFunctions = new ManifestAssociatedFunction[](3);
         manifest.runtimeValidationFunctions[0] = ManifestAssociatedFunction({
             executionSelector: this.autoEarn.selector,
             associatedFunction: ManifestFunction({
@@ -441,6 +474,14 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable2Step {
         });
         manifest.runtimeValidationFunctions[1] = ManifestAssociatedFunction({
             executionSelector: this.changeConfigHash.selector,
+            associatedFunction: ManifestFunction({
+                functionType: ManifestAssociatedFunctionType.DEPENDENCY,
+                functionId: 0, // unused for dependency
+                dependencyIndex: OWNER_RUNTIME_VALIDATION_DEPENDENCY_INDEX
+            })
+        });
+        manifest.runtimeValidationFunctions[2] = ManifestAssociatedFunction({
+            executionSelector: this.setRelayer.selector,
             associatedFunction: ManifestFunction({
                 functionType: ManifestAssociatedFunctionType.DEPENDENCY,
                 functionId: 0, // unused for dependency

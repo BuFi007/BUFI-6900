@@ -36,7 +36,7 @@ contract BufiEarnMorphoVaultV2ForkTest is CircleStackHarness {
         require(block.chainid == 8453, "run with --fork-url <base mainnet rpc>");
         // Circle's production stack is already at the canonical addresses on Base; the harness only allowlists.
         _deployCircleCanonicalStack();
-        earn = new BufiEarnModule(relayer, earnOwner);
+        earn = new BufiEarnModule(earnOwner);
     }
 
     function test_vaultV2_maxDepositIsZero_butDepositWorks_forATreasuryMsca() public {
@@ -59,7 +59,7 @@ contract BufiEarnMorphoVaultV2ForkTest is CircleStackHarness {
         quorum[0] = owners[0];
         quorum[1] = owners[1];
         assertTrue(
-            _installPlugin(msca, address(earn), abi.encode(configHash), _addressBookDependencies(), quorum),
+            _installPlugin(msca, address(earn), abi.encode(configHash, relayer), _addressBookDependencies(), quorum),
             "earn install via multisig userOp"
         );
         assertTrue(_isInstalled(msca, address(earn)));

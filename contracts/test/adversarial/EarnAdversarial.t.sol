@@ -82,7 +82,7 @@ contract EarnAdversarialTest is SessionKeyHarness {
         relayer = makeAddr("relayer");
         stranger = makeAddr("stranger");
         agent = _signerFrom("earn-agent");
-        module = new BufiEarnModule(relayer, moduleOwner);
+        module = new BufiEarnModule(moduleOwner);
         usdc = new SandboxUSDC();
         vault = new MockVault(IERC20(address(usdc)));
         configHash = _register(address(usdc), address(vault));
@@ -97,7 +97,7 @@ contract EarnAdversarialTest is SessionKeyHarness {
     }
 
     function _installEarn(uint256 hash) internal returns (bool) {
-        return _installPlugin(account, address(module), abi.encode(hash), _addressBookDependencies(), quorum);
+        return _installPlugin(account, address(module), abi.encode(hash, relayer), _addressBookDependencies(), quorum);
     }
 
     function _uninstallEarn() internal returns (bool) {
@@ -111,15 +111,20 @@ contract EarnAdversarialTest is SessionKeyHarness {
         vm.expectRevert();
         BufiEarnModule(address(account)).autoEarn(address(usdc), 1e6);
 
+        // The module owner (the Safe) has no relayer power at all: it cannot revoke or replace an account's relayer.
         vm.prank(moduleOwner);
-        module.removeAuthorizedRelayer(relayer);
-        vm.prank(relayer);
+        (bool ownerCould,) = address(module).call(abi.encodeWithSignature("removeAuthorizedRelayer(address)", relayer));
+        assertFalse(ownerCould, "no global relayer registry");
+        vm.prank(moduleOwner);
         vm.expectRevert();
         BufiEarnModule(address(account)).autoEarn(address(usdc), 1e6);
 
+        // Only the account itself (a quorum-signed userOp) rotates it; the old relayer is refused afterwards.
         address replacement = makeAddr("replacement-relayer");
-        vm.prank(moduleOwner);
-        module.addAuthorizedRelayer(replacement);
+        assertTrue(_executeUserOp(account, abi.encodeCall(BufiEarnModule.setRelayer, (replacement)), quorum));
+        vm.prank(relayer);
+        vm.expectRevert();
+        BufiEarnModule(address(account)).autoEarn(address(usdc), 1e6);
         vm.prank(replacement);
         BufiEarnModule(address(account)).autoEarn(address(usdc), 1e6);
         assertEq(vault.balanceOf(address(account)), vault.previewDeposit(1e6));
@@ -282,7 +287,7 @@ contract EarnAdversarialTest is SessionKeyHarness {
         FunctionReference[] memory wrong = new FunctionReference[](2);
         wrong[0] = _addressBookDependencies()[0];
         wrong[1] = FunctionReference(address(sessionKeyPlugin), 0);
-        assertTrue(_installPlugin(account, address(module), abi.encode(configHash), wrong, quorum));
+        assertTrue(_installPlugin(account, address(module), abi.encode(configHash, relayer), wrong, quorum));
 
         Call[] memory validationCalls = _calls(_call(stranger, 0, ""));
         bytes memory aliased =

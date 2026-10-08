@@ -24,7 +24,7 @@ contract BufiEarnModuleTest is Test {
     function setUp() public {
         usdc = new MockUsdc();
         vault = new MockVault(usdc);
-        module = new BufiEarnModule(relayer, owner);
+        module = new BufiEarnModule(owner);
         account = new MockMsca();
 
         BufiEarnModule.ConfigInput[] memory configs = new BufiEarnModule.ConfigInput[](1);
@@ -32,7 +32,7 @@ contract BufiEarnModuleTest is Test {
         vm.prank(owner);
         configHash = module.setConfig(configs);
 
-        account.installPlugin(address(module), module.manifestHash(), abi.encode(configHash), _ownerDeps());
+        account.installPlugin(address(module), module.manifestHash(), abi.encode(configHash, relayer), _ownerDeps());
 
         usdc.mint(address(account), TREASURY_BALANCE);
     }
@@ -68,29 +68,166 @@ contract BufiEarnModuleTest is Test {
         assertEq(vault.balanceOf(address(account)), 0);
     }
 
-    /// ...but it can still authorize itself explicitly, which is visible on-chain.
-    function test_ownerTriggersOnlyAfterExplicitAuthorization() public {
-        vm.prank(owner);
-        module.addAuthorizedRelayer(owner);
-        vm.prank(owner);
-        BufiEarnModule(address(account)).autoEarn(address(usdc), 1e6);
-        assertEq(vault.balanceOf(address(account)), vault.convertToShares(1e6));
-    }
-
-    function test_constructorRefusesZeroRelayer() public {
-        vm.expectRevert(BufiEarnModule.ZeroAddress.selector);
-        new BufiEarnModule(address(0), owner);
-    }
-
     function test_constructorRefusesZeroOwner() public {
         vm.expectRevert(abi.encodeWithSignature("OwnableInvalidOwner(address)", address(0)));
-        new BufiEarnModule(relayer, address(0));
+        new BufiEarnModule(address(0));
     }
 
-    function test_addAuthorizedRelayerRefusesZero() public {
-        vm.prank(owner);
+    // ── per-account relayer (plan 398, founder 2026-10-08)
+    // ─────────────────────────────────────────────
+
+    function _secondAccount(address relayerB) internal returns (MockMsca b) {
+        b = new MockMsca();
+        b.installPlugin(address(module), module.manifestHash(), abi.encode(configHash, relayerB), _ownerDeps());
+        usdc.mint(address(b), TREASURY_BALANCE);
+    }
+
+    function test_installRecordsTheAccountsOwnRelayer() public view {
+        assertEq(module.relayerOf(address(account)), relayer);
+    }
+
+    function test_eachRelayerActsOnlyOnTheAccountThatNamedIt() public {
+        address relayerB = makeAddr("relayer-b");
+        MockMsca b = _secondAccount(relayerB);
+        assertEq(module.relayerOf(address(b)), relayerB);
+
+        // A on 1: ok
+        vm.prank(relayer);
+        BufiEarnModule(address(account)).autoEarn(address(usdc), 1e6);
+        assertEq(vault.balanceOf(address(account)), vault.convertToShares(1e6));
+
+        // A on 2: refused
+        vm.prank(relayer);
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.NotAuthorized.selector, relayer));
+        BufiEarnModule(address(b)).autoEarn(address(usdc), 1e6);
+
+        // B on 1: refused
+        vm.prank(relayerB);
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.NotAuthorized.selector, relayerB));
+        BufiEarnModule(address(account)).autoEarn(address(usdc), 1e6);
+
+        // B on 2: ok
+        vm.prank(relayerB);
+        BufiEarnModule(address(b)).autoEarn(address(usdc), 2e6);
+        assertEq(vault.balanceOf(address(b)), vault.convertToShares(2e6));
+        assertEq(vault.balanceOf(address(account)), vault.convertToShares(1e6), "account 1 untouched by B");
+    }
+
+    /// The validation function itself keys on msg.sender (the account being validated), so asking it about
+    /// another account's relayer from this account is refused even with the right sender argument.
+    function test_runtimeValidationIsKeyedOnTheCallingAccount() public {
+        address relayerB = makeAddr("relayer-b");
+        MockMsca b = _secondAccount(relayerB);
+        uint8 id = module.FUNCTION_ID_RUNTIME_VALIDATION_RELAYER();
+        vm.prank(address(account));
+        module.runtimeValidationFunction(id, relayer, 0, "");
+        vm.prank(address(account));
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.NotAuthorized.selector, relayerB));
+        module.runtimeValidationFunction(id, relayerB, 0, "");
+        vm.prank(address(b));
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.NotAuthorized.selector, relayer));
+        module.runtimeValidationFunction(id, relayer, 0, "");
+        // an account with no relayer refuses everyone, including the zero address
+        vm.prank(stranger);
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.NotAuthorized.selector, address(0)));
+        module.runtimeValidationFunction(id, address(0), 0, "");
+    }
+
+    function test_installRefusesZeroRelayer() public {
+        MockMsca fresh = new MockMsca();
+        bytes32 hash = module.manifestHash();
+        FunctionReference[] memory deps = _ownerDeps();
         vm.expectRevert(BufiEarnModule.ZeroAddress.selector);
-        module.addAuthorizedRelayer(address(0));
+        fresh.installPlugin(address(module), hash, abi.encode(configHash, address(0)), deps);
+    }
+
+    /// The pre-398 install shape (configHash alone) must not install with an implicit relayer.
+    function test_installRefusesTheOldConfigHashOnlyShape() public {
+        MockMsca fresh = new MockMsca();
+        bytes32 hash = module.manifestHash();
+        FunctionReference[] memory deps = _ownerDeps();
+        vm.expectRevert();
+        fresh.installPlugin(address(module), hash, abi.encode(configHash), deps);
+        assertFalse(module.isInitialized(address(fresh)));
+    }
+
+    function test_setRelayerOnlyByTheAccountItself() public {
+        address next = makeAddr("next-relayer");
+        // the account (its own validation passed — the multisig IRL) rotates its relayer
+        vm.expectEmit(true, true, false, false, address(module));
+        emit BufiEarnModule.RelayerSet(address(account), next);
+        account.callPlugin(abi.encodeCall(BufiEarnModule.setRelayer, (next)));
+        assertEq(module.relayerOf(address(account)), next);
+
+        vm.prank(relayer);
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.NotAuthorized.selector, relayer));
+        BufiEarnModule(address(account)).autoEarn(address(usdc), 1e6);
+        vm.prank(next);
+        BufiEarnModule(address(account)).autoEarn(address(usdc), 1e6);
+    }
+
+    function test_setRelayerRuntimeCallThroughTheAccountIsFailClosed() public {
+        // neither the current relayer nor the module owner can rotate it at runtime
+        address[2] memory callers = [relayer, owner];
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(callers[i]);
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    MockMsca.RuntimeValidationFailClosed.selector, BufiEarnModule.setRelayer.selector
+                )
+            );
+            BufiEarnModule(address(account)).setRelayer(callers[i]);
+        }
+        assertEq(module.relayerOf(address(account)), relayer);
+    }
+
+    /// A direct call to the module only ever writes the CALLER's slot, and an uninstalled caller has none.
+    function test_directSetRelayerCannotTouchAnotherAccount() public {
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.ModuleNotInitialized.selector, owner));
+        module.setRelayer(owner);
+        vm.prank(stranger);
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.ModuleNotInitialized.selector, stranger));
+        module.setRelayer(stranger);
+        assertEq(module.relayerOf(address(account)), relayer);
+    }
+
+    function test_setRelayerRefusesZero() public {
+        vm.expectRevert(BufiEarnModule.ZeroAddress.selector);
+        account.callPlugin(abi.encodeCall(BufiEarnModule.setRelayer, (address(0))));
+        assertEq(module.relayerOf(address(account)), relayer);
+    }
+
+    function test_uninstallClearsTheRelayer_andReinstallNamesAFreshOne() public {
+        account.uninstallPlugin("");
+        assertEq(module.relayerOf(address(account)), address(0));
+        address next = makeAddr("next-relayer");
+        account.installPlugin(address(module), module.manifestHash(), abi.encode(configHash, next), _ownerDeps());
+        assertEq(module.relayerOf(address(account)), next);
+        vm.prank(relayer);
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.NotAuthorized.selector, relayer));
+        BufiEarnModule(address(account)).autoEarn(address(usdc), 1e6);
+    }
+
+    /// The global relayer registry is gone: no constructor arg, no add/remove, no set getter.
+    function test_globalRelayerFunctionsAreGone() public {
+        bytes[3] memory calls = [
+            abi.encodeWithSignature("addAuthorizedRelayer(address)", stranger),
+            abi.encodeWithSignature("removeAuthorizedRelayer(address)", relayer),
+            abi.encodeWithSignature("authorizedRelayers(address)", relayer)
+        ];
+        for (uint256 i = 0; i < 3; i++) {
+            vm.prank(owner);
+            (bool ok,) = address(module).call(calls[i]);
+            assertFalse(ok, "removed function still answers");
+        }
+    }
+
+    function test_renounceOwnershipStillReverts() public {
+        vm.prank(owner);
+        vm.expectRevert(BufiEarnModule.RenounceDisabled.selector);
+        module.renounceOwnership();
+        assertEq(module.owner(), owner);
     }
 
     function test_ownershipIsTwoStep() public {
@@ -110,9 +247,11 @@ contract BufiEarnModuleTest is Test {
         assertEq(module.owner(), safe);
         assertEq(module.pendingOwner(), address(0));
 
+        BufiEarnModule.ConfigInput[] memory configs = new BufiEarnModule.ConfigInput[](1);
+        configs[0] = BufiEarnModule.ConfigInput({chainId: block.chainid, token: address(usdc), vault: address(vault)});
         vm.prank(owner);
         vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", owner));
-        module.addAuthorizedRelayer(stranger);
+        module.setConfig(configs);
     }
 
     function test_strangerCannotTriggerAutoEarn() public {
@@ -140,9 +279,14 @@ contract BufiEarnModuleTest is Test {
         account.uninstallPlugin("");
         assertFalse(module.isInitialized(address(account)));
 
+        // The relayer was cleared with the config, so the account's own validation refuses it first ...
         vm.prank(relayer);
-        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.ModuleNotInitialized.selector, address(account)));
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.NotAuthorized.selector, relayer));
         BufiEarnModule(address(account)).autoEarn(address(usdc), 1e6);
+        // ... and the execution function itself still refuses an uninitialized account.
+        vm.prank(address(account));
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.ModuleNotInitialized.selector, address(account)));
+        module.autoEarn(address(usdc), 1e6);
     }
 
     function test_installRejectsZeroConfigHash() public {
@@ -150,7 +294,7 @@ contract BufiEarnModuleTest is Test {
         bytes32 hash = module.manifestHash();
         FunctionReference[] memory deps = _ownerDeps();
         vm.expectRevert(BufiEarnModule.InvalidConfigHash.selector);
-        fresh.installPlugin(address(module), hash, abi.encode(uint256(0)), deps);
+        fresh.installPlugin(address(module), hash, abi.encode(uint256(0), relayer), deps);
     }
 
     function test_installRequiresTheTwoOwnerDependencySlots() public {
@@ -158,7 +302,7 @@ contract BufiEarnModuleTest is Test {
         bytes32 hash = module.manifestHash();
         FunctionReference[] memory none = new FunctionReference[](0);
         vm.expectRevert(abi.encodeWithSelector(MockMsca.DependencyCountMismatch.selector, 2, 0));
-        fresh.installPlugin(address(module), hash, abi.encode(configHash), none);
+        fresh.installPlugin(address(module), hash, abi.encode(configHash, relayer), none);
 
         assertEq(account.dependencyCount(), 2);
         (, uint8 runtimeId) = account.dependencies(module.OWNER_RUNTIME_VALIDATION_DEPENDENCY_INDEX());
@@ -183,7 +327,7 @@ contract BufiEarnModuleTest is Test {
     function test_installRejectsDoubleInstall() public {
         vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.ModuleAlreadyInitialized.selector, address(account)));
         vm.prank(address(account));
-        module.onInstall(abi.encode(configHash));
+        module.onInstall(abi.encode(configHash, relayer));
     }
 
     function test_setConfigOnlyOwner() public {
@@ -192,21 +336,6 @@ contract BufiEarnModuleTest is Test {
         vm.prank(stranger);
         vm.expectRevert();
         module.setConfig(configs);
-    }
-
-    function test_relayerManagementOnlyOwner() public {
-        // deviation from Fluidkey: relayers cannot add relayers
-        vm.prank(relayer);
-        vm.expectRevert();
-        module.addAuthorizedRelayer(stranger);
-
-        vm.prank(owner);
-        module.addAuthorizedRelayer(stranger);
-        assertTrue(module.authorizedRelayers(stranger));
-
-        vm.prank(owner);
-        module.removeAuthorizedRelayer(stranger);
-        assertFalse(module.authorizedRelayers(stranger));
     }
 
     function test_accountCanChangeConfigHash() public {

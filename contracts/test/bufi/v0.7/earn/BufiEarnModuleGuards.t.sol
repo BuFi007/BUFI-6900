@@ -62,11 +62,11 @@ contract BufiEarnModuleGuardsTest is Test {
     function setUp() public {
         usdc = new MockUsdc();
         vault = new MockVault(usdc);
-        module = new BufiEarnModule(relayer, owner);
+        module = new BufiEarnModule(owner);
         account = new MockMsca();
 
         configHash = _register(address(usdc), address(vault));
-        account.installPlugin(address(module), module.manifestHash(), abi.encode(configHash), _ownerDeps());
+        account.installPlugin(address(module), module.manifestHash(), abi.encode(configHash, relayer), _ownerDeps());
         usdc.mint(address(account), TREASURY_BALANCE);
     }
 
@@ -204,10 +204,11 @@ contract BufiEarnModuleGuardsTest is Test {
         module.postExecutionHook(0, "");
     }
 
-    function test_pluginMetadataDescribesBothSelectors() public view {
-        assertEq(module.pluginMetadata().permissionDescriptors.length, 2);
+    function test_pluginMetadataDescribesEverySelector() public view {
+        assertEq(module.pluginMetadata().permissionDescriptors.length, 3);
         assertEq(module.pluginMetadata().permissionDescriptors[0].functionSelector, module.autoEarn.selector);
         assertEq(module.pluginMetadata().permissionDescriptors[1].functionSelector, module.changeConfigHash.selector);
+        assertEq(module.pluginMetadata().permissionDescriptors[2].functionSelector, module.setRelayer.selector);
         assertEq(module.pluginMetadata().author, "BUFI");
     }
 
@@ -228,7 +229,7 @@ contract BufiEarnModuleGuardsTest is Test {
     function _accountAdopting(address token, address vault_) internal returns (MockMsca acct, uint256 hash_) {
         hash_ = _register(token, vault_);
         acct = new MockMsca();
-        acct.installPlugin(address(module), module.manifestHash(), abi.encode(hash_), _ownerDeps());
+        acct.installPlugin(address(module), module.manifestHash(), abi.encode(hash_, relayer), _ownerDeps());
     }
 
     function _ownerDeps() internal returns (FunctionReference[] memory deps) {

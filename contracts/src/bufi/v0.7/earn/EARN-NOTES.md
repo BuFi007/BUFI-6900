@@ -9,23 +9,27 @@ uses. Everything below is proved by a passing test; the test name is given each 
 
 | Field | Value | Consequence |
 | --- | --- | --- |
-| `executionFunctions` | `[autoEarn, changeConfigHash]` | Both are routed through the account's fallback; the plugin sees `msg.sender == account`. |
+| `executionFunctions` | `[autoEarn, changeConfigHash, setRelayer]` | All three are routed through the account's fallback; the plugin sees `msg.sender == account`. |
 | `dependencyInterfaceIds` | `[IPlugin, IPlugin]` | Install with exactly TWO `FunctionReference`s. On a weighted account: `[FunctionReference(weighted, 1), FunctionReference(weighted, 0)]` — the same pair `ColdStorageAddressBookPlugin` takes (`_addressBookDependencies()` in the harness). Empty, short, or pointing at a plugin not installed on the account → `InvalidPluginDependency`. |
-| `runtimeValidationFunctions` | `autoEarn -> SELF id 0`; `changeConfigHash -> DEPENDENCY slot 0` | Relayer / module-owner check for `autoEarn` runs inside the account before the plugin is called. `changeConfigHash` at runtime resolves to Weighted id 1, which is unimplemented: fail-closed for every runtime caller, owners included. |
-| `userOpValidationFunctions` | `changeConfigHash -> DEPENDENCY slot 1` | Only `changeConfigHash` has a userOp path, validated by the Weighted owner set (threshold). `autoEarn` cannot be reached by a userOp even fully signed by the quorum (`InvalidValidationFunctionId` at the EntryPoint). |
+| `runtimeValidationFunctions` | `autoEarn -> SELF id 0`; `changeConfigHash`, `setRelayer -> DEPENDENCY slot 0` | The per-account relayer check for `autoEarn` (`sender == relayerOf[account]`) runs inside the account before the plugin is called. `changeConfigHash` and `setRelayer` at runtime resolves to Weighted id 1, which is unimplemented: fail-closed for every runtime caller, owners included. |
+| `userOpValidationFunctions` | `changeConfigHash`, `setRelayer -> DEPENDENCY slot 1` | Only `changeConfigHash` and `setRelayer` have a userOp path, validated by the Weighted owner set (threshold). `autoEarn` cannot be reached by a userOp even fully signed by the quorum (`InvalidValidationFunctionId` at the EntryPoint). |
 | `permitAnyExternalAddress` | `true` | Vault targets are config-driven, so the plugin may call any external address via `executeFromPluginExternal`. |
 | `canSpendNativeToken` | `false` | |
 | `interfaceIds`, hooks, `permittedExecutionSelectors`, `permittedExternalCalls` | all empty | The plugin adds nothing to the account's ERC-165 surface and installs no hooks anywhere. |
 
-`test_manifest_declaresTwoExecutionFunctionsAndTwoOwnerDependencySlots`,
+`test_manifest_declaresThreeExecutionFunctionsAndTwoOwnerDependencySlots`,
 `test_install_throughMultisigUserOp_withOwnerDependencies_bindsBothFunctions`,
 `test_install_rejectsAnEmptyOrShortDependencyArray`,
 `test_install_rejectsADependencyPluginThatIsNotInstalledOnTheAccount`,
 `test_autoEarn_isNotReachableThroughAUserOp_evenWithQuorum`.
 
-Install data is `abi.encode(uint256 configHash)`; a zero hash surfaces as
-`FailToCallOnInstall(plugin, InvalidConfigHash())` in the userOp's execution phase
-(`test_install_rejectsZeroConfigHash_surfacedAsFailToCallOnInstall`). Because the plugin
+Install data is `abi.encode(uint256 configHash, address relayer)` (plan 398, founder
+2026-10-08: no global relayer; each account names its own, in production the team's agent
+Circle DCW on that chain). A zero hash surfaces as `FailToCallOnInstall(plugin,
+InvalidConfigHash())` and a zero relayer as `FailToCallOnInstall(plugin, ZeroAddress())` in
+the userOp's execution phase (`test_install_rejectsZeroConfigHash_surfacedAsFailToCallOnInstall`,
+`test_install_refusesZeroRelayer_surfacedAsFailToCallOnInstall`). The old one-word shape no
+longer decodes. Because the plugin
 records two dependencies on the Weighted plugin, the Weighted plugin cannot be uninstalled
 while the earn plugin is installed (`PluginUsedByOthers`) — the normal ERC-6900 rule.
 
@@ -126,10 +130,14 @@ path such an account has.
 ## Other behaviours pinned
 
 - Relayer runtime path: the account's fallback runs `runtimeValidationFunction(0, sender, ...)`
-  and a stranger gets `RuntimeValidationFailed(plugin, 0, NotAuthorized(sender))`; a removed
-  relayer is rejected the same way; the module owner may call
-  (`test_unauthorizedCaller_isRejectedByTheAccountsRuntimeValidation`,
-  `test_removedRelayer_isRejected_andANewRelayerIsAccepted`, `test_moduleOwner_canAlsoTriggerAutoEarn`).
+  with `msg.sender == account`, which accepts only `relayerOf[account]`. A stranger, the module
+  owner, and another account's relayer all get `RuntimeValidationFailed(plugin, 0,
+  NotAuthorized(sender))`. The account rotates its relayer only through a quorum-signed
+  `setRelayer` userOp; runtime `setRelayer` is fail-closed and zero is refused; uninstall
+  clears it (`test_unauthorizedCaller_isRejectedByTheAccountsRuntimeValidation`,
+  `test_moduleOwner_isNotAnImplicitRelayer`, `test_twoAccounts_eachRelayerIsConfinedToItsOwnAccount`,
+  `test_setRelayer_throughMultisigUserOp_rotatesTheRelayer`,
+  `test_setRelayer_requiresTheQuorum_andIsFailClosedAtRuntime`).
 - `ConfigNotFound(token)` bubbles unchanged for a token outside the adopted set.
 - Approval is exactly consumed by the deposit (allowance returns to 0).
 - `executeFromPluginExternal` refuses any caller that is not an installed plugin, including a

@@ -40,7 +40,7 @@ contract CompositionAdversarialTest is SessionKeyHarness {
         allowed = makeAddr("composition-allowed");
         stranger = makeAddr("composition-stranger");
         agent = _signerFrom("composition-agent");
-        earn = new BufiEarnModule(relayer, moduleOwner);
+        earn = new BufiEarnModule(moduleOwner);
         hook = new BufiSessionRecipientHookPlugin();
         usdc = new SandboxUSDC();
         vault = new MockVault(IERC20(address(usdc)));
@@ -58,7 +58,9 @@ contract CompositionAdversarialTest is SessionKeyHarness {
         address[] memory recipients = new address[](1);
         recipients[0] = allowed;
         assertTrue(_installAddressBook(account, recipients, quorum));
-        assertTrue(_installPlugin(account, address(earn), abi.encode(configHash), _addressBookDependencies(), quorum));
+        assertTrue(
+            _installPlugin(account, address(earn), abi.encode(configHash, relayer), _addressBookDependencies(), quorum)
+        );
         assertTrue(_installHook()); // hook before session-key: selector has no owner yet
         assertTrue(_installSessionKeyPlugin(account, quorum));
         usdc.mint(address(account), 1_000_000e6);

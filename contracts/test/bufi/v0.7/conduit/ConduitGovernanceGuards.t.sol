@@ -104,7 +104,7 @@ contract ConduitGovernanceGuardsTest is Test {
     // ────────────────────
 
     function test_renounceOwnership_reverts_on_every_contract_for_owner_and_stranger() public {
-        BufiEarnModule earn = new BufiEarnModule(address(0x2E1A7E2), BOOTSTRAP);
+        BufiEarnModule earn = new BufiEarnModule(BOOTSTRAP);
         _assertRenounceDisabled(address(conduit), abi.encodeWithSelector(TreasuryConduit.RenounceDisabled.selector));
         _assertRenounceDisabled(
             address(redeem), abi.encodeWithSelector(TreasuryRedeemConduit.RenounceDisabled.selector)

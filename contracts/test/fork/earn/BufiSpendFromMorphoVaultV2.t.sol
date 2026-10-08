@@ -59,7 +59,7 @@ contract BufiSpendFromMorphoVaultV2ForkTest is SessionKeyHarness {
         require(block.chainid == 8453, "run with --fork-url <base mainnet rpc>");
         _deployCircleCanonicalStack();
         _deploySessionKeyPlugin();
-        earn = new BufiEarnModule(relayer, earnOwner);
+        earn = new BufiEarnModule(earnOwner);
         hook = new BufiSessionRecipientHookPlugin();
         agent = _signerFrom("agent");
 
@@ -85,7 +85,7 @@ contract BufiSpendFromMorphoVaultV2ForkTest is SessionKeyHarness {
         vm.prank(earnOwner);
         uint256 configHash = earn.setConfig(cfg);
         assertTrue(
-            _installPlugin(account, address(earn), abi.encode(configHash), _addressBookDependencies(), quorum),
+            _installPlugin(account, address(earn), abi.encode(configHash, relayer), _addressBookDependencies(), quorum),
             "earn install"
         );
     }

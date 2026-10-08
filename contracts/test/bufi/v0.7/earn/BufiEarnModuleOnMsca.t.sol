@@ -56,7 +56,7 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
 
         usdc = new SandboxUSDC();
         vault = new MockVault(IERC20(address(usdc)));
-        module = new BufiEarnModule(relayer, bufiOps);
+        module = new BufiEarnModule(bufiOps);
         vm.label(address(module), "BufiEarnModule");
         vm.label(address(vault), "vault");
 
@@ -77,12 +77,13 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
     // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
     /// The manifest facts every integrator must know before calling installPlugin.
-    function test_manifest_declaresTwoExecutionFunctionsAndTwoOwnerDependencySlots() public view {
+    function test_manifest_declaresThreeExecutionFunctionsAndTwoOwnerDependencySlots() public view {
         PluginManifest memory m = module.pluginManifest();
 
-        assertEq(m.executionFunctions.length, 2, "autoEarn + changeConfigHash");
+        assertEq(m.executionFunctions.length, 3, "autoEarn + changeConfigHash + setRelayer");
         assertEq(m.executionFunctions[0], BufiEarnModule.autoEarn.selector);
         assertEq(m.executionFunctions[1], BufiEarnModule.changeConfigHash.selector);
+        assertEq(m.executionFunctions[2], BufiEarnModule.setRelayer.selector);
 
         assertEq(m.dependencyInterfaceIds.length, 2, "install with TWO dependency slots");
         assertEq(m.dependencyInterfaceIds[0], type(IPlugin).interfaceId);
@@ -90,7 +91,7 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
         assertEq(module.OWNER_RUNTIME_VALIDATION_DEPENDENCY_INDEX(), 0);
         assertEq(module.OWNER_USER_OP_VALIDATION_DEPENDENCY_INDEX(), 1);
 
-        assertEq(m.runtimeValidationFunctions.length, 2);
+        assertEq(m.runtimeValidationFunctions.length, 3);
         assertEq(m.runtimeValidationFunctions[0].executionSelector, BufiEarnModule.autoEarn.selector);
         assertTrue(
             m.runtimeValidationFunctions[0].associatedFunction.functionType == ManifestAssociatedFunctionType.SELF,
@@ -104,8 +105,17 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
             "changeConfigHash: runtime validation -> dependency slot 0"
         );
         assertEq(m.runtimeValidationFunctions[1].associatedFunction.dependencyIndex, 0);
+        assertEq(m.runtimeValidationFunctions[2].executionSelector, BufiEarnModule.setRelayer.selector);
+        assertTrue(
+            m.runtimeValidationFunctions[2].associatedFunction.functionType
+                == ManifestAssociatedFunctionType.DEPENDENCY,
+            "setRelayer: runtime validation -> dependency slot 0"
+        );
+        assertEq(m.runtimeValidationFunctions[2].associatedFunction.dependencyIndex, 0);
 
-        assertEq(m.userOpValidationFunctions.length, 1, "only changeConfigHash has a userOp path");
+        assertEq(m.userOpValidationFunctions.length, 2, "changeConfigHash + setRelayer have a userOp path");
+        assertEq(m.userOpValidationFunctions[1].executionSelector, BufiEarnModule.setRelayer.selector);
+        assertEq(m.userOpValidationFunctions[1].associatedFunction.dependencyIndex, 1);
         assertEq(m.userOpValidationFunctions[0].executionSelector, BufiEarnModule.changeConfigHash.selector);
         assertTrue(
             m.userOpValidationFunctions[0].associatedFunction.functionType == ManifestAssociatedFunctionType.DEPENDENCY,
@@ -135,6 +145,7 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
         assertTrue(_isInstalled(msca, address(module)), "getInstalledPlugins lists the module");
         assertTrue(module.isInitialized(address(msca)));
         assertEq(module.accountConfig(address(msca)), configHash, "onInstall adopted the config hash");
+        assertEq(module.relayerOf(address(msca)), relayer, "onInstall recorded the account's own relayer");
 
         IAccountLoupe loupe = IAccountLoupe(address(msca));
         ExecutionFunctionConfig memory earn = loupe.getExecutionFunctionConfig(BufiEarnModule.autoEarn.selector);
@@ -154,15 +165,16 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
 
     function test_install_rejectsAnEmptyOrShortDependencyArray() public {
         (bool ok, bytes memory reason) = _executeUserOpWithReason(
-            _installPluginCalldata(address(module), abi.encode(configHash), new FunctionReference[](0)), quorum
+            _installPluginCalldata(address(module), abi.encode(configHash, relayer), new FunctionReference[](0)), quorum
         );
         assertFalse(ok, "empty array: execution phase reverts");
         assertEq(reason, abi.encodeWithSelector(PluginManager.InvalidPluginDependency.selector, address(module)));
 
         FunctionReference[] memory one = new FunctionReference[](1);
         one[0] = _earnDependencies()[1];
-        (ok, reason) =
-            _executeUserOpWithReason(_installPluginCalldata(address(module), abi.encode(configHash), one), quorum);
+        (ok, reason) = _executeUserOpWithReason(
+            _installPluginCalldata(address(module), abi.encode(configHash, relayer), one), quorum
+        );
         assertFalse(ok, "one slot: execution phase reverts");
         assertEq(reason, abi.encodeWithSelector(PluginManager.InvalidPluginDependency.selector, address(module)));
 
@@ -174,8 +186,9 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
         FunctionReference[] memory deps = new FunctionReference[](2);
         deps[0] = FunctionReference(address(addressBookPlugin), 1);
         deps[1] = FunctionReference(address(addressBookPlugin), 0);
-        (bool ok, bytes memory reason) =
-            _executeUserOpWithReason(_installPluginCalldata(address(module), abi.encode(configHash), deps), quorum);
+        (bool ok, bytes memory reason) = _executeUserOpWithReason(
+            _installPluginCalldata(address(module), abi.encode(configHash, relayer), deps), quorum
+        );
         assertFalse(ok);
         assertEq(
             reason, abi.encodeWithSelector(PluginManager.InvalidPluginDependency.selector, address(addressBookPlugin))
@@ -185,7 +198,7 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
 
     function test_install_rejectsZeroConfigHash_surfacedAsFailToCallOnInstall() public {
         (bool ok, bytes memory reason) = _executeUserOpWithReason(
-            _installPluginCalldata(address(module), abi.encode(uint256(0)), _earnDependencies()), quorum
+            _installPluginCalldata(address(module), abi.encode(uint256(0), relayer), _earnDependencies()), quorum
         );
         assertFalse(ok);
         assertEq(
@@ -203,7 +216,7 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
         Signer[] memory solo = new Signer[](1);
         solo[0] = owners[1];
         _expectValidationRevert(
-            msca, _installPluginCalldata(address(module), abi.encode(configHash), _earnDependencies()), solo
+            msca, _installPluginCalldata(address(module), abi.encode(configHash, relayer), _earnDependencies()), solo
         );
         assertFalse(_isInstalled(msca, address(module)));
 
@@ -268,11 +281,14 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
         assertEq(usdc.balanceOf(address(msca)), TREASURY_BALANCE);
     }
 
-    function test_removedRelayer_isRejected_andANewRelayerIsAccepted() public {
+    /// The account rotates its own relayer with a quorum-signed userOp; the old one is refused from then on.
+    function test_setRelayer_throughMultisigUserOp_rotatesTheRelayer() public {
         assertTrue(_installEarn(configHash));
+        address next = makeAddr("next-agent-dcw");
 
-        vm.prank(bufiOps);
-        module.removeAuthorizedRelayer(relayer);
+        assertTrue(_executeUserOp(msca, abi.encodeCall(BufiEarnModule.setRelayer, (next)), quorum), "rotation");
+        assertEq(module.relayerOf(address(msca)), next);
+
         vm.prank(relayer);
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -284,12 +300,92 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
         );
         BufiEarnModule(address(msca)).autoEarn(address(usdc), 1e6);
 
-        address cre = makeAddr("cre-extractor");
-        vm.prank(bufiOps);
-        module.addAuthorizedRelayer(cre);
         uint256 expectedShares = vault.previewDeposit(2e6);
-        _autoEarnAs(cre, address(usdc), 2e6);
+        _autoEarnAs(next, address(usdc), 2e6);
         assertEq(vault.balanceOf(address(msca)), expectedShares);
+    }
+
+    function test_setRelayer_requiresTheQuorum_andIsFailClosedAtRuntime() public {
+        assertTrue(_installEarn(configHash));
+        address next = makeAddr("next-agent-dcw");
+        Signer[] memory solo = new Signer[](1);
+        solo[0] = owners[1];
+        _expectValidationRevert(msca, abi.encodeCall(BufiEarnModule.setRelayer, (next)), solo);
+
+        // Runtime: the relayer itself, the module owner and a stranger all hit the fail-closed weighted id 1.
+        address[3] memory callers = [relayer, bufiOps, stranger];
+        for (uint256 i = 0; i < 3; i++) {
+            vm.prank(callers[i]);
+            vm.expectRevert();
+            BufiEarnModule(address(msca)).setRelayer(callers[i]);
+        }
+        assertEq(module.relayerOf(address(msca)), relayer, "unchanged");
+    }
+
+    function test_setRelayer_refusesZero_evenWithQuorum() public {
+        assertTrue(_installEarn(configHash));
+        (bool ok, bytes memory reason) =
+            _executeUserOpWithReason(abi.encodeCall(BufiEarnModule.setRelayer, (address(0))), quorum);
+        assertFalse(ok);
+        assertEq(reason, abi.encodeWithSelector(BufiEarnModule.ZeroAddress.selector));
+        assertEq(module.relayerOf(address(msca)), relayer);
+    }
+
+    function test_install_refusesZeroRelayer_surfacedAsFailToCallOnInstall() public {
+        (bool ok, bytes memory reason) = _executeUserOpWithReason(
+            _installPluginCalldata(address(module), abi.encode(configHash, address(0)), _earnDependencies()), quorum
+        );
+        assertFalse(ok);
+        assertEq(
+            reason,
+            abi.encodeWithSelector(
+                PluginManager.FailToCallOnInstall.selector,
+                address(module),
+                abi.encodeWithSelector(BufiEarnModule.ZeroAddress.selector)
+            )
+        );
+        assertFalse(_isInstalled(msca, address(module)));
+    }
+
+    /// Two real treasury MSCAs, each naming its own agent DCW: A acts on 1, A on 2 reverts, B on 1 reverts.
+    function test_twoAccounts_eachRelayerIsConfinedToItsOwnAccount() public {
+        assertTrue(_installEarn(configHash));
+        address relayerB = makeAddr("agent-dcw-b");
+        UpgradableMSCA mscaB = _createWeightedMsca(_signersArray(), _uniformWeights(3, 1), 2, bytes32(uint256(0xEB)));
+        usdc.mint(address(mscaB), TREASURY_BALANCE);
+        assertTrue(
+            _installPlugin(mscaB, address(module), abi.encode(configHash, relayerB), _earnDependencies(), quorum)
+        );
+        assertEq(module.relayerOf(address(mscaB)), relayerB);
+
+        _autoEarnAs(relayer, address(usdc), 1e6); // A on 1
+
+        vm.prank(relayer); // A on 2
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                BaseMSCA.RuntimeValidationFailed.selector,
+                address(module),
+                uint8(0),
+                abi.encodeWithSelector(BufiEarnModule.NotAuthorized.selector, relayer)
+            )
+        );
+        BufiEarnModule(address(mscaB)).autoEarn(address(usdc), 1e6);
+
+        vm.prank(relayerB); // B on 1
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                BaseMSCA.RuntimeValidationFailed.selector,
+                address(module),
+                uint8(0),
+                abi.encodeWithSelector(BufiEarnModule.NotAuthorized.selector, relayerB)
+            )
+        );
+        BufiEarnModule(address(msca)).autoEarn(address(usdc), 1e6);
+
+        vm.prank(relayerB); // B on 2
+        BufiEarnModule(address(mscaB)).autoEarn(address(usdc), 3e6);
+        assertEq(vault.balanceOf(address(mscaB)), vault.previewDeposit(3e6));
+        assertEq(usdc.balanceOf(address(msca)), TREASURY_BALANCE - 1e6, "account 1 moved only by its own relayer");
     }
 
     /// The manifest declares no userOp validation for autoEarn, so even a fully-signed multisig userOp is
@@ -330,7 +426,7 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
         assertTrue(_installEarn(configHash));
         bytes memory transferOut = abi.encodeCall(IERC20.transfer, (stranger, 1e6));
 
-        BufiEarnModule impostor = new BufiEarnModule(relayer, bufiOps);
+        BufiEarnModule impostor = new BufiEarnModule(bufiOps);
         vm.prank(address(impostor));
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -545,6 +641,7 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
 
         assertFalse(_isInstalled(msca, address(module)), "getInstalledPlugins no longer lists it");
         assertFalse(module.isInitialized(address(msca)), "onUninstall cleared the account's config");
+        assertEq(module.relayerOf(address(msca)), address(0), "onUninstall cleared the account's relayer");
         IAccountLoupe loupe = IAccountLoupe(address(msca));
         assertEq(loupe.getExecutionFunctionConfig(BufiEarnModule.autoEarn.selector).plugin, address(0));
         ExecutionFunctionConfig memory adopt =
@@ -583,7 +680,14 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
     }
 
     function _installEarn(uint256 hash) internal returns (bool) {
-        return _installPlugin(msca, address(module), abi.encode(hash), _earnDependencies(), quorum);
+        return _installPlugin(msca, address(module), abi.encode(hash, relayer), _earnDependencies(), quorum);
+    }
+
+    function _signersArray() internal view returns (Signer[] memory out) {
+        out = new Signer[](owners.length);
+        for (uint256 i = 0; i < owners.length; i++) {
+            out[i] = owners[i];
+        }
     }
 
     function _uninstallCalldata() internal view returns (bytes memory) {
