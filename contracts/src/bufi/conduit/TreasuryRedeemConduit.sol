@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.24;
+pragma solidity 0.8.24;
 
 import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
@@ -41,6 +41,7 @@ contract TreasuryRedeemConduit is Ownable2Step, ReentrancyGuard, EIP712 {
         address indexed treasury, address indexed vault, uint256 shares, uint256 assets, uint256 nonce
     );
 
+    error ZeroAddress();
     error VaultNotRegistered(address vault);
     error ZeroShares();
     error RedeemExpired(uint256 deadline, uint256 now_);
@@ -51,6 +52,7 @@ contract TreasuryRedeemConduit is Ownable2Step, ReentrancyGuard, EIP712 {
     constructor(address initialOwner) Ownable(initialOwner) EIP712("TreasuryRedeemConduit", "1") {}
 
     function setVault(address vault, bool allowed) external onlyOwner {
+        if (vault == address(0)) revert ZeroAddress();
         vaults[vault] = allowed;
         emit VaultSet(vault, allowed);
     }

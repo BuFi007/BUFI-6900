@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.24;
+pragma solidity 0.8.24;
 
 /// @notice The two ERC-3009 entry points BUFI relies on, as shipped by Circle's
 /// FiatTokenV2_1+ on every chain we run (Arc's NativeFiatTokenV2_2 included).
