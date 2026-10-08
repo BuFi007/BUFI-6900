@@ -1,7 +1,7 @@
 # Audit scope — plan 398 production freeze
 
 Frozen code: branch `freeze/plan-398-production-grade`, commit
-`2adaeb22627c64efa35c1919b1f879f47157a24d`. Any later commit that touches a file below
+`2626210fd7d346a7f65ce243e30720aa55ba70de`. Any later commit that touches a file below
 re-opens the freeze. Audit fixes ship as new deployments: every in-scope contract is
 immutable, with no proxy and no upgrade path.
 
@@ -13,7 +13,7 @@ immutable, with no proxy and no upgrade path.
 | EVM       | `paris`                                                    |
 | Optimizer | on, 200 runs, `via_ir = true`                              |
 | OZ        | `lib/openzeppelin-contracts` @ `dbb6104c` (v5.0.0+12)      |
-| Build     | `forge build`, `forge test` (default profile, 479 tests)   |
+| Build     | `forge build`, `forge test` (default profile, 492 tests)   |
 
 ## In-scope files
 
@@ -23,7 +23,7 @@ immutable, with no proxy and no upgrade path.
 | `src/bufi/conduit/TreasuryRedeemConduit.sol`        | `2efd62e7` |
 | `src/bufi/conduit/TreasurySwapAndDeposit.sol`       | `770136d0` |
 | `src/bufi/conduit/interfaces/IFiatTokenV2.sol`      | `898caa28` |
-| `src/bufi/v0.7/earn/BufiEarnModule.sol`             | `11cb0237` |
+| `src/bufi/v0.7/earn/BufiEarnModule.sol`             | `e11bff48` |
 | `script/config/BufiDeployConfig.sol` (+ `BufiDeployBase.sol`, `BufiInitCodes.sol`) | deploy config |
 | `script/DeployTreasuryConduit.s.sol`, `DeployTreasuryEarn.s.sol`, `DeployTreasurySwapAndDeposit.s.sol`, `DeployBufiPlugins.s.sol` | deploy procedure |
 
@@ -53,7 +53,7 @@ transient owner. It holds no role once the Safe accepts.
 | TreasuryConduit        | `setTarget(target, allowed)` (refuses 0), `rescue(token, to)` (refuses 0, emits `Rescued`), `transferOwnership` | `execute` is permissionless. Funds move only on the treasury quorum's ERC-3009 signature, whose nonce commits to the whole intent. The target must be registered. |
 | TreasuryRedeemConduit  | `setVault(vault, allowed)` (refuses 0), ownership                                | `redeem` is permissionless. It needs the treasury's ERC-1271 quorum signature over the EIP-712 `Redeem`, and each per-treasury nonce works once.                                    |
 | TreasurySwapAndDeposit | `setVenue`, `setDest` (both refuse 0), ownership                                 | `run` is permissionless. It pulls only from `msg.sender`, which is the conduit in production.                                                                                        |
-| BufiEarnModule         | `addAuthorizedRelayer` (refuses 0), `removeAuthorizedRelayer`, `setConfig`, ownership | `autoEarn` passes the account's runtime validation only for **explicitly authorized relayers**. The owner is no longer an implicit relayer. `changeConfigHash` passes only through the account's multisig userOp validation. |
+| BufiEarnModule         | `setConfig` (publish a vault set to the global, content-addressed registry), ownership. **Nothing else**: the owner cannot name, rotate or remove any account's relayer and cannot change any account's adopted config | `autoEarn` passes the account's runtime validation only for **that account's own relayer** (`relayerOf[account]`, set by the account at install). `changeConfigHash` and `setRelayer` pass only through the account's multisig userOp validation; at runtime both are fail-closed. |
 
 `renounceOwnership` is **disabled** on all four contracts (founder, 2026-10-08). It is
 overridden to always revert `RenounceDisabled()`, for the owner and for anyone else, and
@@ -70,7 +70,7 @@ Salts are explicit constants in `BufiDeployConfig.sol` (founder, 2026-10-08):
 | TreasuryConduit        | `bufi.treasury-conduit.v3`       | `0x11dd7b556252511c41A757dF9Ed07b91C55ba6Fa`  |
 | TreasuryRedeemConduit  | `bufi.treasury-redeem-conduit.v3`| `0xd3b10924c960F422D440a8b1Da2c29B53E5AD3BA`  |
 | TreasurySwapAndDeposit | `bufi.treasury-swap-deposit.v3`  | `0x7D1fEE47b5A471372019AB3461d5f73DC46b5e8a` on both Arc chains (USDC `0x3600…` is immutable in the init code; another chain's USDC gives another address) |
-| BufiEarnModule         | `bufi.earn-module.v3`            | depends on the relayer (init-code argument); `0xfdD32587bA9F47aF98cb1e901a82C8eC53345A73` is the DRY-RUN address for placeholder relayer `0x…5EED01` only |
+| BufiEarnModule         | `bufi.earn-module.v3`            | `0x42259a0414365e3B37339F8b92bf536B31BEF151` on every chain (init code = creation code ++ `BOOTSTRAP_OWNER`; no relayer argument). Manifest hash `0x2706313a050574f3dd757c020fa0dfbf5373855845818b5e640b51295b9528b2` |
 
 The whole conduit family moved to `.v3` together, so no frozen contract can be confused
 with a pre-freeze deployment (live v2 conduit `0xA981…15e7`, v1 redeem `0x3613…D06A`).
@@ -79,17 +79,70 @@ BufiEarnModule got its own label instead of sharing `PLUGIN_SALT`
 (`BufiSessionKeyPlugin` `0xBd60…5339`, `BufiSessionRecipientHookPlugin` `0xfc02…f381`)
 keep their addresses.
 
-## Earn relayer
+## Earn relayer — per account (founder, 2026-10-08)
 
-`EARN_MODULE_RELAYER` is required and has no default; the script refuses zero, the
-bootstrap deployer and the Safe. **The production relayer is one Circle
-developer-controlled wallet (DCW) EOA**, created in the live Circle entity by the
-founder or ops, and the SAME address is used on every chain. The relayer is part of the
-module's init code, so one relayer everywhere is what makes the module's address
-identical across chains. It is never the deployer and never the Safe. The Safe can
-rotate it later (`addAuthorizedRelayer` / `removeAuthorizedRelayer`) without moving the
-module. The DCW does not exist yet; until it does, the module's production address is
-not known.
+There is **no global BUFI relayer**. Each account's relayer is that team's **agent Circle
+DCW** on that chain, set at install by the account. The module has no constructor relayer,
+no `authorizedRelayers` set and no `addAuthorizedRelayer` / `removeAuthorizedRelayer`.
+
+- **Set at install.** `pluginInstallData = abi.encode(uint256 configHash, address relayer)`.
+  `onInstall` stores `relayerOf[account] = relayer` (zero refused) and emits
+  `RelayerSet(account, relayer)`. Installing is a userOp under the account's own owners'
+  quorum, so the treasury itself authorizes its relayer. The pre-398 one-word install data
+  no longer decodes.
+- **Changed only by the account.** `setRelayer(address)` is an execution function routed
+  through the account's fallback (`msg.sender == account`), bound to the same owner
+  dependency slots as `changeConfigHash`: userOp → weighted owner validation (threshold),
+  runtime → weighted id 1, fail-closed for everyone (the current relayer, the module owner,
+  any owner EOA). Zero refused. `RelayerSet` emitted.
+- **Cleared on uninstall.** `onUninstall` deletes `relayerOf[account]` and emits
+  `RelayerSet(account, 0)`; a reinstall must name a relayer again.
+- **Confined to its account.** `runtimeValidationFunction` checks
+  `sender == relayerOf[msg.sender]`, and `msg.sender` there is the account being validated.
+  `autoEarn` only ever acts on `msg.sender`. There is no path where one account's relayer acts
+  on another account. Tests: `test_eachRelayerActsOnlyOnTheAccountThatNamedIt`,
+  `test_runtimeValidationIsKeyedOnTheCallingAccount` (mock), and
+  `test_twoAccounts_eachRelayerIsConfinedToItsOwnAccount` (two real weighted MSCAs).
+- **Vault and amount limits stay treasury-governed.** The vault set is still an
+  owner-published (`setConfig`), account-adopted (`changeConfigHash`, quorum) config;
+  `autoEarn` is still deposit-only with shares minting to the account and the F-06
+  before/after checks. The relayer chooses timing and amount, nothing else.
+
+**Custody, stated plainly.** BUFI holds the agent DCW key (Circle entity secret). This change
+improves **isolation and attribution** — a leaked or misbehaving relayer reaches one
+team's account, and every sweep is attributable to that team's DCW — **not custody**: BUFI
+can still trigger `autoEarn` on any account it provisions a DCW for. The blast radius of that
+key stays what it was: deposits into the account's own adopted vaults, never a transfer out.
+
+**Owner powers left on BufiEarnModule:** `setConfig` (the registry is global and
+content-addressed: a new vault set produces a new hash that no account uses until its quorum
+adopts it) and the two-step ownership transfer. `renounceOwnership` still reverts
+`RenounceDisabled()`.
+
+**F-07 interaction (known, accepted).** A miswired owner dependency slot (session-key plugin
+in slot 1) would let a session key call `setRelayer` as well as `changeConfigHash`. The
+consequence stays a deposit-timing nuisance — the relayer can only `autoEarn` into the
+adopted vaults — and the control stays the installer emitting the weighted validator.
+
+### What desk must send at install
+
+`installPlugin(plugin, manifestHash, pluginInstallData, dependencies)` as a **quorum-signed
+treasury userOp**, per chain:
+
+| Field | Value |
+| ----- | ----- |
+| `plugin` | `0x42259a0414365e3B37339F8b92bf536B31BEF151` (all chains) |
+| `manifestHash` | `0x2706313a050574f3dd757c020fa0dfbf5373855845818b5e640b51295b9528b2` |
+| `pluginInstallData` | `abi.encode(uint256 configHash, address relayer)` — `relayer` = the team's agent DCW address **on this chain** (`getTeamAgentWalletOnChain(teamId, blockchain).wallet_address`), never a shared BUFI address, never zero |
+| `dependencies` | `[FunctionReference(weightedPlugin, 1), FunctionReference(weightedPlugin, 0)]` |
+
+Desk's current helper (`packages/circle/src/modular/earn-module.ts`) is stale on three
+counts and must not be used against this module as is: `buildEarnModuleInstallData` encodes
+`configHash` alone, `installEarnModule` passes an empty dependency array (the module
+requires two slots → `InvalidPluginDependency`), and it submits the install as a DCW
+contract execution rather than a treasury quorum userOp. `getEarnModuleRelayerAddress`
+(`CIRCLE_EARN_MODULE_RELAYER_ADDRESS`) is obsolete. Note:
+desk-v1 `tasks/notes/2026-10-08-earn-module-per-account-relayer.md`.
 
 ## Arc mainnet (5042) swap venues — evidence, 2026-10-08
 
@@ -127,11 +180,13 @@ desk listed them now, a quorum would sign a call the contract rejects.
 1. **Simulate.** Run each script with `--fork-url <rpc> --sender 0x09Ce…0474` and
    without `--broadcast`. `script/SimulateFreezeWave.s.sol` rehearses the whole wave
    in one process, plays the Safe's accept, and refuses `--broadcast`.
+   On 2026-10-08 (commit `2626210`) it ran on Arc testnet (blockdaemon RPC) and Arc mainnet
+   (`rpc.mainnet.arc.io`) forks: `BufiEarnModule deployed 0x4225…F151`, `pendingOwner ==
+   Safe` (`0xA3a4…468B` / `0x47Dc…0D09`), then `owner == Safe` after the pranked accept.
 2. **Bootstrap.** Broadcast as the bootstrap deployer, in this order:
    `DeployTreasuryConduit`, then `DeployTreasuryEarn`, then
-   `DeployTreasurySwapAndDeposit`, then `DeployBufiPlugins`. The plugins script needs
-   `EARN_MODULE_RELAYER`, the production Circle DCW relayer (see "Earn relayer"), which
-   must be neither the deployer nor the Safe. Each script:
+   `DeployTreasurySwapAndDeposit`, then `DeployBufiPlugins`. No script takes a relayer:
+   each account names its own at install (see "Earn relayer"). Each script:
    1. CREATE2-deploys the contract with the bootstrap owner. This step is idempotent.
    2. Registers the chain's targets, venues, dests and vaults while the bootstrap key
       still owns it.
@@ -161,5 +216,5 @@ desk listed them now, a quorum would sign a call the contract rejects.
   `amountIn` approval for the length of the call.
 - Safe threshold and signer hygiene. The Safes are 1-of-1 today, and the founder is
   moving them to 2-of-3.
-- Relayer key custody for `BufiEarnModule` beyond the decision above: the Circle DCW is
-  custodied by Circle's entity secret, outside this repo.
+- Relayer key custody for `BufiEarnModule` beyond the decision above: each team's agent
+  DCW is custodied by Circle's entity secret, held by BUFI, outside this repo.
