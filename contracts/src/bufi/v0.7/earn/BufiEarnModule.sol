@@ -76,6 +76,7 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable2Step {
     error InvalidConfigHash();
     error NotImplemented();
     error ZeroAddress();
+    error RenounceDisabled();
     error InvalidFunctionId(uint8 functionId);
     /// @dev BUFI-6900 F-08: configs must be canonically ordered so that logically equal sets hash identically.
     error ConfigNotSorted(uint256 index);
@@ -144,6 +145,12 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable2Step {
         if (_authorizedRelayer == address(0)) revert ZeroAddress();
         authorizedRelayers[_authorizedRelayer] = true;
         emit AddAuthorizedRelayer(_authorizedRelayer);
+    }
+
+    /// @notice Disabled (plan 398, founder 2026-10-08). An ownerless registry is frozen forever, so the
+    /// Safe can only ever hand ownership on through the two-step transfer, never drop it.
+    function renounceOwnership() public pure override {
+        revert RenounceDisabled();
     }
 
     /*//////////////////////////////////////////////////////////////////////////

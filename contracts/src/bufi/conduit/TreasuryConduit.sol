@@ -143,8 +143,15 @@ contract TreasuryConduit is Ownable2Step, ReentrancyGuard {
     error BelowFloor(uint256 gained, uint256 minOut);
     error NothingToSweep();
     error ZeroAddress();
+    error RenounceDisabled();
 
     constructor(address initialOwner) Ownable(initialOwner) {}
+
+    /// @notice Disabled (plan 398, founder 2026-10-08). An ownerless registry is frozen forever, so the
+    /// Safe can only ever hand ownership on through the two-step transfer, never drop it.
+    function renounceOwnership() public pure override {
+        revert RenounceDisabled();
+    }
 
     // ── governance
     // ──────────────────────────────────────────────────────────

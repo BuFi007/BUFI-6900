@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {TreasuryConduit} from "../../../../src/bufi/conduit/TreasuryConduit.sol";
 import {TreasuryRedeemConduit} from "../../../../src/bufi/conduit/TreasuryRedeemConduit.sol";
 import {TreasurySwapAndDeposit} from "../../../../src/bufi/conduit/TreasurySwapAndDeposit.sol";
+import {BufiEarnModule} from "../../../../src/bufi/v0.7/earn/BufiEarnModule.sol";
 import {MockFiatToken3009} from "../../../mocks/MockFiatToken3009.sol";
 
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -97,6 +98,51 @@ contract ConduitGovernanceGuardsTest is Test {
         vm.prank(SAFE);
         conduit.setTarget(address(0x1234), true);
         assertTrue(conduit.targets(address(0x1234)));
+    }
+
+    // ── renounceOwnership is disabled (founder, 2026-10-08)
+    // ────────────────────
+
+    function test_renounceOwnership_reverts_on_every_contract_for_owner_and_stranger() public {
+        BufiEarnModule earn = new BufiEarnModule(address(0x2E1A7E2), BOOTSTRAP);
+        _assertRenounceDisabled(address(conduit), abi.encodeWithSelector(TreasuryConduit.RenounceDisabled.selector));
+        _assertRenounceDisabled(
+            address(redeem), abi.encodeWithSelector(TreasuryRedeemConduit.RenounceDisabled.selector)
+        );
+        _assertRenounceDisabled(
+            address(adapter), abi.encodeWithSelector(TreasurySwapAndDeposit.RenounceDisabled.selector)
+        );
+        _assertRenounceDisabled(address(earn), abi.encodeWithSelector(BufiEarnModule.RenounceDisabled.selector));
+    }
+
+    function test_renounceOwnership_reverts_for_the_safe_after_handover() public {
+        vm.prank(BOOTSTRAP);
+        conduit.transferOwnership(SAFE);
+        vm.prank(SAFE);
+        conduit.acceptOwnership();
+        vm.prank(SAFE);
+        vm.expectRevert(TreasuryConduit.RenounceDisabled.selector);
+        conduit.renounceOwnership();
+        assertEq(conduit.owner(), SAFE, "Safe still owns");
+    }
+
+    function test_renounceOwnership_does_not_clear_a_pending_handover() public {
+        vm.prank(BOOTSTRAP);
+        adapter.transferOwnership(SAFE);
+        vm.prank(BOOTSTRAP);
+        vm.expectRevert(TreasurySwapAndDeposit.RenounceDisabled.selector);
+        adapter.renounceOwnership();
+        assertEq(adapter.pendingOwner(), SAFE, "handover intact");
+    }
+
+    function _assertRenounceDisabled(address c, bytes memory err) internal {
+        address[2] memory callers = [BOOTSTRAP, STRANGER];
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(callers[i]);
+            vm.expectRevert(err);
+            Ownable2Step(c).renounceOwnership();
+        }
+        assertEq(Ownable2Step(c).owner(), BOOTSTRAP, "owner unchanged");
     }
 
     function _assertTwoStep(Ownable2Step c) internal {

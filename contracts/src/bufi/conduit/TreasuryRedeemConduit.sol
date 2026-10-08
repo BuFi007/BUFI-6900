@@ -42,6 +42,8 @@ contract TreasuryRedeemConduit is Ownable2Step, ReentrancyGuard, EIP712 {
     );
 
     error ZeroAddress();
+
+    error RenounceDisabled();
     error VaultNotRegistered(address vault);
     error ZeroShares();
     error RedeemExpired(uint256 deadline, uint256 now_);
@@ -50,6 +52,12 @@ contract TreasuryRedeemConduit is Ownable2Step, ReentrancyGuard, EIP712 {
     error BelowFloor(uint256 gained, uint256 minAssets);
 
     constructor(address initialOwner) Ownable(initialOwner) EIP712("TreasuryRedeemConduit", "1") {}
+
+    /// @notice Disabled (plan 398, founder 2026-10-08). An ownerless registry is frozen forever, so the
+    /// Safe can only ever hand ownership on through the two-step transfer, never drop it.
+    function renounceOwnership() public pure override {
+        revert RenounceDisabled();
+    }
 
     function setVault(address vault, bool allowed) external onlyOwner {
         if (vault == address(0)) revert ZeroAddress();

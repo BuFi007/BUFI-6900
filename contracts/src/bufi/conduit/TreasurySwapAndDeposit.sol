@@ -42,6 +42,8 @@ contract TreasurySwapAndDeposit is Ownable2Step, ReentrancyGuard {
     event DestSet(address indexed dest, bool allowed);
 
     error ZeroAddress();
+
+    error RenounceDisabled();
     error VenueNotRegistered(address venue);
     error DestNotRegistered(address dest);
     error SwapRequired();
@@ -52,6 +54,12 @@ contract TreasurySwapAndDeposit is Ownable2Step, ReentrancyGuard {
     constructor(address initialOwner, address usdc_) Ownable(initialOwner) {
         if (usdc_ == address(0)) revert ZeroAddress();
         USDC = usdc_;
+    }
+
+    /// @notice Disabled (plan 398, founder 2026-10-08). An ownerless registry is frozen forever, so the
+    /// Safe can only ever hand ownership on through the two-step transfer, never drop it.
+    function renounceOwnership() public pure override {
+        revert RenounceDisabled();
     }
 
     function setVenue(address venue, bool allowed) external onlyOwner {
