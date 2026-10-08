@@ -13,11 +13,14 @@ import {console} from "forge-std/src/Script.sol";
 /// @title DeployBufiPlugins
 /// @notice BUFI's ERC-6900 v0.7 plugins through the Arachnid CREATE2 proxy. The two stateless plugins are
 ///         ownerless; BufiEarnModule is bootstrapped with `BOOTSTRAP_OWNER` and handed to the chain's Safe
-///         (Ownable2Step). Unknown chain ids are refused. Salt: `PLUGIN_SALT`, explicit.
+///         (Ownable2Step). Unknown chain ids are refused. Salts: `PLUGIN_SALT` for the two stateless plugins,
+///         `EARN_MODULE_SALT` for BufiEarnModule; both explicit.
 ///
-///         env (required, no default): EARN_MODULE_RELAYER — the production relayer key (a Circle DCW or KMS
-///         key). It may not be the bootstrap deployer or the Safe. It is part of the earn module's init code,
-///         so the module's address is identical across chains only if the same relayer is used on each.
+///         env (required, no default): EARN_MODULE_RELAYER — the production relayer: ONE Circle
+///         developer-controlled wallet (DCW) EOA, created in the live Circle entity by the founder/ops and used
+///         on every chain (founder, 2026-10-08). It may not be the bootstrap deployer or the Safe. It is part of
+///         the earn module's init code, so the module's address is identical across chains only because the
+///         same relayer is used on each.
 ///
 ///         EARN_MODULE_RELAYER=0x... forge script script/DeployBufiPlugins.s.sol --fork-url $RPC \
 ///           --sender 0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474
@@ -32,7 +35,7 @@ contract DeployBufiPlugins is BufiDeployBase {
         bytes32 salt = BufiDeployConfig.PLUGIN_SALT;
         vm.startBroadcast(BufiDeployConfig.BOOTSTRAP_OWNER);
         sessionKey = _create2("BufiSessionKeyPlugin", salt, type(BufiSessionKeyPlugin).creationCode);
-        earn = _create2("BufiEarnModule", salt, BufiInitCodes.earnModule(relayer));
+        earn = _create2("BufiEarnModule", BufiDeployConfig.EARN_MODULE_SALT, BufiInitCodes.earnModule(relayer));
         // Stateless (its only storage is the per-account AddressBook binding written by `onInstall`).
         recipientHook =
             _create2("BufiSessionRecipientHookPlugin", salt, type(BufiSessionRecipientHookPlugin).creationCode);

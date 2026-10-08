@@ -26,11 +26,20 @@ library BufiDeployConfig {
     //    contract whose bytecode did NOT change resolves to its live address and the script is a no-op for it;
     //    a contract whose bytecode changed (every plan-398 freeze contract) lands at a NEW address that is still
     //    identical across chains. Bumping a label is a founder call, recorded in AUDIT-SCOPE.md.
-    bytes32 internal constant CONDUIT_SALT = keccak256("bufi.treasury-conduit.v2");
-    bytes32 internal constant REDEEM_CONDUIT_SALT = keccak256("bufi.treasury-redeem-conduit.v1");
-    bytes32 internal constant SWAP_DEPOSIT_SALT = keccak256("bufi.treasury-swap-deposit.v1");
+    //
+    //    v3 (founder, 2026-10-08): the whole conduit family moves to a fresh `.v3` label together, so no frozen
+    //    contract can collide with — or be mistaken for — a pre-freeze deployment under an older label.
+    bytes32 internal constant CONDUIT_SALT = keccak256("bufi.treasury-conduit.v3");
+    bytes32 internal constant REDEEM_CONDUIT_SALT = keccak256("bufi.treasury-redeem-conduit.v3");
+    bytes32 internal constant SWAP_DEPOSIT_SALT = keccak256("bufi.treasury-swap-deposit.v3");
+    /// Testnet canary (out of audit scope, bytecode unchanged): keeps its live label.
     bytes32 internal constant EARN_CANARY_VAULT_SALT = keccak256("bufi.treasury-earn-vault.v1");
+    /// The two stateless ERC-6900 plugins (BufiSessionKeyPlugin, BufiSessionRecipientHookPlugin; out of scope,
+    /// bytecode unchanged) keep their live label.
     bytes32 internal constant PLUGIN_SALT = keccak256("bufi-6900-plugins-v0.2.0");
+    /// BufiEarnModule gets its OWN explicit label (founder, 2026-10-08) instead of sharing PLUGIN_SALT, so the
+    /// frozen module moves to v3 without dragging the two unchanged plugins to new addresses.
+    bytes32 internal constant EARN_MODULE_SALT = keccak256("bufi.earn-module.v3");
 
     struct Chain {
         string name;
@@ -57,8 +66,17 @@ library BufiDeployConfig {
             c.name = "Arc";
             c.safe = 0x47Dc7D18A6E3a79F696714E7D47456a49B430D09;
             c.usdc = 0x3600000000000000000000000000000000000000;
-            c.appKit = 0x7FB8c7260b63934d8da38aF902f87ae6e284a845;
-            c.lifi = address(0);
+            // Swap venues, verified 2026-10-08 (AUDIT-SCOPE.md "Arc mainnet venues"):
+            //  - App Kit: none. Same-chain Arc mainnet swaps route Uniswap Trading API first, LI.FI second
+            //    (desk @bu/swap); `0x7FB8…a845` is Circle's Earn+Borrow adapter, NOT a swap venue.
+            //  - LI.FI: the LiFiDiamond. A live li.quest USDC -> EURC quote on 5042 targets it as both `to` and
+            //    `approvalAddress`; eth_getCode = 254 B (EIP-2535 diamond proxy).
+            //  - Uniswap: UNSET. The docs list Universal Router `0x4fcA4a51Ab4F23A7447b3284fBd7D73289A89Fb1`
+            //    (24546 B) and Universal Router 2.1.2 `0x8702463e73f74d0b6765aBceb314Ef07aCb92650` (24380 B),
+            //    but no keyed Trading API quote has confirmed which one it targets. Register it via a Safe
+            //    `setTarget` / `setVenue` once a real quote names it; never by guess.
+            c.appKit = address(0);
+            c.lifi = 0xA4072583658Fae592A3506A42431cb6316a8d40b;
             c.earnVaults = new address[](2);
             c.earnVaults[0] = 0x7610094B846657dCF166D59e42973db52c7015F9;
             c.earnVaults[1] = 0xbeef0016cb2Fd5C352ea7CA08a9f54739DFa7298;

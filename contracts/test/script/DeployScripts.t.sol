@@ -12,6 +12,7 @@ import {TreasuryConduit} from "../../src/bufi/conduit/TreasuryConduit.sol";
 import {TreasuryRedeemConduit} from "../../src/bufi/conduit/TreasuryRedeemConduit.sol";
 import {TreasurySwapAndDeposit} from "../../src/bufi/conduit/TreasurySwapAndDeposit.sol";
 import {BufiEarnModule} from "../../src/bufi/v0.7/earn/BufiEarnModule.sol";
+import {BufiSessionKeyPlugin} from "../../src/bufi/v0.7/session/BufiSessionKeyPlugin.sol";
 
 import {Test} from "forge-std/src/Test.sol";
 
@@ -137,6 +138,21 @@ contract DeployScriptsTest is Test {
         _assertPendingSafe(conduit, safe);
         assertTrue(TreasuryConduit(conduit).targets(0x7610094B846657dCF166D59e42973db52c7015F9));
         assertTrue(TreasuryConduit(conduit).targets(0xbeef0016cb2Fd5C352ea7CA08a9f54739DFa7298));
+        // Verified Arc mainnet venue: the LiFiDiamond a live li.quest quote targets.
+        assertTrue(TreasuryConduit(conduit).targets(0xA4072583658Fae592A3506A42431cb6316a8d40b), "lifi");
+        // Circle's Earn+Borrow adapter is not a swap venue and must not be registered.
+        assertFalse(TreasuryConduit(conduit).targets(0x7FB8c7260b63934d8da38aF902f87ae6e284a845), "not a venue");
+    }
+
+    function test_earn_module_uses_its_own_salt_and_plugins_keep_theirs() public {
+        (address sessionKey, address earn,) = new PluginsWithRelayer(RELAYER).run();
+        assertEq(earn, BufiInitCodes.create2Address(BufiDeployConfig.EARN_MODULE_SALT, BufiInitCodes.earnModule(RELAYER)));
+        assertEq(
+            sessionKey,
+            BufiInitCodes.create2Address(
+                BufiDeployConfig.PLUGIN_SALT, type(BufiSessionKeyPlugin).creationCode
+            )
+        );
     }
 
     // ── refusals
