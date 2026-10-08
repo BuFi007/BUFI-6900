@@ -1,7 +1,7 @@
 # Audit scope — plan 398 production freeze
 
 Frozen code: branch `freeze/plan-398-production-grade`, commit
-`73305571f32cc9adedc6b1315ad740aa7ac767fc`. Any later commit that touches a file below
+`2adaeb22627c64efa35c1919b1f879f47157a24d`. Any later commit that touches a file below
 re-opens the freeze. Audit fixes ship as new deployments: every in-scope contract is
 immutable, with no proxy and no upgrade path.
 
@@ -93,21 +93,34 @@ not known.
 
 ## Arc mainnet (5042) swap venues — evidence, 2026-10-08
 
-Registered only when a real quote targets the address and it has code on
-`https://rpc.mainnet.arc.io`:
+Every venue has code on `https://rpc.mainnet.arc.io` and is registered twice by the
+bootstrap key before the Safe handover: `TreasuryConduit.setTarget` and
+`TreasurySwapAndDeposit.setVenue`. `SimulateFreezeWave` on an Arc mainnet fork asserts both
+for each and ends with `pendingOwner == Safe 0x47Dc…0D09` on all four contracts.
 
-| Venue          | Address                                      | Code     | Evidence | Registered |
-| -------------- | -------------------------------------------- | -------- | -------- | ---------- |
-| LI.FI LiFiDiamond | `0xA4072583658Fae592A3506A42431cb6316a8d40b` | 254 B (EIP-2535 proxy) | live `li.quest/v1/quote` 10 USDC → EURC (`0x3600…` → `0xbEf5…21c1`) on 5042: `transactionRequest.to` = `approvalAddress` = this address, tool `kyberswap`, selector `0x5fd9ae2e`; `li.quest/v1/chains` lists it as Arc's `diamondAddress` | yes — conduit target + SwapAndDeposit venue |
-| Uniswap Universal Router | `0x4fcA4a51Ab4F23A7447b3284fBd7D73289A89Fb1` | 24546 B | listed in Uniswap's v4 deployments page ("Arc: 5042"). No quote: the Trading API needs a key (`401` keyless) | **no** — unconfirmed |
-| Uniswap Universal Router 2.1.2 | `0x8702463e73f74d0b6765aBceb314Ef07aCb92650` | 24380 B | same page; same caveat | **no** — unconfirmed |
-| Circle App Kit | — | — | not a mainnet swap venue: desk routes same-chain Arc mainnet swaps Uniswap first, LI.FI second. `0x7FB8…a845` (813 B) is Circle's Earn+Borrow adapter | no (the old placeholder is removed) |
+| Venue | Address | Code | Evidence | Registered |
+| ----- | ------- | ---- | -------- | ---------- |
+| LI.FI LiFiDiamond | `0xA4072583658Fae592A3506A42431cb6316a8d40b` | 254 B (EIP-2535 proxy) | live `li.quest/v1/quote` 10 USDC → EURC (`0x3600…` → `0xbEf5…21c1`) on 5042: `transactionRequest.to` = `approvalAddress` = this address, tool `kyberswap`, selector `0x5fd9ae2e`; `li.quest/v1/chains` lists it as Arc's `diamondAddress` | yes |
+| Circle App Kit adapter | `0x7FB8c7260b63934d8da38aF902f87ae6e284a845` | 813 B TransparentUpgradeableProxy; EIP-1967 impl `0x3d99dd2ad6a35bc0e7d04cd14f57743a8cc82dd8` (17729 B), admin `0xb07796fe75f32d7057ade0701e4a817268076da7` | SDK source: `ADAPTER_CONTRACT_EVM_MAINNET` is Arc 5042's `kitContracts.adapter` in `@circle-fin/app-kit` 1.16.0, `adapter-viem-v2` 1.19.0, `provider-stablecoin-service-swap` 1.6.1, `swap-kit` 1.7.1. The EVM `swap.execute` action builds `execute(executeParams, tokenInputs, signature)` with `address: kitContracts.adapter`, and the provider approves that address as spender. Testnet counterpart `ADAPTER_CONTRACT_EVM_TESTNET` = `0xBBD7…d40b`, already registered. The route's hops (LiFiDiamond, Synthra, …) are called by the adapter, not by the conduit. **Correction:** 7330557 called this an Earn+Borrow adapter. It is the one multipurpose Kit adapter, and swaps go through it too. | yes (founder: "App Kit should work") |
+| Uniswap Universal Router 2.1.2 | `0x8702463e73f74d0b6765aBceb314Ef07aCb92650` | 24380 B; `poolManager()` = `0x8366a39CC670B4001A1121B8F6A443A643e40951` (the docs' Arc v4 PoolManager) | Trading API "Supported Chains" lists it as Arc's Universal Router 2.1.2 address. It is the API default when no `x-universal-router-version` header is sent. The page says Arc has **no 2.0 deployment**, so a 2.0 request "returns an error". Notice "Sunset of Universal Router 2.0 and 2.1.1" (posted 2026-09-21, effective 2026-10-21): after that date, pinning 2.0 or 2.1.1 errors on every chain. No live quote yet: a keyed USDC→EURC quote returned `404 NoRouteFoundError` because no pool exists | yes (founder decision: register before a pool exists) |
+| Uniswap Universal Router (older) | `0x4fcA4a51Ab4F23A7447b3284fBd7D73289A89Fb1` | 24546 B; same `poolManager()` | listed on the v4 deployments page. Arc has no 2.0 deployment, so this is the pre-2.1.2 router, which the API stops routing to on 2026-10-21 | **no**. Registering it widens the target set for no route |
 
-Permit2 `0x0000…78BA3` has code (9152 B) on 5042. A Uniswap router is added later by a
-Safe `setTarget` / `setVenue` once a keyed Trading API quote (desk sends
-`x-universal-router-version: 2.0`) names it. Until a second venue exists, desk keeps
-Arc-mainnet treasury SWAPS off (`hasRegisteredUniswapAndLifiTargets` needs two); Earn is
-unaffected.
+Permit2 `0x0000…78BA3` has code (9152 B) on 5042.
+
+**Desk blocker (not a contract issue):** desk `packages/swap/src/providers/uniswap-http.ts`
+sends `x-universal-router-version: 2.0`. On Arc that header is an error today. On every
+chain it is an error from 2026-10-21. Desk must move to `2.1.2` (or drop the header)
+before Uniswap can route on Arc at all. That move needs calldata-parsing changes per
+Uniswap's sunset notice.
+
+**Desk gate:** `hasRegisteredUniswapAndLifiTargets(5042)` counts conduit targets in desk's
+`DEFAULT_TREASURY_CONDUIT_TARGETS[5042]` that are neither an Earn vault nor a swap-deposit
+adapter, and requires at least two. It does not check which venues they are. This config
+gives three (App Kit, LI.FI, Uniswap), so the gate is satisfied once desk lists them.
+Desk must list them only after the v3 conduit is deployed and the Safe accepts it, and
+desk must repoint `TREASURY_CONDUIT_ADDRESS` to the v3 address in the same change. Desk
+today points at the v2 conduit `0xA981…15e7`, which has none of these targets on 5042. If
+desk listed them now, a quorum would sign a call the contract rejects.
 
 ## Deploy procedure
 
