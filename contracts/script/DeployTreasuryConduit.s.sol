@@ -23,6 +23,7 @@ contract DeployTreasuryConduit is BufiDeployBase {
         conduit = _create2("TreasuryConduit", BufiDeployConfig.CONDUIT_SALT, BufiInitCodes.conduit());
         _register(conduit, c.safe, c.appKit);
         _register(conduit, c.safe, c.lifi);
+        _register(conduit, c.safe, c.uniswap);
         for (uint256 i = 0; i < c.earnVaults.length; i++) {
             _register(conduit, c.safe, c.earnVaults[i]);
         }

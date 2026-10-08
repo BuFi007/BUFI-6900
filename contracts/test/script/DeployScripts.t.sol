@@ -140,8 +140,24 @@ contract DeployScriptsTest is Test {
         assertTrue(TreasuryConduit(conduit).targets(0xbeef0016cb2Fd5C352ea7CA08a9f54739DFa7298));
         // Verified Arc mainnet venue: the LiFiDiamond a live li.quest quote targets.
         assertTrue(TreasuryConduit(conduit).targets(0xA4072583658Fae592A3506A42431cb6316a8d40b), "lifi");
-        // Circle's Earn+Borrow adapter is not a swap venue and must not be registered.
-        assertFalse(TreasuryConduit(conduit).targets(0x7FB8c7260b63934d8da38aF902f87ae6e284a845), "not a venue");
+        // Circle App Kit's EVM-mainnet `kitContracts.adapter` — the contract App Kit swaps call `execute` on.
+        assertTrue(TreasuryConduit(conduit).targets(0x7FB8c7260b63934d8da38aF902f87ae6e284a845), "app kit");
+        // Uniswap Universal Router 2.1.2, the Trading API's Arc router.
+        assertTrue(TreasuryConduit(conduit).targets(0x8702463e73f74d0b6765aBceb314Ef07aCb92650), "uniswap");
+        // The older listed router is never what the API targets after the 2.1.1 sunset.
+        assertFalse(TreasuryConduit(conduit).targets(0x4fcA4a51Ab4F23A7447b3284fBd7D73289A89Fb1), "old router");
+    }
+
+    function test_arc_mainnet_swap_and_deposit_registers_all_three_venues() public {
+        address safe = _onChain(5042);
+        new DeployTreasuryConduit().run();
+        address adapter = new DeployTreasurySwapAndDeposit().run();
+        _assertPendingSafe(adapter, safe);
+        assertTrue(TreasurySwapAndDeposit(adapter).venues(0x7FB8c7260b63934d8da38aF902f87ae6e284a845), "app kit");
+        assertTrue(TreasurySwapAndDeposit(adapter).venues(0xA4072583658Fae592A3506A42431cb6316a8d40b), "lifi");
+        assertTrue(TreasurySwapAndDeposit(adapter).venues(0x8702463e73f74d0b6765aBceb314Ef07aCb92650), "uniswap");
+        assertTrue(TreasurySwapAndDeposit(adapter).dests(0x7610094B846657dCF166D59e42973db52c7015F9));
+        assertTrue(TreasuryConduit(BufiInitCodes.conduitAddress()).targets(adapter), "adapter is a conduit target");
     }
 
     function test_earn_module_uses_its_own_salt_and_plugins_keep_theirs() public {

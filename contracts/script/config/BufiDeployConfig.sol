@@ -51,6 +51,8 @@ library BufiDeployConfig {
         address appKit;
         /// LI.FI diamond — a swap venue / conduit target. 0 = not registered on this chain.
         address lifi;
+        /// Uniswap Universal Router the Trading API targets — a swap venue / conduit target. 0 = none.
+        address uniswap;
         /// Production ERC-4626 Earn vaults (conduit targets, redeem-conduit vaults, swap-and-deposit dests).
         address[] earnVaults;
         /// Testnet only: also deploy the 1:1 `TreasuryEarnVault` canary and register it everywhere.
@@ -67,16 +69,23 @@ library BufiDeployConfig {
             c.safe = 0x47Dc7D18A6E3a79F696714E7D47456a49B430D09;
             c.usdc = 0x3600000000000000000000000000000000000000;
             // Swap venues, verified 2026-10-08 (AUDIT-SCOPE.md "Arc mainnet venues"):
-            //  - App Kit: none. Same-chain Arc mainnet swaps route Uniswap Trading API first, LI.FI second
-            //    (desk @bu/swap); `0x7FB8…a845` is Circle's Earn+Borrow adapter, NOT a swap venue.
+            //  - App Kit: Circle's `kitContracts.adapter` for every EVM mainnet, Arc 5042 included
+            //    (`ADAPTER_CONTRACT_EVM_MAINNET` in @circle-fin/app-kit 1.16.0 / adapter-viem-v2 1.19.0 /
+            //    provider-stablecoin-service-swap 1.6.1). The EVM `swap.execute` action calls
+            //    `execute(executeParams, tokenInputs, signature)` ON this address and approves it as the spender;
+            //    the route's own hops (LI.FI etc.) run inside it. Same role as testnet's `0xBBD7…d40b`. It is
+            //    the same multipurpose adapter Earn/Borrow use — it IS the swap target (correcting 7330557).
+            //    TransparentUpgradeableProxy, 813 B; impl 0x3d99…2dd8 (17729 B), admin 0xb077…6da7.
             //  - LI.FI: the LiFiDiamond. A live li.quest USDC -> EURC quote on 5042 targets it as both `to` and
             //    `approvalAddress`; eth_getCode = 254 B (EIP-2535 diamond proxy).
-            //  - Uniswap: UNSET. The docs list Universal Router `0x4fcA4a51Ab4F23A7447b3284fBd7D73289A89Fb1`
-            //    (24546 B) and Universal Router 2.1.2 `0x8702463e73f74d0b6765aBceb314Ef07aCb92650` (24380 B),
-            //    but no keyed Trading API quote has confirmed which one it targets. Register it via a Safe
-            //    `setTarget` / `setVenue` once a real quote names it; never by guess.
-            c.appKit = address(0);
+            //  - Uniswap: Universal Router 2.1.2 — the address the Trading API's supported-chains table lists for
+            //    Arc and its default version; Arc has NO 2.0 deployment and 2.0/2.1.1 are sunset 2026-10-21.
+            //    24380 B, `poolManager()` = the docs' Arc v4 PoolManager 0x8366…0951. Registered by founder
+            //    decision (2026-10-08) before any Arc pool exists. The older listed router `0x4fcA…9Fb1` is not
+            //    registered: the API never routes to it once 2.1.1 is sunset.
+            c.appKit = 0x7FB8c7260b63934d8da38aF902f87ae6e284a845;
             c.lifi = 0xA4072583658Fae592A3506A42431cb6316a8d40b;
+            c.uniswap = 0x8702463e73f74d0b6765aBceb314Ef07aCb92650;
             c.earnVaults = new address[](2);
             c.earnVaults[0] = 0x7610094B846657dCF166D59e42973db52c7015F9;
             c.earnVaults[1] = 0xbeef0016cb2Fd5C352ea7CA08a9f54739DFa7298;

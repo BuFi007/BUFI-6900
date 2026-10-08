@@ -7,6 +7,8 @@ import {DeployTreasuryEarn} from "./DeployTreasuryEarn.s.sol";
 import {DeployTreasurySwapAndDeposit} from "./DeployTreasurySwapAndDeposit.s.sol";
 import {IOwnable2Step} from "./config/BufiDeployBase.sol";
 import {BufiDeployConfig} from "./config/BufiDeployConfig.sol";
+import {TreasuryConduit} from "../src/bufi/conduit/TreasuryConduit.sol";
+import {TreasurySwapAndDeposit} from "../src/bufi/conduit/TreasurySwapAndDeposit.sol";
 
 import {Script, VmSafe, console2} from "forge-std/src/Script.sol";
 
@@ -43,6 +45,17 @@ contract SimulateFreezeWave is Script {
             console2.log(names[i], all[i]);
             console2.log("  owner       ", c.owner());
             console2.log("  pendingOwner", c.pendingOwner());
+        }
+        BufiDeployConfig.Chain memory cfg = BufiDeployConfig.get(block.chainid);
+        address[3] memory venues = [cfg.appKit, cfg.lifi, cfg.uniswap];
+        string[3] memory venueNames = ["appKit", "lifi", "uniswap"];
+        console2.log("==== swap venues (conduit target AND adapter venue) ====");
+        for (uint256 i = 0; i < 3; i++) {
+            if (venues[i] == address(0)) continue;
+            require(venues[i].code.length != 0, "venue has no code on this chain");
+            require(TreasuryConduit(conduit).targets(venues[i]), "venue not a conduit target");
+            require(TreasurySwapAndDeposit(adapter).venues(venues[i]), "venue not an adapter venue");
+            console2.log(venueNames[i], venues[i], venues[i].code.length);
         }
         console2.log("==== the Safe accepts (pranked here; a real Safe tx on chain) ====");
         for (uint256 i = 0; i < 4; i++) {

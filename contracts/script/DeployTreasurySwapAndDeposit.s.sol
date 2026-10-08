@@ -32,6 +32,7 @@ contract DeployTreasurySwapAndDeposit is BufiDeployBase {
         );
         _venue(adapter, c.safe, c.appKit);
         _venue(adapter, c.safe, c.lifi);
+        _venue(adapter, c.safe, c.uniswap);
         _dest(adapter, c.safe, canary);
         for (uint256 i = 0; i < c.earnVaults.length; i++) {
             _dest(adapter, c.safe, c.earnVaults[i]);
