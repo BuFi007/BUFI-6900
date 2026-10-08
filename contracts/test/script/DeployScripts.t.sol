@@ -16,19 +16,6 @@ import {BufiSessionKeyPlugin} from "../../src/bufi/v0.7/session/BufiSessionKeyPl
 
 import {Test} from "forge-std/src/Test.sol";
 
-/// @dev Supplies EARN_MODULE_RELAYER without `vm.setEnv`, which is process-global and races parallel tests.
-contract PluginsWithRelayer is DeployBufiPlugins {
-    address internal immutable RELAYER_;
-
-    constructor(address relayer) {
-        RELAYER_ = relayer;
-    }
-
-    function _relayer() internal view override returns (address) {
-        return RELAYER_;
-    }
-}
-
 /// @notice Plan 398: the deploy scripts' owner flow, run in-process on a bare EVM with the Arachnid proxy and
 /// the chain Safe etched in. The fork simulation (`forge script --fork-url`) proves the same against live state.
 contract DeployScriptsTest is Test {
@@ -37,7 +24,6 @@ contract DeployScriptsTest is Test {
         hex"7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf3";
 
     address internal constant BOOTSTRAP = BufiDeployConfig.BOOTSTRAP_OWNER;
-    address internal constant RELAYER = address(0x2E1A7E2);
 
     function setUp() public {
         vm.etch(BufiDeployConfig.CREATE2_DEPLOYER, ARACHNID_RUNTIME);
@@ -78,10 +64,12 @@ contract DeployScriptsTest is Test {
         assertTrue(TreasurySwapAndDeposit(adapter).venues(0xBBD70b01a1CAbc96d5b7b129Ae1AAabdf50dd40b));
         assertTrue(TreasuryConduit(conduit).targets(adapter));
 
-        (, address earn,) = new PluginsWithRelayer(RELAYER).run();
+        (, address earn,) = new DeployBufiPlugins().run();
         _assertPendingSafe(earn, safe);
-        assertTrue(BufiEarnModule(earn).authorizedRelayers(RELAYER));
-        assertFalse(BufiEarnModule(earn).authorizedRelayers(BOOTSTRAP), "deployer is never a relayer");
+        assertEq(earn, BufiInitCodes.earnModuleAddress(), "one earn module address, no relayer in the init code");
+        // No global relayer: nobody, deployer included, can act on an account that never named them.
+        assertEq(BufiEarnModule(earn).relayerOf(BOOTSTRAP), address(0), "deployer is never a relayer");
+        assertEq(BufiEarnModule(earn).relayerOf(safe), address(0), "the Safe is never a relayer");
 
         // The Safe accepts; the bootstrap key then holds nothing.
         address[4] memory all = [conduit, redeem, adapter, earn];
@@ -95,7 +83,7 @@ contract DeployScriptsTest is Test {
         new DeployTreasuryConduit().run();
         new DeployTreasuryEarn().run();
         new DeployTreasurySwapAndDeposit().run();
-        new PluginsWithRelayer(RELAYER).run();
+        new DeployBufiPlugins().run();
         for (uint256 i = 0; i < all.length; i++) {
             assertEq(IOwnable2Step(all[i]).owner(), safe, "still the Safe");
         }
@@ -161,13 +149,11 @@ contract DeployScriptsTest is Test {
     }
 
     function test_earn_module_uses_its_own_salt_and_plugins_keep_theirs() public {
-        (address sessionKey, address earn,) = new PluginsWithRelayer(RELAYER).run();
-        assertEq(earn, BufiInitCodes.create2Address(BufiDeployConfig.EARN_MODULE_SALT, BufiInitCodes.earnModule(RELAYER)));
+        (address sessionKey, address earn,) = new DeployBufiPlugins().run();
+        assertEq(earn, BufiInitCodes.create2Address(BufiDeployConfig.EARN_MODULE_SALT, BufiInitCodes.earnModule()));
         assertEq(
             sessionKey,
-            BufiInitCodes.create2Address(
-                BufiDeployConfig.PLUGIN_SALT, type(BufiSessionKeyPlugin).creationCode
-            )
+            BufiInitCodes.create2Address(BufiDeployConfig.PLUGIN_SALT, type(BufiSessionKeyPlugin).creationCode)
         );
     }
 
@@ -209,9 +195,17 @@ contract DeployScriptsTest is Test {
         e.run();
     }
 
-    function test_the_deployer_cannot_be_the_earn_relayer() public {
-        DeployBufiPlugins s = new PluginsWithRelayer(BOOTSTRAP);
-        vm.expectRevert(bytes("EARN_MODULE_RELAYER must not be the deployer"));
-        s.run();
+    /// The earn module has ONE address on every configured chain: init code = creation code ++ BOOTSTRAP_OWNER.
+    function test_earn_module_lands_at_the_same_address_on_every_chain() public {
+        address expected = BufiInitCodes.earnModuleAddress();
+        uint256[3] memory chains = [uint256(5042002), 5042, 43114];
+        for (uint256 i = 0; i < chains.length; i++) {
+            uint256 snap = vm.snapshotState();
+            _onChain(chains[i]);
+            (, address earn,) = new DeployBufiPlugins().run();
+            assertEq(earn, expected, "earn module address differs across chains");
+            _assertPendingSafe(earn, BufiDeployConfig.get(chains[i]).safe);
+            vm.revertToState(snap);
+        }
     }
 }

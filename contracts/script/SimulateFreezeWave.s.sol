@@ -1,23 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity 0.8.24;
 
+import {TreasuryConduit} from "../src/bufi/conduit/TreasuryConduit.sol";
+import {TreasurySwapAndDeposit} from "../src/bufi/conduit/TreasurySwapAndDeposit.sol";
 import {DeployBufiPlugins} from "./DeployBufiPlugins.s.sol";
 import {DeployTreasuryConduit} from "./DeployTreasuryConduit.s.sol";
 import {DeployTreasuryEarn} from "./DeployTreasuryEarn.s.sol";
 import {DeployTreasurySwapAndDeposit} from "./DeployTreasurySwapAndDeposit.s.sol";
 import {IOwnable2Step} from "./config/BufiDeployBase.sol";
 import {BufiDeployConfig} from "./config/BufiDeployConfig.sol";
-import {TreasuryConduit} from "../src/bufi/conduit/TreasuryConduit.sol";
-import {TreasurySwapAndDeposit} from "../src/bufi/conduit/TreasurySwapAndDeposit.sol";
+import {BufiInitCodes} from "./config/BufiInitCodes.sol";
 
 import {Script, VmSafe, console2} from "forge-std/src/Script.sol";
-
-/// @dev Placeholder relayer for the dry run only (the real one is a founder decision; see AUDIT-SCOPE.md).
-contract SimulatedPlugins is DeployBufiPlugins {
-    function _relayer() internal pure override returns (address) {
-        return address(0x00000000000000000000000000000000005EED01);
-    }
-}
 
 /// @notice DRY RUN ONLY. Rehearses the whole plan-398 wave on a fork in one process (so later scripts see the
 /// contracts earlier ones created), then plays the Safe's `acceptOwnership` with a prank and checks that the
@@ -33,7 +27,8 @@ contract SimulateFreezeWave is Script {
         address conduit = new DeployTreasuryConduit().run();
         (address redeem,) = new DeployTreasuryEarn().run();
         address adapter = new DeployTreasurySwapAndDeposit().run();
-        (, address earn,) = new SimulatedPlugins().run();
+        (, address earn,) = new DeployBufiPlugins().run();
+        require(earn == BufiInitCodes.earnModuleAddress(), "earn module not at its chain-independent address");
 
         address[4] memory all = [conduit, redeem, adapter, earn];
         string[4] memory names =

@@ -32,9 +32,10 @@ library BufiInitCodes {
             );
     }
 
-    function earnModule(address relayer) internal pure returns (bytes memory) {
-        return
-            abi.encodePacked(type(BufiEarnModule).creationCode, abi.encode(relayer, BufiDeployConfig.BOOTSTRAP_OWNER));
+    /// No relayer argument: each account names its own relayer at install, so the module has ONE address on
+    /// every chain, determined by the deployer, `EARN_MODULE_SALT` and `BOOTSTRAP_OWNER` alone.
+    function earnModule() internal pure returns (bytes memory) {
+        return abi.encodePacked(type(BufiEarnModule).creationCode, abi.encode(BufiDeployConfig.BOOTSTRAP_OWNER));
     }
 
     function create2Address(bytes32 salt, bytes memory initCode) internal pure returns (address) {
@@ -59,6 +60,10 @@ library BufiInitCodes {
 
     function canaryVaultAddress(address usdc) internal pure returns (address) {
         return create2Address(BufiDeployConfig.EARN_CANARY_VAULT_SALT, canaryVault(usdc));
+    }
+
+    function earnModuleAddress() internal pure returns (address) {
+        return create2Address(BufiDeployConfig.EARN_MODULE_SALT, earnModule());
     }
 
     function swapAndDepositAddress(address usdc) internal pure returns (address) {
