@@ -233,11 +233,21 @@ contract BufiEarnModuleOnMscaTest is CircleStackHarness {
         assertEq(usdc.allowance(address(msca), address(vault)), 0, "approval fully consumed by the deposit");
     }
 
-    function test_moduleOwner_canAlsoTriggerAutoEarn() public {
+    /// Plan 398: the module owner is governance (the chain's Safe), never an implicit relayer.
+    function test_moduleOwner_isNotAnImplicitRelayer() public {
         assertTrue(_installEarn(configHash));
-        uint256 expectedShares = vault.previewDeposit(1e6);
-        _autoEarnAs(bufiOps, address(usdc), 1e6);
-        assertEq(vault.balanceOf(address(msca)), expectedShares);
+
+        vm.prank(bufiOps);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                BaseMSCA.RuntimeValidationFailed.selector,
+                address(module),
+                uint8(0),
+                abi.encodeWithSelector(BufiEarnModule.NotAuthorized.selector, bufiOps)
+            )
+        );
+        BufiEarnModule(address(msca)).autoEarn(address(usdc), 1e6);
+        assertEq(vault.balanceOf(address(msca)), 0);
     }
 
     function test_unauthorizedCaller_isRejectedByTheAccountsRuntimeValidation() public {

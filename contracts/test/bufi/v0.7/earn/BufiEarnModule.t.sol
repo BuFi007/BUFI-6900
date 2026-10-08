@@ -59,10 +59,60 @@ contract BufiEarnModuleTest is Test {
         assertEq(vault.balanceOf(address(module)), 0);
     }
 
-    function test_ownerCanAlsoTriggerAutoEarn() public {
+    /// Plan 398: the owner (the chain's Safe in production) is governance, not an
+    /// operational key. It is NOT implicitly a relayer.
+    function test_ownerCannotTriggerAutoEarn() public {
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(BufiEarnModule.NotAuthorized.selector, owner));
+        BufiEarnModule(address(account)).autoEarn(address(usdc), 1e6);
+        assertEq(vault.balanceOf(address(account)), 0);
+    }
+
+    /// ...but it can still authorize itself explicitly, which is visible on-chain.
+    function test_ownerTriggersOnlyAfterExplicitAuthorization() public {
+        vm.prank(owner);
+        module.addAuthorizedRelayer(owner);
         vm.prank(owner);
         BufiEarnModule(address(account)).autoEarn(address(usdc), 1e6);
         assertEq(vault.balanceOf(address(account)), vault.convertToShares(1e6));
+    }
+
+    function test_constructorRefusesZeroRelayer() public {
+        vm.expectRevert(BufiEarnModule.ZeroAddress.selector);
+        new BufiEarnModule(address(0), owner);
+    }
+
+    function test_constructorRefusesZeroOwner() public {
+        vm.expectRevert(abi.encodeWithSignature("OwnableInvalidOwner(address)", address(0)));
+        new BufiEarnModule(relayer, address(0));
+    }
+
+    function test_addAuthorizedRelayerRefusesZero() public {
+        vm.prank(owner);
+        vm.expectRevert(BufiEarnModule.ZeroAddress.selector);
+        module.addAuthorizedRelayer(address(0));
+    }
+
+    function test_ownershipIsTwoStep() public {
+        address safe = makeAddr("safe");
+        vm.prank(owner);
+        module.transferOwnership(safe);
+        // nothing moved yet: the old owner still governs, the Safe is only pending
+        assertEq(module.owner(), owner);
+        assertEq(module.pendingOwner(), safe);
+
+        vm.prank(stranger);
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", stranger));
+        module.acceptOwnership();
+
+        vm.prank(safe);
+        module.acceptOwnership();
+        assertEq(module.owner(), safe);
+        assertEq(module.pendingOwner(), address(0));
+
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", owner));
+        module.addAuthorizedRelayer(stranger);
     }
 
     function test_strangerCannotTriggerAutoEarn() public {

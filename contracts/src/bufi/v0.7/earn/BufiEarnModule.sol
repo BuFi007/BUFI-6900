@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.24;
+pragma solidity 0.8.24;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
@@ -36,6 +36,9 @@ import {IPluginExecutor} from "@circle/msca/6900/v0.7/interfaces/IPluginExecutor
  *  - No signature-relay overload — the relayer (Shiva key or CRE extractor)
  *    calls the account directly; less surface for the first audit pass.
  *  - Relayer add/remove is onlyOwner — relayers cannot mint more relayers.
+ *  - Ownership is two-step (Ownable2Step) and the owner is NOT implicitly a
+ *    relayer: only an address the owner explicitly authorized can trigger
+ *    `autoEarn` (plan 398 freeze). The production owner is the chain's Safe.
  *  - SentinelList dependency replaced with a plain array + membership mapping.
  *  - `changeConfigHash` is an ERC-6900 execution function routed through the
  *    account (see "Deviation (BUFI-6900)" below), not a bare
@@ -59,7 +62,7 @@ import {IPluginExecutor} from "@circle/msca/6900/v0.7/interfaces/IPluginExecutor
  * in packages/env/src/circle.ts. Target chains: Avalanche + Arc, where
  * treasury MSCAs deploy. Not audited — do not install on mainnet treasuries.
  */
-contract BufiEarnModule is IPlugin, IERC165, Ownable {
+contract BufiEarnModule is IPlugin, IERC165, Ownable2Step {
     /*//////////////////////////////////////////////////////////////////////////
                             CONSTANTS & STORAGE
     //////////////////////////////////////////////////////////////////////////*/
@@ -72,6 +75,7 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable {
     error ConfigNotFound(address token);
     error InvalidConfigHash();
     error NotImplemented();
+    error ZeroAddress();
     error InvalidFunctionId(uint8 functionId);
     /// @dev BUFI-6900 F-08: configs must be canonically ordered so that logically equal sets hash identically.
     error ConfigNotSorted(uint256 index);
@@ -137,6 +141,7 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable {
     //////////////////////////////////////////////////////////////////////////*/
 
     constructor(address _authorizedRelayer, address _owner) Ownable(_owner) {
+        if (_authorizedRelayer == address(0)) revert ZeroAddress();
         authorizedRelayers[_authorizedRelayer] = true;
         emit AddAuthorizedRelayer(_authorizedRelayer);
     }
@@ -146,6 +151,7 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable {
     //////////////////////////////////////////////////////////////////////////*/
 
     function addAuthorizedRelayer(address newRelayer) external onlyOwner {
+        if (newRelayer == address(0)) revert ZeroAddress();
         authorizedRelayers[newRelayer] = true;
         emit AddAuthorizedRelayer(newRelayer);
     }
@@ -316,7 +322,9 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable {
     }
 
     /// @dev The only validation this plugin provides: the runtime caller of
-    /// account.autoEarn must be an authorized relayer or the module owner.
+    /// account.autoEarn must be an explicitly authorized relayer. The owner is
+    /// deliberately NOT accepted here (plan 398): the owner is the chain's Safe,
+    /// and a governance key must not double as an operational one.
     function runtimeValidationFunction(uint8 functionId, address sender, uint256, bytes calldata)
         external
         view
@@ -325,7 +333,7 @@ contract BufiEarnModule is IPlugin, IERC165, Ownable {
         if (functionId != FUNCTION_ID_RUNTIME_VALIDATION_RELAYER) {
             revert InvalidFunctionId(functionId);
         }
-        if (!authorizedRelayers[sender] && sender != owner()) revert NotAuthorized(sender);
+        if (!authorizedRelayers[sender]) revert NotAuthorized(sender);
     }
 
     function preUserOpValidationHook(uint8, PackedUserOperation calldata, bytes32)
