@@ -1,48 +1,38 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.24;
-
-import {Script, console2} from "forge-std/src/Script.sol";
+pragma solidity 0.8.24;
 
 import {TreasuryConduit} from "../src/bufi/conduit/TreasuryConduit.sol";
+import {BufiDeployBase} from "./config/BufiDeployBase.sol";
+import {BufiDeployConfig} from "./config/BufiDeployConfig.sol";
+import {BufiInitCodes} from "./config/BufiInitCodes.sol";
 
-/// @notice Deploys TreasuryConduit through the Arachnid CREATE2 deployer so the
-/// address is the same on every chain, then registers the chain's targets.
+import {console2} from "forge-std/src/Script.sol";
+
+/// @notice TreasuryConduit through the Arachnid CREATE2 proxy with the bootstrap deployer as the init-code
+/// owner (same address on every chain), the chain's configured targets registered, then ownership proposed to
+/// the chain's Safe (`BufiDeployConfig`). Unknown chain ids are refused. Salt: `CONDUIT_SALT`, explicit.
 ///
-///   DEPLOYER_PRIVATE_KEY   signer (needs gas; on Arc that is USDC)
-///   CONDUIT_OWNER          BUFI ops multisig (defaults to the deployer — dev only)
-///   CONDUIT_SALT           bytes32, defaults to keccak256("bufi.treasury-conduit.v1")
-///   CONDUIT_TARGETS        optional comma-separated router/pool/vault addresses
-///
-///   forge script script/DeployTreasuryConduit.s.sol --rpc-url $RPC --broadcast
-contract DeployTreasuryConduit is Script {
-    address internal constant CREATE2_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
+/// Simulate (no key needed), with BOOTSTRAP = 0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474:
+///   forge script script/DeployTreasuryConduit.s.sol --fork-url $RPC --sender $BOOTSTRAP
+/// Broadcast: same, plus --broadcast and a signer for BOOTSTRAP (--account / --ledger).
+contract DeployTreasuryConduit is BufiDeployBase {
+    function run() external returns (address conduit) {
+        BufiDeployConfig.Chain memory c = _chain();
 
-    function run() external {
-        uint256 key = vm.envUint("DEPLOYER_PRIVATE_KEY");
-        address deployer = vm.addr(key);
-        address owner = vm.envOr("CONDUIT_OWNER", deployer);
-        bytes32 salt = vm.envOr("CONDUIT_SALT", keccak256("bufi.treasury-conduit.v1"));
-        bytes memory initCode = abi.encodePacked(type(TreasuryConduit).creationCode, abi.encode(owner));
-        address predicted = vm.computeCreate2Address(salt, keccak256(initCode), CREATE2_DEPLOYER);
-
-        vm.startBroadcast(key);
-        if (predicted.code.length == 0) {
-            (bool ok,) = CREATE2_DEPLOYER.call(abi.encodePacked(salt, initCode));
-            require(ok, "create2 failed");
-            require(predicted.code.length > 0, "conduit missing after create2");
-            console2.log("TreasuryConduit deployed", predicted);
-        } else {
-            console2.log("TreasuryConduit already at", predicted);
+        vm.startBroadcast(BufiDeployConfig.BOOTSTRAP_OWNER);
+        conduit = _create2("TreasuryConduit", BufiDeployConfig.CONDUIT_SALT, BufiInitCodes.conduit());
+        _register(conduit, c.safe, c.appKit);
+        _register(conduit, c.safe, c.lifi);
+        for (uint256 i = 0; i < c.earnVaults.length; i++) {
+            _register(conduit, c.safe, c.earnVaults[i]);
         }
-        address[] memory targets = vm.envOr("CONDUIT_TARGETS", ",", new address[](0));
-        TreasuryConduit conduit = TreasuryConduit(predicted);
-        for (uint256 i = 0; i < targets.length; i++) {
-            if (!conduit.targets(targets[i])) {
-                conduit.setTarget(targets[i], true);
-                console2.log("target registered", targets[i]);
-            }
-        }
+        _handover("TreasuryConduit", conduit, c.safe);
         vm.stopBroadcast();
-        console2.log("owner", owner);
+    }
+
+    function _register(address conduit, address safe, address target) internal {
+        if (target == address(0) || TreasuryConduit(conduit).targets(target)) return;
+        _ownerCall(conduit, safe, abi.encodeCall(TreasuryConduit.setTarget, (target, true)), "conduit.setTarget");
+        console2.log("  target", target);
     }
 }
