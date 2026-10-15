@@ -96,3 +96,18 @@ arc-testnet = "${ARC_TESTNET_RPC_URL}"
 arc-private-mainnet = "${ARC_PRIVATE_MAINNET_RPC_URL}"
 arc-mainnet = "${ARC_MAINNET_RPC_URL}"
 base-sepolia = "${BASE_SEPOLIA_RPC_URL}"
+
+# Source-only V2 proof against Fuji's live FiatToken + CCTP. No broadcast.
+[profile.fork-bridge]
+no_match_path = "__never__/**"
+match_path = "test/fork/bridge/**"
+evm_version = "cancun"
+[[profile.fork-bridge.additional_compiler_profiles]]
+name = "circle-paris"
+evm_version = "paris"
+via_ir = true
+optimizer = true
+optimizer_runs = 200
+[[profile.fork-bridge.compilation_restrictions]]
+paths = "lib/buidl-wallet-contracts/**"
+evm_version = "paris"

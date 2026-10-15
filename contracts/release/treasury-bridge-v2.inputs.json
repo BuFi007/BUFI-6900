@@ -1,0 +1,30 @@
+[
+  {
+    "chainId": 5042002,
+    "chainName": "Arc Testnet",
+    "owner": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
+    "cctpV2TokenMessenger": "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
+    "sourceSwapVenues": ["0xBBD70b01a1CAbc96d5b7b129Ae1AAabdf50dd40b", "0xFf70F4A1d11995621854F3692acF286d8aCd04b2"]
+  },
+  {
+    "chainId": 43113,
+    "chainName": "Avalanche Fuji",
+    "owner": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
+    "cctpV2TokenMessenger": "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
+    "sourceSwapVenues": []
+  },
+  {
+    "chainId": 5042,
+    "chainName": "Arc",
+    "owner": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+    "cctpV2TokenMessenger": "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d",
+    "sourceSwapVenues": []
+  },
+  {
+    "chainId": 43114,
+    "chainName": "Avalanche",
+    "owner": "0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B",
+    "cctpV2TokenMessenger": "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d",
+    "sourceSwapVenues": []
+  }
+]

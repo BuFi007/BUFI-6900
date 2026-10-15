@@ -1,0 +1,31 @@
+{
+  "kind": "read-only-source-fork",
+  "chainId": 43113,
+  "blockNumber": 59527372,
+  "blockHash": "0x27bd1d0a8dafe65fb6042bf00e15b375ef08fbb0829a738482a5c08453d8923a",
+  "rpc": "https://api.avax-test.network/ext/bc/C/rpc",
+  "contracts": [
+    {
+      "name": "USDC",
+      "address": "0x5425890298aed601595a70AB815c96711a31Bc65",
+      "runtimeCodeHashAtForkBlock": "0x7140a935aa3bb55d334d6d325fea277e47674770b10823feefa6f8b2c58af5fc",
+      "runtimeSizeBytes": 1852
+    },
+    {
+      "name": "TokenMessengerV2",
+      "address": "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
+      "runtimeCodeHashAtForkBlock": "0xd2c8d48075d832fb7d07f6db5545a1bee37fdf886325c441a8dd1cef4c9dae99",
+      "runtimeSizeBytes": 2175
+    }
+  ],
+  "noNetworkBroadcast": true,
+  "funding": "local deal storage cheatcode",
+  "treasury": "locally deployed canonical Circle weighted 2-owner MSCA with AddressBook",
+  "destinationSettlementVerified": false,
+  "gasCarrier": "separate locally deployed canonical Circle weighted SCA; source execution via signed UserOp and canonical EntryPoint; carrier has zero USDC before and after",
+  "tests": [
+    "Personal exact allowance and real CCTP burn",
+    "Personal one-unit floor miss rolls back real-token fee and allowance",
+    "Treasury weighted two-owner ERC1271 authorizes real FiatToken; one-owner refusal; gas-only SCA UserOp executes real CCTP burn; replay refused"
+  ]
+}
