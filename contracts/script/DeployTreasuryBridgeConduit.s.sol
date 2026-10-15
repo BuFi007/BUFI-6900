@@ -30,21 +30,13 @@ contract DeployTreasuryBridgeConduit is Script {
     address internal constant ARC_SAFE = 0x47Dc7D18A6E3a79F696714E7D47456a49B430D09;
     address internal constant AVALANCHE_SAFE = 0xA3a40fa2d82C0224c40b1Ed7E07cb474B7D1468B;
 
-    function run() external {
-        bool mainnet = _isMainnet(block.chainid);
-        if (mainnet) {
-            require(vm.envOr("ALLOW_MAINNET", uint256(0)) == 1, "mainnet chain: refused without ALLOW_MAINNET=1");
-        }
+    error UnsupportedChain(uint256 chainId);
 
+    function run() external {
+        // Validate the chain and owner before accessing any deployer credential.
+        (bool mainnet, address owner) = _preflight();
         uint256 key = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address deployer = vm.addr(key);
-        address owner = vm.envAddress("BRIDGE_CONDUIT_OWNER");
-        require(owner != address(0), "BRIDGE_CONDUIT_OWNER is zero");
-        if (mainnet) {
-            address safe = _safeFor(block.chainid);
-            require(safe != address(0), "no Safe recorded for this mainnet");
-            require(owner == safe, "mainnet owner must be the chain's Safe");
-        }
 
         bytes32 salt = vm.envOr("BRIDGE_CONDUIT_SALT", keccak256("bufi.treasury-bridge-conduit.v1"));
         bytes memory initCode = abi.encodePacked(type(TreasuryBridgeConduit).creationCode, abi.encode(owner));
@@ -92,7 +84,10 @@ contract DeployTreasuryBridgeConduit is Script {
         TreasuryBridgeConduit conduit = TreasuryBridgeConduit(predicted);
         require(conduit.owner() == owner, "on-chain owner differs from BRIDGE_CONDUIT_OWNER");
 
-        if (owner != deployer) {
+        // Registration is owner-only. On a mainnet the owner is the Safe, so it
+        // is a Safe transaction (see script/mainnet-handoff/plan-408/), never
+        // something this script sends.
+        if (mainnet || owner != deployer) {
             vm.stopBroadcast();
             console2.log("broadcaster is not the owner: registration skipped (owner must do it)");
             return;
@@ -134,9 +129,22 @@ contract DeployTreasuryBridgeConduit is Script {
         vm.stopBroadcast();
     }
 
+    function _preflight() internal view returns (bool mainnet, address owner) {
+        mainnet = _isMainnet(block.chainid);
+        if (mainnet) {
+            require(vm.envOr("ALLOW_MAINNET", uint256(0)) == 1, "mainnet chain: refused without ALLOW_MAINNET=1");
+        }
+        owner = vm.envAddress("BRIDGE_CONDUIT_OWNER");
+        require(owner != address(0), "BRIDGE_CONDUIT_OWNER is zero");
+        if (mainnet) {
+            require(owner == _safeFor(block.chainid), "mainnet owner must be the chain's Safe");
+        }
+    }
+
     function _isMainnet(uint256 chainId) internal pure returns (bool) {
-        return chainId == 5042 || chainId == 43114 || chainId == 1 || chainId == 8453 || chainId == 42161
-            || chainId == 10 || chainId == 137;
+        if (chainId == 5042002 || chainId == 43113) return false;
+        if (chainId == 5042 || chainId == 43114) return true;
+        revert UnsupportedChain(chainId);
     }
 
     function _safeFor(uint256 chainId) internal pure returns (address) {
