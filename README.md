@@ -165,9 +165,9 @@ These chains are the ones production uses: Arc 5042 and Avalanche 43114. Every a
 
 | Contract | Address | Commit | Owner (on-chain) | Explorer |
 | --- | --- | --- | --- | --- |
-| `TreasuryConduit` v2 | `0xA9817049F0a48d4653719465A7829E85b3A415e7` | — | **Safe `0x47Dc7D18A6E3a79F696714E7D47456a49B430D09`** (no pending) | [arcscan](https://arcscan.app/address/0xA9817049F0a48d4653719465A7829E85b3A415e7) |
-| `TreasuryRedeemConduit` | `0x361340F0B3a8EC00067eA3c024Ae6919A2a0D06A` | — | **Safe `0x47Dc7D18A6E3a79F696714E7D47456a49B430D09`** (no pending) | [arcscan](https://arcscan.app/address/0x361340F0B3a8EC00067eA3c024Ae6919A2a0D06A) |
-| `MemoConduit` (source not in this repo) | `0x516340a244132c62BEdaE5F886Fd35845Af16ba2` | — | no `owner()` | [arcscan](https://arcscan.app/address/0x516340a244132c62BEdaE5F886Fd35845Af16ba2) |
+| `TreasuryConduit` v2 | `0xA9817049F0a48d4653719465A7829E85b3A415e7` | — | **Safe `0x47Dc7D18A6E3a79F696714E7D47456a49B430D09`** (no pending) | [explorer.arc.io](https://explorer.arc.io/address/0xA9817049F0a48d4653719465A7829E85b3A415e7) |
+| `TreasuryRedeemConduit` | `0x361340F0B3a8EC00067eA3c024Ae6919A2a0D06A` | — | **Safe `0x47Dc7D18A6E3a79F696714E7D47456a49B430D09`** (no pending) | [explorer.arc.io](https://explorer.arc.io/address/0x361340F0B3a8EC00067eA3c024Ae6919A2a0D06A) |
+| `MemoConduit` (source not in this repo) | `0x516340a244132c62BEdaE5F886Fd35845Af16ba2` | — | no `owner()` | [explorer.arc.io](https://explorer.arc.io/address/0x516340a244132c62BEdaE5F886Fd35845Af16ba2) |
 
 **Avalanche C-Chain (43114)**, record `contracts/deployments/avax-mainnet.json`
 
