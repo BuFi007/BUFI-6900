@@ -1,0 +1,48 @@
+{
+  "chainId": 43114,
+  "rpcUrl": "https://avalanche-c-chain-rpc.publicnode.com",
+  "create2Deployer": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+  "conduit": {
+    "address": "0x49c89b198321ed0782a4f9a44de2b237ebd77cf0",
+    "contract": "src/bufi/conduit/TreasuryConduit.sol:TreasuryConduit",
+    "sourceCommit": "f19666f",
+    "deployMethod": "CREATE2 via Arachnid deterministic deployer (0x4e59b44847b379578588920cA78FbF26c0B4956C)",
+    "deployTx": "0xcb3b59cb39f0f8c67e303aaea22d81be7c40756c1792bcc39c248e2dabe4b51e",
+    "deployBlock": 97727352,
+    "deployedAt": "2026-10-16T17:45:23Z",
+    "explorer": "https://snowtrace.io/address/0x49c89b198321ed0782a4f9a44de2b237ebd77cf0",
+    "setTargetTxs": [
+      "0x56b48efaf0dc49e88e095aafa6e466d98155b1c6c24a9dc7f83ee76c7a2ee5af",
+      "0xe8f16403d449f85d8a2f2e8ca0460c28b2e65b030862fbbb4e174af8cb59d35d",
+      "0x3d43cccd8dbd5705bb0289b28be8ea45752f75af1c60e463467546309214b8e9"
+    ],
+    "targets": {
+      "uniswapUniversalRouter": "0x661E93cca42AfacB172121EF892830cA3b70F08d",
+      "uniswapNoPermit2Proxy": "0x0000000085E102724e78eCd2F45DC9cA239Affad",
+      "lifiDiamond": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE",
+      "uniswapSwapRouter02": "0xbb00FF08d01D300023C629E8fFfFcb65A5a578cE"
+    },
+    "owner": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+    "pendingOwner": "0x0000000000000000000000000000000000000000",
+    "ownershipNotes": "Ownable2Step. Owned by the BUFI Safe 0x47Dc7D18A6E3a79F696714E7D47456a49B430D09 (2-step transfer from deployer completed). Verified on-chain: owner()==Safe, pendingOwner()==0x0, targets(addr)==true for all four targets, at 2026-10-16T17:54:22Z.",
+    "receipts": "broadcast/DeployTreasuryConduit.s.sol/43114/run-latest.json",
+    "ownershipTransfer": {
+      "from": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
+      "to": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+      "method": "Ownable2Step: transferOwnership by deployer, acceptOwnership by the Safe",
+      "safeTx": "0xfde861e801c23ab1d0496f94e2152d60cdf1157b4bee6580bbc6489c022def81",
+      "safeTxBlock": 97727911,
+      "safeTxContents": "acceptOwnership() + setTarget(0xbb00FF08d01D300023C629E8fFfFcb65A5a578cE, true)"
+    }
+  },
+  "memoConduit": {
+    "address": "0x536268d0A6C32a7161BA146F5673dFcF13F1fFe2",
+    "owner": null,
+    "notes": "Source is not in this repo's src/. No owner() function. Verified code on-chain at 2026-10-16T17:58:49Z."
+  },
+  "thirdParty": {
+    "peanutV4_4": "0xd092f910be70328426530bCa92C746De1e0989eC",
+    "peanutBatcher": "0xE9963b5f864099c3A4454c395C8Cf1bBd97eCA91",
+    "notes": "Peanut protocol V4.4 + batcher, deployed by the fx-telarana deployer. Third-party code, not BUFI source, out of audit scope. No owner(). Code verified on-chain at 2026-10-16T17:58:49Z."
+  }
+}
