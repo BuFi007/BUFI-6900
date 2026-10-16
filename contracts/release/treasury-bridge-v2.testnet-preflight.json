@@ -1,0 +1,124 @@
+{
+  "observedAt": "2026-10-16T00:05:02.092936+00:00",
+  "mode": "read-only-no-signing",
+  "contractCommit": "997dfad6aca5e3e9ae3d6c1d66b15fecbd47f012",
+  "runtimeCodeHash": "0x5ddb81fad45ec7282ba7d75cfc5474232aed59b7cbc398ae1c522485cbdf268e",
+  "circleContractAddressReference": "https://developers.circle.com/cctp/references/contract-addresses",
+  "chains": [
+    {
+      "chainId": 5042002,
+      "rpcUrl": "https://rpc.testnet.arc.network",
+      "blockNumber": 67411788,
+      "blockHash": "0xa24d9da69632bafee310db9d9c379c3d7bb9aeb3c2792f934b9a94c4058d370f",
+      "owner": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
+      "establishedV1Owner": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
+      "predictedAddress": "0x41422093Ef6d03FBd3c0a2E3A6a6F69b1Cad4409",
+      "nativeBalanceWei": "16503696143056608135",
+      "nativeBalance18Decimals": "16.503696143057",
+      "gasPriceWei": "25000000000",
+      "conservativeDeploymentAdmissionWei": "241011600000000000",
+      "fundedForDeployment": true,
+      "ownerUsdcBalance6Decimals": "16503696",
+      "factory": {
+        "address": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+        "runtimeBytes": 69,
+        "runtimeCodeHash": "0x2fa86add0aed31f33a762c9d88e807c475bd51d0f52bd0955754b2608f7e4989"
+      },
+      "messenger": {
+        "address": "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
+        "runtimeBytes": 2175,
+        "runtimeCodeHash": "0xd2c8d48075d832fb7d07f6db5545a1bee37fdf886325c441a8dd1cef4c9dae99",
+        "implementation": {
+          "address": "0xF07C0ad13178a9ef5c3fFA0Be69e0BECd452Bf6D",
+          "runtimeCodeHash": "0xcc9566f7c5416ae59643261497ede6f4f8b0bc7589f25659add9a52a90bb16b9"
+        }
+      },
+      "transmitter": {
+        "address": "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
+        "runtimeBytes": 2175,
+        "runtimeCodeHash": "0xd2c8d48075d832fb7d07f6db5545a1bee37fdf886325c441a8dd1cef4c9dae99",
+        "implementation": {
+          "address": "0xA849059BC1F6Fff867eF77bed6fA874f77a62466",
+          "runtimeCodeHash": "0x3b5d3d6b6036d5b0c88d727440fa7391d5ab0fb2c32ae68bea880589c5dbf578"
+        }
+      },
+      "minter": {
+        "address": "0xb43db544E2c27092c107639Ad201b3dEfAbcF192",
+        "runtimeBytes": 9295,
+        "runtimeCodeHash": "0xfc330d52b7656b971ef47bbb8cd44877181fbc9ac0fe76cb4cb5bb364a992eff"
+      },
+      "sourceSwapVenues": [
+        {
+          "address": "0xBBD70b01a1CAbc96d5b7b129Ae1AAabdf50dd40b",
+          "runtimeBytes": 813,
+          "runtimeCodeHash": "0x27082fe044a44ab28ac41032e015c6c04cf36d7fea8898db114890cd779ad2a2",
+          "implementation": {
+            "address": "0xb4d0aA6Ca5e12B8a77b86989305A7F15462Ac2D4",
+            "runtimeCodeHash": "0x07c762f64cc564002b6371579f179f24a6a2e3cbbdf372e3a1f50025329c7b4d"
+          }
+        },
+        {
+          "address": "0xFf70F4A1d11995621854F3692acF286d8aCd04b2",
+          "runtimeBytes": 254,
+          "runtimeCodeHash": "0x9a476b17129eb4c3495ca89db1e4db47ca59df3f6dcff8f2225703f2ca24a694"
+        }
+      ],
+      "localDomain": 26,
+      "remoteDomain": 1,
+      "deployment": {
+        "status": "absent",
+        "estimatedCreate2Gas": 2185116
+      }
+    },
+    {
+      "chainId": 43113,
+      "rpcUrl": "https://api.avax-test.network/ext/bc/C/rpc",
+      "blockNumber": 59528847,
+      "blockHash": "0xe6fd567088526f5fd1bfd4369e4e8a12b207b693a5431936e7f92e737103c94a",
+      "owner": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
+      "establishedV1Owner": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
+      "predictedAddress": "0x41422093Ef6d03FBd3c0a2E3A6a6F69b1Cad4409",
+      "nativeBalanceWei": "948749683856454947",
+      "nativeBalance18Decimals": "0.948749683856",
+      "gasPriceWei": "160",
+      "conservativeDeploymentAdmissionWei": "1446474240",
+      "fundedForDeployment": true,
+      "ownerUsdcBalance6Decimals": "6000000",
+      "factory": {
+        "address": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+        "runtimeBytes": 69,
+        "runtimeCodeHash": "0x2fa86add0aed31f33a762c9d88e807c475bd51d0f52bd0955754b2608f7e4989"
+      },
+      "messenger": {
+        "address": "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
+        "runtimeBytes": 2175,
+        "runtimeCodeHash": "0xd2c8d48075d832fb7d07f6db5545a1bee37fdf886325c441a8dd1cef4c9dae99",
+        "implementation": {
+          "address": "0xf80e9E448F9d8cBFc42703419D78fE36FC350b76",
+          "runtimeCodeHash": "0x8436939c0b47276d23461f67f34b90dde93a926f6dccd127c32316fe4893c131"
+        }
+      },
+      "transmitter": {
+        "address": "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
+        "runtimeBytes": 2175,
+        "runtimeCodeHash": "0xd2c8d48075d832fb7d07f6db5545a1bee37fdf886325c441a8dd1cef4c9dae99",
+        "implementation": {
+          "address": "0xc2647e25ea9426a10F7EC1e307815c18f3ABDF1c",
+          "runtimeCodeHash": "0x2b64a9391870bccabd3e99dfcd2015ab2142c1e357d7ca569dbf72e7070cab76"
+        }
+      },
+      "minter": {
+        "address": "0xb43db544E2c27092c107639Ad201b3dEfAbcF192",
+        "runtimeBytes": 9295,
+        "runtimeCodeHash": "0xfc330d52b7656b971ef47bbb8cd44877181fbc9ac0fe76cb4cb5bb364a992eff"
+      },
+      "sourceSwapVenues": [],
+      "localDomain": 1,
+      "remoteDomain": 26,
+      "deployment": {
+        "status": "absent",
+        "estimatedCreate2Gas": 2185116
+      }
+    }
+  ]
+}

@@ -1,10 +1,12 @@
 # TreasuryBridgeConduitV2 release review
 
-V2 is a new, unaudited contract. This package is a reproducible proposal; none of
-its predicted addresses is a deployment record. Desk `contracts/DEPLOYMENTS.md`
+V2 is a new, unaudited contract. The immutable review JSON is the original
+reproducible proposal, including undeployed mainnet plans. Authorized testnet
+deployment receipts and independent readback are recorded separately in
+`treasury-bridge-v2.testnet-deployments.json`. Desk `contracts/DEPLOYMENTS.md`
 and `contracts/deployments.json` remain the deployment source of truth. V1 stays
-recorded at its actual testnet addresses. Do not replace V1 metadata with V2
-predictions or enable server capability evidence from this document.
+recorded at its actual addresses. Server capability evidence requires the actual
+deployment record and current policy, code and authority observations.
 
 V2 keeps the weighted Treasury ERC-1271/ERC-3009 quorum and adds
 `executePersonal(Intent,bytes)` for an ordinary human wallet transaction funded
@@ -50,8 +52,8 @@ activation requirements. Regenerate after any source, dependency or build change
 and Avalanche Fuji (43113), requires an explicit owner equal to the authorized
 broadcaster, and verifies code, owner, bridge and venue readback. It registers
 only the supplied CCTP V2 bridge and venues. Standard `forge script` simulates;
-only an authorized operator adds `--broadcast`. No broadcast was run for this
-package. Environment names are `DEPLOYER_PRIVATE_KEY`, `BRIDGE_CONDUIT_OWNER`,
+only an authorized operator adds `--broadcast`. Testnet broadcasts were authorized
+and completed on 2026-10-16 UTC. Environment names are `DEPLOYER_PRIVATE_KEY`, `BRIDGE_CONDUIT_OWNER`,
 `BRIDGE_CCTP_V2`, and optional comma-separated `BRIDGE_CONDUIT_TARGETS`.
 
 Mainnet has no deployment override in that script. The offline mainnet plans use
@@ -82,6 +84,33 @@ activation. Mainnet quorum settings are unchanged.
   provider, membership, and policy observations are fixtures; they do not prove
   an end-to-end live deployment.
 
-A live funded testnet burn/mint and lost-response recovery remain an operator
-smoke after approved V2 deployment and canonical runtime configuration. This
-source-fork evidence does not claim that destination settlement has occurred.
+## Authorized testnet deployment
+
+The frozen `997dfad6aca5e3e9ae3d6c1d66b15fecbd47f012` release was simulated,
+then deployed with the established testnet EOA owner
+`0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474`. Both testnets use
+`0x41422093Ef6d03FBd3c0a2E3A6a6F69b1Cad4409`; runtime is 9432 bytes,
+hash `0x5ddb81fad45ec7282ba7d75cfc5474232aed59b7cbc398ae1c522485cbdf268e`.
+
+| Testnet | CREATE2 deployment transaction | Registrations |
+| --- | --- | --- |
+| Arc Testnet (5042002) | `0xa1a150338cd658d7bc10e54a32f014e2b944c7353900ff9c5b7562aa6f022205` | CCTP V2, reviewed App Kit adapter and LI.FI |
+| Avalanche Fuji (43113) | `0x67927dc08f8bd6b5c6c67163695cebe388cb2e07007cc26f36dd2510ef807a2a` | CCTP V2; no source swap venues |
+
+`check-treasury-bridge-v2-testnets.py` records read-only chain identity, established
+owner, test gas balances, exact CCTP contracts, domains and proxy implementations.
+`record-treasury-bridge-v2-testnet-proof.py` independently reads all six original
+receipts, checks exact reviewed calldata and sender, requires successful canonical
+finalized receipts, and checks runtime, owner and registration readback. These
+scripts allow only the two testnet RPCs and never load signing material.
+
+```sh
+python3 -B scripts/release/check-treasury-bridge-v2-testnets.py --output /tmp/v2-preflight.json
+python3 -B scripts/release/record-treasury-bridge-v2-testnet-proof.py --output /tmp/v2-deployment-proof.json
+```
+
+Deployment used existing testnet funds only. Mainnet plans remain review-only;
+no mainnet or Safe transaction was sent, and no quorum was changed. A live funded
+testnet burn/mint and lost-response recovery require separate application evidence
+after canonical runtime configuration. Contract deployment and source-fork proofs
+do not establish destination settlement.

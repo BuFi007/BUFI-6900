@@ -1,0 +1,251 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-16T00:08:51.224020+00:00",
+  "contract": "TreasuryBridgeConduitV2",
+  "status": "testnet-deployed-and-registered",
+  "contractCommit": "997dfad6aca5e3e9ae3d6c1d66b15fecbd47f012",
+  "runtimeCodeHash": "0x5ddb81fad45ec7282ba7d75cfc5474232aed59b7cbc398ae1c522485cbdf268e",
+  "runtimeSizeBytes": 9432,
+  "compiler": {
+    "solc": "0.8.24",
+    "evmVersion": "paris",
+    "optimizerRuns": 200,
+    "viaIR": true
+  },
+  "auditStatus": "unaudited",
+  "authorization": "Explicit user authorization for testnet deployment and registrations only",
+  "mainnetStatus": "review-only-not-deployed-no-broadcast",
+  "scope": "Testnet contract deployment proof; application destination settlement and recovery have separate evidence",
+  "chains": [
+    {
+      "chainId": 5042002,
+      "rpcUrl": "https://rpc.testnet.arc.network",
+      "blockNumber": 67412257,
+      "blockHash": "0xe94019ead501ecb5d9b37209957752c484af862bd501d774c09bf9da3fbaed36",
+      "owner": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
+      "establishedV1Owner": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
+      "predictedAddress": "0x41422093Ef6d03FBd3c0a2E3A6a6F69b1Cad4409",
+      "nativeBalanceWei": "16429181150556608135",
+      "nativeBalance18Decimals": "16.429181150557",
+      "gasPriceWei": "25000000000",
+      "conservativeDeploymentAdmissionWei": "22500000000000000",
+      "fundedForDeployment": true,
+      "ownerUsdcBalance6Decimals": "16429181",
+      "factory": {
+        "address": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+        "runtimeBytes": 69,
+        "runtimeCodeHash": "0x2fa86add0aed31f33a762c9d88e807c475bd51d0f52bd0955754b2608f7e4989"
+      },
+      "messenger": {
+        "address": "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
+        "runtimeBytes": 2175,
+        "runtimeCodeHash": "0xd2c8d48075d832fb7d07f6db5545a1bee37fdf886325c441a8dd1cef4c9dae99",
+        "implementation": {
+          "address": "0xF07C0ad13178a9ef5c3fFA0Be69e0BECd452Bf6D",
+          "runtimeCodeHash": "0xcc9566f7c5416ae59643261497ede6f4f8b0bc7589f25659add9a52a90bb16b9"
+        }
+      },
+      "transmitter": {
+        "address": "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
+        "runtimeBytes": 2175,
+        "runtimeCodeHash": "0xd2c8d48075d832fb7d07f6db5545a1bee37fdf886325c441a8dd1cef4c9dae99",
+        "implementation": {
+          "address": "0xA849059BC1F6Fff867eF77bed6fA874f77a62466",
+          "runtimeCodeHash": "0x3b5d3d6b6036d5b0c88d727440fa7391d5ab0fb2c32ae68bea880589c5dbf578"
+        }
+      },
+      "minter": {
+        "address": "0xb43db544E2c27092c107639Ad201b3dEfAbcF192",
+        "runtimeBytes": 9295,
+        "runtimeCodeHash": "0xfc330d52b7656b971ef47bbb8cd44877181fbc9ac0fe76cb4cb5bb364a992eff"
+      },
+      "sourceSwapVenues": [
+        {
+          "address": "0xBBD70b01a1CAbc96d5b7b129Ae1AAabdf50dd40b",
+          "runtimeBytes": 813,
+          "runtimeCodeHash": "0x27082fe044a44ab28ac41032e015c6c04cf36d7fea8898db114890cd779ad2a2",
+          "implementation": {
+            "address": "0xb4d0aA6Ca5e12B8a77b86989305A7F15462Ac2D4",
+            "runtimeCodeHash": "0x07c762f64cc564002b6371579f179f24a6a2e3cbbdf372e3a1f50025329c7b4d"
+          }
+        },
+        {
+          "address": "0xFf70F4A1d11995621854F3692acF286d8aCd04b2",
+          "runtimeBytes": 254,
+          "runtimeCodeHash": "0x9a476b17129eb4c3495ca89db1e4db47ca59df3f6dcff8f2225703f2ca24a694"
+        }
+      ],
+      "localDomain": 26,
+      "remoteDomain": 1,
+      "deployment": {
+        "status": "present",
+        "runtimeCodeHash": "0x5ddb81fad45ec7282ba7d75cfc5474232aed59b7cbc398ae1c522485cbdf268e",
+        "owner": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
+        "cctpV2Registered": true,
+        "venues": {
+          "0xBBD70b01a1CAbc96d5b7b129Ae1AAabdf50dd40b": true,
+          "0xFf70F4A1d11995621854F3692acF286d8aCd04b2": true
+        }
+      },
+      "deploymentTransactionHash": "0xa1a150338cd658d7bc10e54a32f014e2b944c7353900ff9c5b7562aa6f022205",
+      "receipts": [
+        {
+          "action": "deployCreate2",
+          "transactionHash": "0xa1a150338cd658d7bc10e54a32f014e2b944c7353900ff9c5b7562aa6f022205",
+          "from": "0x09ce8e2b3fede2727da4392ea8fe618305ba0474",
+          "to": "0x4e59b44847b379578588920ca78fbf26c0b4956c",
+          "nonce": 71,
+          "inputHash": "0x691a6407654dddf3a8a19f247eea018b05dbd4f5a9bd118efdb86ae2105bb6f2",
+          "status": "success",
+          "blockNumber": 67412140,
+          "blockHash": "0x7c761460bc511066f778a9a21cecde9499ddc6364fc0ecfb6ee9ff8a7928bcae",
+          "gasUsed": "2148674",
+          "effectiveGasPriceWei": "32500000000",
+          "nativeFeeWei": "69831905000000000",
+          "finality": "finalized"
+        },
+        {
+          "action": "Allow exact CCTP V2 TokenMessenger; no CCTPx registration",
+          "transactionHash": "0xc9766d105f80c9c9cee2577fc6650a101bc9d88ed3ff698b019977bab8fd98ac",
+          "from": "0x09ce8e2b3fede2727da4392ea8fe618305ba0474",
+          "to": "0x41422093ef6d03fbd3c0a2e3a6a6f69b1cad4409",
+          "nonce": 72,
+          "inputHash": "0xbd35322f17279b5a7dc758a9f1c4c94fd875399ce2bf64290f3b44a4c9bbd18a",
+          "status": "success",
+          "blockNumber": 67412145,
+          "blockHash": "0x5d43dacf1b700aa3a05c83b4c6badeb381ac11e58c5eae9a1361cca987d5a663",
+          "gasUsed": "48525",
+          "effectiveGasPriceWei": "32500000000",
+          "nativeFeeWei": "1577062500000000",
+          "finality": "finalized"
+        },
+        {
+          "action": "Allow reviewed source swap venue",
+          "transactionHash": "0xab910cc79952ed660c6494004d44600f8f3fdc9b20c5df6468e8b5bcf4941267",
+          "from": "0x09ce8e2b3fede2727da4392ea8fe618305ba0474",
+          "to": "0x41422093ef6d03fbd3c0a2e3a6a6f69b1cad4409",
+          "nonce": 73,
+          "inputHash": "0x156ed70765985fd5f7eb12f4c6f30732164842b0dba1b14fbcb6db632c0d2d76",
+          "status": "success",
+          "blockNumber": 67412150,
+          "blockHash": "0xfa90f72131b64b02d214acc6bfe01632ff137944e30b27a6f6943b54143f432a",
+          "gasUsed": "47785",
+          "effectiveGasPriceWei": "32500000000",
+          "nativeFeeWei": "1553012500000000",
+          "finality": "finalized"
+        },
+        {
+          "action": "Allow reviewed source swap venue",
+          "transactionHash": "0x853a0791e632c3855dc9895d93a24f66089913c1ea5186f399d582660b885287",
+          "from": "0x09ce8e2b3fede2727da4392ea8fe618305ba0474",
+          "to": "0x41422093ef6d03fbd3c0a2e3a6a6f69b1cad4409",
+          "nonce": 74,
+          "inputHash": "0x71785a8edb562fe04cd4b13321514a6eec1910e5b2e4680b8efa055a5be47759",
+          "status": "success",
+          "blockNumber": 67412154,
+          "blockHash": "0x7e93a4ea8898cca43f658fcf849ad41d18496e9d2b0b72c0851a9e5bccfe1aca",
+          "gasUsed": "47785",
+          "effectiveGasPriceWei": "32500000000",
+          "nativeFeeWei": "1553012500000000",
+          "finality": "finalized"
+        }
+      ],
+      "totalNativeGasFeeWei": "74514992500000000",
+      "finalizedObservation": {
+        "number": 67412239,
+        "hash": "0x50d26c564ec04a55b0e278c380d43d3cd7d1005fc975bcd180ee1ed63e62559f"
+      }
+    },
+    {
+      "chainId": 43113,
+      "rpcUrl": "https://api.avax-test.network/ext/bc/C/rpc",
+      "blockNumber": 59528992,
+      "blockHash": "0xb89e46480b4726253c83eefad33c974e0d5c6f34c77fa95a28f32c6bd034f67b",
+      "owner": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
+      "establishedV1Owner": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
+      "predictedAddress": "0x41422093Ef6d03FBd3c0a2E3A6a6F69b1Cad4409",
+      "nativeBalanceWei": "948749683504903107",
+      "nativeBalance18Decimals": "0.948749683505",
+      "gasPriceWei": "160",
+      "conservativeDeploymentAdmissionWei": "48000000",
+      "fundedForDeployment": true,
+      "ownerUsdcBalance6Decimals": "6000000",
+      "factory": {
+        "address": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+        "runtimeBytes": 69,
+        "runtimeCodeHash": "0x2fa86add0aed31f33a762c9d88e807c475bd51d0f52bd0955754b2608f7e4989"
+      },
+      "messenger": {
+        "address": "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA",
+        "runtimeBytes": 2175,
+        "runtimeCodeHash": "0xd2c8d48075d832fb7d07f6db5545a1bee37fdf886325c441a8dd1cef4c9dae99",
+        "implementation": {
+          "address": "0xf80e9E448F9d8cBFc42703419D78fE36FC350b76",
+          "runtimeCodeHash": "0x8436939c0b47276d23461f67f34b90dde93a926f6dccd127c32316fe4893c131"
+        }
+      },
+      "transmitter": {
+        "address": "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275",
+        "runtimeBytes": 2175,
+        "runtimeCodeHash": "0xd2c8d48075d832fb7d07f6db5545a1bee37fdf886325c441a8dd1cef4c9dae99",
+        "implementation": {
+          "address": "0xc2647e25ea9426a10F7EC1e307815c18f3ABDF1c",
+          "runtimeCodeHash": "0x2b64a9391870bccabd3e99dfcd2015ab2142c1e357d7ca569dbf72e7070cab76"
+        }
+      },
+      "minter": {
+        "address": "0xb43db544E2c27092c107639Ad201b3dEfAbcF192",
+        "runtimeBytes": 9295,
+        "runtimeCodeHash": "0xfc330d52b7656b971ef47bbb8cd44877181fbc9ac0fe76cb4cb5bb364a992eff"
+      },
+      "sourceSwapVenues": [],
+      "localDomain": 1,
+      "remoteDomain": 26,
+      "deployment": {
+        "status": "present",
+        "runtimeCodeHash": "0x5ddb81fad45ec7282ba7d75cfc5474232aed59b7cbc398ae1c522485cbdf268e",
+        "owner": "0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474",
+        "cctpV2Registered": true,
+        "venues": {}
+      },
+      "deploymentTransactionHash": "0x67927dc08f8bd6b5c6c67163695cebe388cb2e07007cc26f36dd2510ef807a2a",
+      "receipts": [
+        {
+          "action": "deployCreate2",
+          "transactionHash": "0x67927dc08f8bd6b5c6c67163695cebe388cb2e07007cc26f36dd2510ef807a2a",
+          "from": "0x09ce8e2b3fede2727da4392ea8fe618305ba0474",
+          "to": "0x4e59b44847b379578588920ca78fbf26c0b4956c",
+          "nonce": 67,
+          "inputHash": "0x691a6407654dddf3a8a19f247eea018b05dbd4f5a9bd118efdb86ae2105bb6f2",
+          "status": "success",
+          "blockNumber": 59528958,
+          "blockHash": "0xf020117ddab30596550bc24bb7f32c8ab9f0079c0e52b7e7bb298de7f8256d84",
+          "gasUsed": "2148674",
+          "effectiveGasPriceWei": "160",
+          "nativeFeeWei": "343787840",
+          "finality": "finalized"
+        },
+        {
+          "action": "Allow exact CCTP V2 TokenMessenger; no CCTPx registration",
+          "transactionHash": "0x3b0b54713867db99cf300d4f200309f7f9f3eb59b7889d08a6181d572bfeffd3",
+          "from": "0x09ce8e2b3fede2727da4392ea8fe618305ba0474",
+          "to": "0x41422093ef6d03fbd3c0a2e3a6a6f69b1cad4409",
+          "nonce": 68,
+          "inputHash": "0xbd35322f17279b5a7dc758a9f1c4c94fd875399ce2bf64290f3b44a4c9bbd18a",
+          "status": "success",
+          "blockNumber": 59528961,
+          "blockHash": "0xf268457a3cdfe4ba1952474cb34ec1b3d537fb14fafff4f4e71514a0b1f40c68",
+          "gasUsed": "48525",
+          "effectiveGasPriceWei": "160",
+          "nativeFeeWei": "7764000",
+          "finality": "finalized"
+        }
+      ],
+      "totalNativeGasFeeWei": "351551840",
+      "finalizedObservation": {
+        "number": 59528982,
+        "hash": "0x50cbd3ad571febf06b0ce831c62a7d229604783887968e8b0de6900bc4266773"
+      }
+    }
+  ]
+}
