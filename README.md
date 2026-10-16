@@ -86,6 +86,131 @@ bun run mock:circle              # anvil + Circle stack at canonical addresses +
 bun run sandbox:e2e              # SDK fork drives the full agentic-wallet flow against the mock
 ```
 
+## Audit scope: contracts inventory and deployments
+
+This section is the auditor's map. It lists every contract under `contracts/src/`, how each one is owned, and
+where each one is deployed. Owners were read on-chain with `owner()` / `pendingOwner()` on 2026-10-16. In-scope
+code is everything under `contracts/src/bufi/`. `contracts/lib/` (pinned upstream, see "Provenance") and
+`contracts/src/CircleStack.sol` (re-exports Circle's audited stack unchanged) are reference only.
+
+### Toolchain and commands
+
+- Compiler: **solc 0.8.24**, `evm_version = paris`, `via_ir = true`, optimizer 200 runs (Circle's profile, `contracts/foundry.toml`).
+- Foundry 1.5.x. Dependencies are git submodules: `git submodule update --init --recursive`.
+- Build: `cd contracts && forge build` (or `bun run contracts:build`).
+- Test: `cd contracts && forge test` (or `bun run contracts:test`). Fork suites are excluded from the default profile:
+  `FOUNDRY_PROFILE=fork forge test --fork-url <base>` (Morpho earn) and `FOUNDRY_PROFILE=fork-arc forge test --fork-url <arc>`
+  (agentic + gateway).
+- Static analysis: `bun run contracts:slither`, `bun run contracts:lint`. Coverage: `bun run contracts:coverage`.
+- Deploy scripts (`contracts/script/`):
+  - `DeployBufiPlugins.s.sol`: session-key, earn and recipient-hook plugins, CREATE2 (Arachnid) at the same address on every chain.
+  - `DeployTreasuryConduit.s.sol`: `TreasuryConduit`, CREATE2 (Arachnid), salt `keccak256("bufi.treasury-conduit.v2")`, then `setTarget` per chain.
+  - `DeployTreasuryEarn.s.sol`: `TreasuryEarnVault` (canary) + `TreasuryRedeemConduit`.
+  - `DeployTreasurySwapAndDeposit.s.sol`: `TreasurySwapAndDeposit`.
+  - `gateway-treasury/DeployGatewayTreasury.s.sol`: `GatewayTreasury`.
+  - `gateway-guard/LiveGatewaySetup.s.sol`: live Gateway guard setup (plugin + guarded MSCAs) on Arc testnet.
+- Deployment records: `contracts/deployments/<network>.json`; receipts: `contracts/broadcast/<script>/<chainId>/run-latest.json`.
+
+**Build/test result at the commit of this README:** `forge build` succeeded (260 files, solc 0.8.24; lint warnings only), and `forge test` (default profile) passed **454/454 across 28 suites, 0 failed, 0 skipped** (2026-10-16, Foundry 1.5.1). This supersedes the older 264 count in the test matrix below.
+
+### Contracts inventory (`contracts/src/`)
+
+None of the BUFI contracts is upgradeable: no proxy, no `upgradeTo`, no `delegatecall` into mutable code. Plugins
+and modules run in the context of the Circle MSCA that installs them. The MSCA itself (Circle's `UpgradableMSCA`)
+is UUPS-upgradeable by the account's own owners.
+
+| Contract | Path | Purpose | Upgradeable | Ownership / admin model |
+| --- | --- | --- | --- | --- |
+| `TreasuryConduit` | `src/bufi/conduit/TreasuryConduit.sol` | Moves a treasury MSCA's stablecoins in one tx (ERC-3009 pull + call to a registered protocol target) under a quorum-signed intent with memo | No | `Ownable2Step`; owner only manages the target registry (`setTarget`) and `rescue` |
+| `TreasuryRedeemConduit` | `src/bufi/conduit/TreasuryRedeemConduit.sol` | Exit rail for a treasury Earn position: EIP-712-authorised ERC-4626 redeem back to the treasury | No | `Ownable2Step`; owner manages the vault allowlist (`setVault`) |
+| `TreasurySwapAndDeposit` | `src/bufi/conduit/TreasurySwapAndDeposit.sol` | `TreasuryConduit` target that swaps an ERC-3009 stable and deposits into an ERC-4626 vault / Aave v3 pool | No | `Ownable2Step`; owner manages the venue and destination allowlists (`setVenue`, `setDest`) |
+| `GatewayTreasury` | `src/bufi/gateway-treasury/GatewayTreasury.sol` | Standalone weighted-multisig treasury for Circle Gateway that enforces the burn-intent / ERC-3009 policy | No | No single owner: signer-set quorum, timelocked admin ops (EIP-712 `AdminOp`, epoch-bound) |
+| `GatewayIntentGuardPlugin` | `src/bufi/gateway-guard/GatewayIntentGuardPlugin.sol` | ERC-6900 **v0.7** plugin that applies the Gateway intent policy to a Circle weighted-multisig MSCA's ERC-1271 signatures | No | Ownerless; per-account config set by the account at install |
+| `GatewayIntentGuardModule` | `src/bufi/gateway-guard/GatewayIntentGuardModule.sol` | ERC-6900 **v0.8** validation-hook packaging of the same policy | No | Ownerless; per-account config |
+| `GatewayIntentGuardCore` (abstract) | `src/bufi/gateway-guard/GatewayIntentGuardCore.sol` | Shared per-account config + policy evaluation for the plugin and the module | n/a | n/a |
+| `GatewayIntentPolicy` (library) | `src/bufi/gateway-guard/GatewayIntentPolicy.sol` | Pure Gateway intent policy and EIP-712 digests shared by `GatewayTreasury` and the guard | n/a | n/a |
+| `IGatewayIntentGuard` (interface) | `src/bufi/gateway-guard/IGatewayIntentGuard.sol` | Guard ABI + install config | n/a | n/a |
+| `BufiSessionKeyPlugin` | `src/bufi/v0.7/session/BufiSessionKeyPlugin.sol` | Agent session keys: target/selector access lists, ERC-20/native/gas spend limits, time windows (port of Alchemy MAv1) | No | Ownerless; each account manages its own keys through its own validation |
+| `SessionKeyPermissions`, `SessionKeyPermissionsBase`, `SessionKeyPermissionsLoupe` (abstract) | `src/bufi/v0.7/session/permissions/` | Permission storage, enforcement and views for the session-key plugin | n/a | n/a |
+| `PluginStorageLib` (library) | `src/bufi/v0.7/session/libraries/PluginStorageLib.sol` | ERC-4337 account-associated storage | n/a | n/a |
+| `IBufiSessionKeyPlugin`, `ISessionKeyPermissionsUpdates` (interfaces) | `src/bufi/v0.7/session/` | Session-key ABIs | n/a | n/a |
+| `BufiSessionRecipientHookPlugin` | `src/bufi/v0.7/recipient-hook/BufiSessionRecipientHookPlugin.sol` | Pre-validation hook that checks `executeWithSessionKey` recipients against the account's AddressBook | No | Ownerless; bound per account at install |
+| `IBufiSessionRecipientHookPlugin` (interface) | `src/bufi/v0.7/recipient-hook/` | Hook ABI | n/a | n/a |
+| `BufiEarnModule` | `src/bufi/v0.7/earn/BufiEarnModule.sol` | Relayer-triggered, deposit-only sweep of idle USDC/EURC into multisig-adopted ERC-4626 vaults (port of FluidKey) | No | `Ownable` (single-step); owner adds/removes relayers and registers vault config sets (`setConfig`). Accounts must explicitly adopt a config hash |
+| `GatewayExecutionModule` | `src/bufi/v0.8/gateway/GatewayExecutionModule.sol` | ERC-6900 v0.8 execution module for the Circle Gateway delegate lifecycle. **Reference only**: structurally unsound as a depositor (see Findings 7) | No | Ownerless; Gateway wallet address is immutable |
+| `GatewayHelper` | `src/bufi/v0.8/gateway/GatewayHelper.sol` | Calldata encoder for direct Gateway execution from an MSCA (the supported pattern) | No | Ownerless; immutable Gateway address |
+| `GatewayConstants`, `GatewayEnums`, `GatewayStructs`, `IGatewayExecutionModule`, `IGatewayHelper`, `IGatewayMinter`, `IGatewayWallet` | `src/bufi/v0.8/gateway/` | Types and interfaces | n/a | n/a |
+| `IFiatTokenV2` (interface) | `src/bufi/conduit/interfaces/IFiatTokenV2.sol` | The ERC-3009 entry points of Circle's FiatToken | n/a | n/a |
+| `CircleStack` | `src/CircleStack.sol` | Re-exports Circle's v0.7 MSCA stack so it compiles unchanged. **Out of scope** (Circle's audited code) | n/a | n/a |
+
+**Test / mock / experimental (not for production):**
+
+| Contract | Path | Notes |
+| --- | --- | --- |
+| `TreasuryEarnVault` | `src/bufi/conduit/TreasuryEarnVault.sol` | 1:1 ERC-4626 wrapper, used only as the Arc-testnet canary target. Ownerless. Not a production vault |
+| `SandboxUSDC` | `src/sandbox/SandboxUSDC.sol` | Mintable 6-decimal USDC stand-in for the local sandbox. Never deploy anywhere real |
+| `GatewayExecutionModule` | `src/bufi/v0.8/gateway/GatewayExecutionModule.sol` | Kept as reference/evaluation (see above) |
+| Test harnesses, mocks, adversarial PoCs | `contracts/test/**` | Not deployed |
+
+### Deployments by chain
+
+Owners verified on-chain on 2026-10-16. "deployer" = BUFI testnet/desk deployer EOA `0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474`.
+Commit = the `commit` field of the broadcast record (`—` where no broadcast record is tracked).
+
+**Avalanche C-Chain mainnet (43114)**, record `contracts/deployments/avax-mainnet.json`
+
+| Contract | Address | Commit | Owner (on-chain) | Explorer |
+| --- | --- | --- | --- | --- |
+| `TreasuryConduit` v2 | `0x49c89b198321ed0782a4f9a44de2b237ebd77cf0` | `f19666f` | **Safe `0x47Dc7D18A6E3a79F696714E7D47456a49B430D09`** (2-step transfer accepted; pendingOwner 0x0) | [snowtrace](https://snowtrace.io/address/0x49c89b198321ed0782a4f9a44de2b237ebd77cf0) |
+
+CREATE2 via the Arachnid deployer, deploy tx `0xcb3b59cb…e2dabe4b51e` (block 97727352). Registered targets
+(`targets(addr) == true` on-chain): Uniswap Universal Router `0x661E93cca42AfacB172121EF892830cA3b70F08d`, Uniswap no-Permit2
+proxy `0x0000000085E102724e78eCd2F45DC9cA239Affad`, LI.FI diamond `0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE`
+(setTarget txs `0x56b48efa…`, `0xe8f16403…`, `0x3d43cccd…`), and Uniswap SwapRouter02 `0xbb00FF08d01D300023C629E8fFfFcb65A5a578cE`, added by the Safe in tx `0xfde861e8…9c022def81` (block 97727911), which also executed `acceptOwnership()`.
+
+**Arc testnet (5042002)**, records `contracts/deployments/arc-testnet.json`, `arc-testnet.gateway-live.json`
+
+| Contract | Address | Commit | Owner (on-chain) | Explorer |
+| --- | --- | --- | --- | --- |
+| `TreasuryConduit` v2 | `0xA9817049F0a48d4653719465A7829E85b3A415e7` | `5c4389b` | deployer (no pending) | [arcscan](https://testnet.arcscan.app/address/0xA9817049F0a48d4653719465A7829E85b3A415e7) |
+| `TreasuryRedeemConduit` | `0x361340f0b3a8ec00067ea3c024ae6919a2a0d06a` | `3e35743` | deployer (no pending) | [arcscan](https://testnet.arcscan.app/address/0x361340f0b3a8ec00067ea3c024ae6919a2a0d06a) |
+| `TreasuryEarnVault` (canary) | `0x0a9a082c24364b90b73e20e57d7625a3aa798bca` | `3e35743` | ownerless | [arcscan](https://testnet.arcscan.app/address/0x0a9a082c24364b90b73e20e57d7625a3aa798bca) |
+| `TreasurySwapAndDeposit` | `0x77859bc836e03c7fa18fe08f02e2d48a5b01435b` | `3e35743` | deployer (no pending) | [arcscan](https://testnet.arcscan.app/address/0x77859bc836e03c7fa18fe08f02e2d48a5b01435b) |
+| `BufiSessionKeyPlugin` | `0xBd607dBAC82CF1351C352FB65fC29dE9D0095339` | — | ownerless | [arcscan](https://testnet.arcscan.app/address/0xBd607dBAC82CF1351C352FB65fC29dE9D0095339) |
+| `BufiEarnModule` | `0xeb94A8b7412418B506b24dBeD4Aed0E9ba5453c2` | — | deployer (`Ownable`, single-step) | [arcscan](https://testnet.arcscan.app/address/0xeb94A8b7412418B506b24dBeD4Aed0E9ba5453c2) |
+| `BufiSessionRecipientHookPlugin` | `0xAa8B4fb76e8Eb712435E2b948B3A35c4C069d98A` | `ff65079` | ownerless | [arcscan](https://testnet.arcscan.app/address/0xAa8B4fb76e8Eb712435E2b948B3A35c4C069d98A) |
+| `GatewayIntentGuardPlugin` | `0x9586776fa5eFAa0DD1251dF947A3Df8113EF9B59` | — | ownerless | [arcscan](https://testnet.arcscan.app/address/0x9586776fa5eFAa0DD1251dF947A3Df8113EF9B59) |
+| `GatewayTreasury` (v3) | `0x7671e34415652194Adc7Db58aF98f0EF123755E5` | — | signer-set quorum (no `owner()`) | [arcscan](https://testnet.arcscan.app/address/0x7671e34415652194Adc7Db58aF98f0EF123755E5) |
+
+**Avalanche Fuji (43113)**, record `contracts/deployments/avax-fuji.json`
+
+| Contract | Address | Commit | Owner (on-chain) | Explorer |
+| --- | --- | --- | --- | --- |
+| `TreasuryConduit` v2 | `0xA9817049F0a48d4653719465A7829E85b3A415e7` | `5c4389b` | deployer (no pending) | [snowtrace](https://testnet.snowtrace.io/address/0xA9817049F0a48d4653719465A7829E85b3A415e7) |
+| `BufiSessionKeyPlugin` | `0xBd607dBAC82CF1351C352FB65fC29dE9D0095339` | — | ownerless | [snowtrace](https://testnet.snowtrace.io/address/0xBd607dBAC82CF1351C352FB65fC29dE9D0095339) |
+| `BufiEarnModule` | `0xeb94A8b7412418B506b24dBeD4Aed0E9ba5453c2` | — | deployer (`Ownable`, single-step) | [snowtrace](https://testnet.snowtrace.io/address/0xeb94A8b7412418B506b24dBeD4Aed0E9ba5453c2) |
+| `BufiSessionRecipientHookPlugin` | `0xAa8B4fb76e8Eb712435E2b948B3A35c4C069d98A` | `ff65079` | ownerless | [snowtrace](https://testnet.snowtrace.io/address/0xAa8B4fb76e8Eb712435E2b948B3A35c4C069d98A) |
+
+**Arbitrum Sepolia (421614)**, **Base Sepolia (84532)**, **Ethereum Sepolia (11155111)**: conduit only
+
+| Chain | `TreasuryConduit` v2 | Commit | Owner (on-chain) | Explorer |
+| --- | --- | --- | --- | --- |
+| Arbitrum Sepolia | `0xA9817049F0a48d4653719465A7829E85b3A415e7` | `5c4389b` | deployer (no pending) | [arbiscan](https://sepolia.arbiscan.io/address/0xA9817049F0a48d4653719465A7829E85b3A415e7) |
+| Base Sepolia | `0xA9817049F0a48d4653719465A7829E85b3A415e7` | `5a672ab` | deployer (no pending) | [basescan](https://sepolia.basescan.org/address/0xA9817049F0a48d4653719465A7829E85b3A415e7) |
+| Ethereum Sepolia | `0xA9817049F0a48d4653719465A7829E85b3A415e7` | `3e35743` | deployer (no pending) | [etherscan](https://sepolia.etherscan.io/address/0xA9817049F0a48d4653719465A7829E85b3A415e7) |
+
+Note: `contracts/deployments/arb-sepolia.json` also lists the BUFI plugin addresses, but `BufiEarnModule` at
+`0xeb94…53c2` has **no code** on Arbitrum Sepolia as of 2026-10-16. Treat only the conduit as deployed there.
+
+### Notes for auditors
+
+- **Owner keys.** Every testnet `Ownable` contract is owned by the deployer EOA, a placeholder to rotate before shared
+  use. On mainnet, the conduit is owned by the BUFI Safe.
+- **Admin surface.** Owner powers are limited to registries/allowlists (conduit targets, redeem vaults, swap venues/destinations, earn relayers and config sets) plus `TreasuryConduit.rescue`.
+  Owners cannot move treasury funds through an intent; that takes the treasury's quorum signature.
+- **`BufiEarnModule` uses single-step `Ownable`**. Every other owned contract uses `Ownable2Step`.
+- Prior work: `reports/ADVERSARIAL_PRE_TENDERLY.md`, `docs/AUDIT-SCOPE.md`, `docs/THREAT-MODEL.md`, `docs/PLUGIN-COMPOSITION.md`.
+
 ## What "redeploy Circle's stack" means here
 
 Circle deploys its contracts with the Arachnid CREATE2 deployer and publishes the exact creation bytecode
