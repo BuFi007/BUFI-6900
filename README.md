@@ -111,7 +111,7 @@ code is everything under `contracts/src/bufi/`. `contracts/lib/` (pinned upstrea
   - `gateway-guard/LiveGatewaySetup.s.sol`: live Gateway guard setup (plugin + guarded MSCAs) on Arc testnet.
 - Deployment records: `contracts/deployments/<network>.json`; receipts: `contracts/broadcast/<script>/<chainId>/run-latest.json`.
 
-**Build/test result at the commit of this README:** `forge build` succeeded (260 files, solc 0.8.24; lint warnings only), and `forge test` (default profile) passed **454/454 across 28 suites, 0 failed, 0 skipped** (2026-10-16, Foundry 1.5.1). This supersedes the older 264 count in the test matrix below.
+**Build/test result at the commit of this README:** `forge build` succeeded (260 files, solc 0.8.24; lint warnings only), and `forge test` (default profile) passed **454/454 across 28 suites, 0 failed, 0 skipped** (2026-10-16, Foundry 1.5.1). 
 
 ### Contracts inventory (`contracts/src/`)
 
@@ -157,16 +157,33 @@ is UUPS-upgradeable by the account's own owners.
 Owners verified on-chain on 2026-10-16. "deployer" = BUFI testnet/desk deployer EOA `0x09Ce8E2B3Fede2727dA4392Ea8Fe618305ba0474`.
 Commit = the `commit` field of the broadcast record (`—` where no broadcast record is tracked).
 
-**Avalanche C-Chain mainnet (43114)**, record `contracts/deployments/avax-mainnet.json`
+#### Mainnet (production)
+
+These chains are the ones production uses: Arc 5042 and Avalanche 43114. Every address below has code on-chain, and its owner was read on 2026-10-16. No BUFI contract is deployed on Base, Arbitrum or Ethereum mainnet. `MemoConduit` and Peanut are not built from `contracts/src/`.
+
+**Arc mainnet (5042)**, record `contracts/deployments/arc-mainnet.json` (RPC `https://rpc.mainnet.arc.io`)
+
+| Contract | Address | Commit | Owner (on-chain) | Explorer |
+| --- | --- | --- | --- | --- |
+| `TreasuryConduit` v2 | `0xA9817049F0a48d4653719465A7829E85b3A415e7` | — | **Safe `0x47Dc7D18A6E3a79F696714E7D47456a49B430D09`** (no pending) | [arcscan](https://arcscan.app/address/0xA9817049F0a48d4653719465A7829E85b3A415e7) |
+| `TreasuryRedeemConduit` | `0x361340F0B3a8EC00067eA3c024Ae6919A2a0D06A` | — | **Safe `0x47Dc7D18A6E3a79F696714E7D47456a49B430D09`** (no pending) | [arcscan](https://arcscan.app/address/0x361340F0B3a8EC00067eA3c024Ae6919A2a0D06A) |
+| `MemoConduit` (source not in this repo) | `0x516340a244132c62BEdaE5F886Fd35845Af16ba2` | — | no `owner()` | [arcscan](https://arcscan.app/address/0x516340a244132c62BEdaE5F886Fd35845Af16ba2) |
+
+**Avalanche C-Chain (43114)**, record `contracts/deployments/avax-mainnet.json`
 
 | Contract | Address | Commit | Owner (on-chain) | Explorer |
 | --- | --- | --- | --- | --- |
 | `TreasuryConduit` v2 | `0x49c89b198321ed0782a4f9a44de2b237ebd77cf0` | `f19666f` | **Safe `0x47Dc7D18A6E3a79F696714E7D47456a49B430D09`** (2-step transfer accepted; pendingOwner 0x0) | [snowtrace](https://snowtrace.io/address/0x49c89b198321ed0782a4f9a44de2b237ebd77cf0) |
+| `MemoConduit` (source not in this repo) | `0x536268d0A6C32a7161BA146F5673dFcF13F1fFe2` | — | no `owner()` | [snowtrace](https://snowtrace.io/address/0x536268d0A6C32a7161BA146F5673dFcF13F1fFe2) |
+| Peanut V4.4 (third party, out of scope) | `0xd092f910be70328426530bCa92C746De1e0989eC` | — | no `owner()` | [snowtrace](https://snowtrace.io/address/0xd092f910be70328426530bCa92C746De1e0989eC) |
+| Peanut batcher (third party, out of scope) | `0xE9963b5f864099c3A4454c395C8Cf1bBd97eCA91` | — | no `owner()` | [snowtrace](https://snowtrace.io/address/0xE9963b5f864099c3A4454c395C8Cf1bBd97eCA91) |
 
 CREATE2 via the Arachnid deployer, deploy tx `0xcb3b59cb…e2dabe4b51e` (block 97727352). Registered targets
 (`targets(addr) == true` on-chain): Uniswap Universal Router `0x661E93cca42AfacB172121EF892830cA3b70F08d`, Uniswap no-Permit2
 proxy `0x0000000085E102724e78eCd2F45DC9cA239Affad`, LI.FI diamond `0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE`
 (setTarget txs `0x56b48efa…`, `0xe8f16403…`, `0x3d43cccd…`), and Uniswap SwapRouter02 `0xbb00FF08d01D300023C629E8fFfFcb65A5a578cE`, added by the Safe in tx `0xfde861e8…9c022def81` (block 97727911), which also executed `acceptOwnership()`.
+
+#### Testnets (not production)
 
 **Arc testnet (5042002)**, records `contracts/deployments/arc-testnet.json`, `arc-testnet.gateway-live.json`
 
@@ -339,7 +356,7 @@ the AddressBook is a trust list, not a firewall against code you allowlisted.
 
 | Suite | Count | What it pins |
 | --- | --- | --- |
-| `forge test` (default profile) | 264 | canonical redeploy (3) · earn unit (17) + on real MSCA (21) · gateway local (38) + helper on MSCA (3) + on a real Circle v0.8 account (14) · session-key port on real MSCA (83) + integration (22) + × AddressBook (5) · agentic policy (5) · recipient hook (19) · adversarial (34: composition 6 · earn 10 · recipient hook 4 · session key 14) |
+| `forge test` (default profile) | 454 (28 suites, 2026-10-16) | canonical redeploy (3) · earn unit (17) + on real MSCA (21) · gateway local (38) + helper on MSCA (3) + on a real Circle v0.8 account (14) · session-key port on real MSCA (83) + integration (22) + × AddressBook (5) · agentic policy (5) · recipient hook (19) · adversarial (34: composition 6 · earn 10 · recipient hook 4 · session key 14) |
 | `FOUNDRY_PROFILE=fork forge test --fork-url <base>` | 1 | Circle production MSCA on a Base-mainnet fork sweeps USDC into a live Morpho Vault V2 (`docs/EARN-MORPHO.md`) |
 | `@bufi/modular-wallets-core` jest | 461 | 315 upstream unchanged + 131 BUFI (encoding vectors, grant DSL, deployment parametrisation, agent account, testnet constants) |
 | `@bufi/mock-circle` bun test | 16 | canonical deploy + idempotence, bundler (initCode deploy + transfer, AA24), paymaster (sponsored op, AA34) |

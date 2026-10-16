@@ -34,5 +34,15 @@
       "safeTxBlock": 97727911,
       "safeTxContents": "acceptOwnership() + setTarget(0xbb00FF08d01D300023C629E8fFfFcb65A5a578cE, true)"
     }
+  },
+  "memoConduit": {
+    "address": "0x536268d0A6C32a7161BA146F5673dFcF13F1fFe2",
+    "owner": null,
+    "notes": "Source is not in this repo's src/. No owner() function. Verified code on-chain at 2026-10-16T17:58:49Z."
+  },
+  "thirdParty": {
+    "peanutV4_4": "0xd092f910be70328426530bCa92C746De1e0989eC",
+    "peanutBatcher": "0xE9963b5f864099c3A4454c395C8Cf1bBd97eCA91",
+    "notes": "Peanut protocol V4.4 + batcher, deployed by the fx-telarana deployer. Third-party code, not BUFI source, out of audit scope. No owner(). Code verified on-chain at 2026-10-16T17:58:49Z."
   }
 }

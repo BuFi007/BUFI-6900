@@ -1,0 +1,30 @@
+{
+  "chainId": 5042,
+  "network": "Arc mainnet",
+  "rpcUrl": "https://rpc.mainnet.arc.io",
+  "verifiedAt": "2026-10-16T17:58:49Z",
+  "verification": "eth_getCode non-empty + owner()/pendingOwner() read on-chain",
+  "conduit": {
+    "address": "0xA9817049F0a48d4653719465A7829E85b3A415e7",
+    "contract": "src/bufi/conduit/TreasuryConduit.sol:TreasuryConduit",
+    "version": "v2",
+    "salt": "keccak256(\"bufi.treasury-conduit.v2\")",
+    "owner": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+    "pendingOwner": "0x0000000000000000000000000000000000000000"
+  },
+  "redeemConduit": {
+    "address": "0x361340F0B3a8EC00067eA3c024Ae6919A2a0D06A",
+    "contract": "src/bufi/conduit/TreasuryRedeemConduit.sol:TreasuryRedeemConduit",
+    "owner": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09",
+    "pendingOwner": "0x0000000000000000000000000000000000000000"
+  },
+  "memoConduit": {
+    "address": "0x516340a244132c62BEdaE5F886Fd35845Af16ba2",
+    "owner": null,
+    "notes": "Source is not in this repo's src/ (prod desk config). No owner() function. Out of this repo's audit scope."
+  },
+  "accounts": {
+    "ownerSafe": "0x47Dc7D18A6E3a79F696714E7D47456a49B430D09"
+  },
+  "notes": "Prod chain per desk-v1 main config. Addresses taken from the 2026-10-16 mainnet deploy handoff and checked on-chain."
+}
