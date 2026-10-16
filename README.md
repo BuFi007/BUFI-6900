@@ -93,6 +93,17 @@ where each one is deployed. Owners were read on-chain with `owner()` / `pendingO
 code is everything under `contracts/src/bufi/`. `contracts/lib/` (pinned upstream, see "Provenance") and
 `contracts/src/CircleStack.sol` (re-exports Circle's audited stack unchanged) are reference only.
 
+### Related repos (in audit scope)
+
+Production also uses contracts from other repos. They are **in audit scope** together with `contracts/src/bufi/`:
+
+| Contract | Repo / source | Commit | Mainnet deployments | Owner |
+|---|---|---|---|---|
+| `MemoConduit` | [BuFi007/fx-recibu `src/rails/MemoConduit.sol`](https://github.com/BuFi007/fx-recibu/blob/6f5d17b/src/rails/MemoConduit.sol) | [`6f5d17b`](https://github.com/BuFi007/fx-recibu/commit/6f5d17b) | Arc 5042 [`0x516340a244132c62BEdaE5F886Fd35845Af16ba2`](https://arcscan.app/address/0x516340a244132c62BEdaE5F886Fd35845Af16ba2), Avalanche 43114 [`0x536268d0A6C32a7161BA146F5673dFcF13F1fFe2`](https://snowtrace.io/address/0x536268d0A6C32a7161BA146F5673dFcF13F1fFe2) | none (immutable) |
+
+Desk-v1 reads it from `packages/env/src/memo.ts` (`MEMO_CONDUIT_ADDRESSES`). Both deployments share runtime codehash `0xedc25ef1…bcad4`.
+These are not in production yet: the CCTP/CCTPx extension of MemoConduit (fx-recibu branch `codex/memo-cctp-20261014`, testnet only) and `RecibuMemoRouter` (env-gated and dark). Full inventory: [fx-recibu README](https://github.com/BuFi007/fx-recibu#contracts-status-and-deployments).
+
 ### Toolchain and commands
 
 - Compiler: **solc 0.8.24**, `evm_version = paris`, `via_ir = true`, optimizer 200 runs (Circle's profile, `contracts/foundry.toml`).
