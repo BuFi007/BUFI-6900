@@ -12,6 +12,25 @@
 | `contracts/src/bufi/gateway-guard/**` | `GatewayIntentPolicy.sol` (213), `GatewayIntentGuardCore.sol` (364), `GatewayIntentGuardPlugin.sol` (233, v0.7), `GatewayIntentGuardModule.sol` (109, v0.8), `IGatewayIntentGuard.sol` (125) | **New, unaudited BUFI code, never deployed, never run against live Gateway.** The policy library is shared with `GatewayTreasury`. The v0.7 plugin is a pre-runtime hook on `isValidSignature` that reads the intent from a trailer after Circle's multisig signature; the v0.8 module hooks `WeightedMultisigValidationModule`. Design: `docs/GATEWAY-INTENT-GUARD.md`. 42 + 14 tests in `test/bufi/gateway-guard/`. |
 | `contracts/test/harness/**`, `contracts/test/**` | — | Test code; in scope only insofar as the auditor relies on it to reproduce claims. |
 
+## 2026-10-26 scope extension: Treasury conduits
+
+The historical counts and September reports below do not cover these contracts.
+The current acceptance plan is [CONTRACT-VERIFICATION-20261026.md](CONTRACT-VERIFICATION-20261026.md).
+
+| Path under `contracts/src/bufi/conduit/` | Required review |
+| --- | --- |
+| `TreasuryConduit.sol` | ERC-3009 intent nonce, quorum substrate, beneficiary, floor, target governance and inherited rescue behavior. |
+| `TreasuryConduitPermit2.sol` and `interfaces/IPermit2SignatureTransfer.sol` | Canonical Permit2 witness/ERC-1271, exact token deltas, document recipient, operation and nonce replay, exact allowance/reset, external router trust. Arc deployment is inactive; deployment verification is not a security audit. |
+| `TreasuryBridgeConduit.sol`, `TreasuryBridgeConduitPermit2.sol` | Source conversion/burn, fee bounds, recipient/domain commitments, token and bridge admission. Destination mint, second quorum and final document payment require separate cross-chain evidence. |
+| `TreasuryRedeemConduit.sol` | Vault admission, share allowance, ERC-1271 domain, nonce, exact underlying output and third-party withdrawal rejection. |
+| `TreasurySwapAndDeposit.sol` | Both venue and vault/pool admission, intermediate balances, minimums, refunds, allowance isolation and composition with the calling conduit. |
+| `TreasuryEarnVault.sol` | Canary-only 1:1 vault; do not describe it as a production yield product. |
+
+For these flows, the Desk TypeScript encoder, signer, deployment admission,
+reservation and finalizer are also part of the security review boundary. They
+do not replace on-chain enforcement; omitting them would miss a mismatched
+review or duplicate payment. Include the frozen Desk SHA with the contract SHA.
+
 ## Out of scope (vendored, unmodified, already audited by their owners)
 
 - Circle `buidl-wallet-contracts` (`contracts/lib/buidl-wallet-contracts`, pinned `3c47aa9`): `UpgradableMSCA`,
