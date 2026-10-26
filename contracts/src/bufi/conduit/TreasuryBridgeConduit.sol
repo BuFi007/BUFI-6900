@@ -425,6 +425,7 @@ contract TreasuryBridgeConduit is Ownable2Step, ReentrancyGuard {
     {
         if (intent.bridgeKind == BridgeKind.CCTP_V2) {
             bridgeAsset.forceApprove(intent.bridge, burnAmount);
+            _checkBridgeAllowance(bridgeAsset, intent.bridge, burnAmount);
             ITokenMessengerV2(intent.bridge)
                 .depositForBurn(
                     burnAmount,
@@ -436,6 +437,7 @@ contract TreasuryBridgeConduit is Ownable2Step, ReentrancyGuard {
                     intent.minFinalityThreshold
                 );
             bridgeAsset.forceApprove(intent.bridge, 0);
+            _checkBridgeAllowance(bridgeAsset, intent.bridge, 0);
             return;
         }
 
@@ -443,6 +445,7 @@ contract TreasuryBridgeConduit is Ownable2Step, ReentrancyGuard {
         address tokenManager = ccts.resolveTokenManager(intent.bridgeTokenId);
         if (tokenManager == address(0)) revert ZeroAddress();
         bridgeAsset.forceApprove(tokenManager, burnAmount);
+        _checkBridgeAllowance(bridgeAsset, tokenManager, burnAmount);
 
         // The whole `msg.value` goes to the service. The FeeManager refunds any
         // excess over the quoted fee to `refundAddress`, the caller who paid it.
@@ -460,7 +463,12 @@ contract TreasuryBridgeConduit is Ownable2Step, ReentrancyGuard {
             ""
         );
         bridgeAsset.forceApprove(tokenManager, 0);
+        _checkBridgeAllowance(bridgeAsset, tokenManager, 0);
     }
+
+    /// @dev Intentionally empty for the historical ERC-3009 path. New funding
+    /// adapters may opt into stricter allowance postconditions around this same burn.
+    function _checkBridgeAllowance(IERC20, address, uint256) internal view virtual {}
 
     function _sweep(IERC20 token, address to) private {
         uint256 amount = token.balanceOf(address(this));

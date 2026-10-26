@@ -11,11 +11,34 @@ import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/Messa
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IStandardExecutor} from "@circle/msca/6900/v0.7/interfaces/IStandardExecutor.sol";
 
+contract SilentApprovalBridgeToken is MockFiatToken3009 {
+    bool public ignoreApproval;
+    bool public ignoreReset;
+    bool public preserveAllowance;
+
+    constructor() MockFiatToken3009("USDC", "USDC") {}
+
+    function setApprovalBehavior(bool ignoreApproval_, bool ignoreReset_, bool preserveAllowance_) external {
+        ignoreApproval = ignoreApproval_;
+        ignoreReset = ignoreReset_;
+        preserveAllowance = preserveAllowance_;
+    }
+
+    function approve(address spender, uint256 value) public override returns (bool) {
+        if ((value == 0 && ignoreReset) || (value != 0 && ignoreApproval)) return true;
+        return super.approve(spender, value);
+    }
+
+    function _spendAllowance(address owner, address spender, uint256 value) internal override {
+        if (!preserveAllowance) super._spendAllowance(owner, spender, value);
+    }
+}
+
 contract TreasuryBridgeConduitPermit2Test is Permit2ConduitHarness {
     TreasuryBridgeConduitPermit2 internal bridgeConduit;
     MockTokenMessengerV2 internal messenger;
     MockCrossChainTokenService internal ccts;
-    MockFiatToken3009 internal bridgeToken;
+    SilentApprovalBridgeToken internal bridgeToken;
     address internal constant DEST_TREASURY = address(0xD357);
     bytes32 internal constant OPERATION_ID = keccak256("original-document-payment");
     bytes32 internal constant DOCUMENT = keccak256("document-and-terms-v1");
@@ -25,7 +48,7 @@ contract TreasuryBridgeConduitPermit2Test is Permit2ConduitHarness {
         bridgeConduit = new TreasuryBridgeConduitPermit2(SAFE, PERMIT2);
         messenger = new MockTokenMessengerV2();
         ccts = new MockCrossChainTokenService();
-        bridgeToken = new MockFiatToken3009("USDC", "USDC");
+        bridgeToken = new SilentApprovalBridgeToken();
         vm.startPrank(SAFE);
         bridgeConduit.setTarget(address(router), true);
         bridgeConduit.setPermit2Route(address(router), address(router), true);
@@ -137,6 +160,106 @@ contract TreasuryBridgeConduitPermit2Test is Permit2ConduitHarness {
         );
         assertEq(messenger.calls(), 0);
         assertFalse(bridgeConduit.executed(address(treasury), OPERATION_ID));
+    }
+
+    function test_bridge_venue_rejects_silently_ignored_approval() public {
+        input.setApprovalBehavior(true, false);
+        TreasuryBridgeConduit.Intent memory intent = _bridgeIntent();
+        intent.venueData = abi.encodeCall(
+            Permit2TestRouter.swap, (address(input), address(bridgeToken), 0, 13e6, address(bridgeConduit))
+        );
+        IPermit2SignatureTransfer.PermitTransferFrom memory permit = _bridgePermit(intent, 2);
+        bytes memory sig = _signBridge(intent, permit, 2);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                bytes4(keccak256("AllowanceMismatch(address,address,uint256,uint256)")),
+                address(input),
+                address(router),
+                AMOUNT,
+                0
+            )
+        );
+        bridgeConduit.executePermit2(
+            permit, address(treasury), sig, OPERATION_ID, DOCUMENT, address(router), intent, ""
+        );
+        assertEq(messenger.calls(), 0);
+    }
+
+    function test_bridge_venue_rejects_silently_ignored_reset() public {
+        input.setApprovalBehavior(false, true);
+        TreasuryBridgeConduit.Intent memory intent = _bridgeIntent();
+        intent.venueData = abi.encodeCall(
+            Permit2TestRouter.swap, (address(input), address(bridgeToken), 10e18, 13e6, address(bridgeConduit))
+        );
+        IPermit2SignatureTransfer.PermitTransferFrom memory permit = _bridgePermit(intent, 2);
+        bytes memory sig = _signBridge(intent, permit, 2);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                bytes4(keccak256("AllowanceMismatch(address,address,uint256,uint256)")),
+                address(input),
+                address(router),
+                0,
+                7e18
+            )
+        );
+        bridgeConduit.executePermit2(
+            permit, address(treasury), sig, OPERATION_ID, DOCUMENT, address(router), intent, ""
+        );
+        assertEq(input.allowance(address(bridgeConduit), address(router)), 0);
+        assertEq(messenger.calls(), 0);
+    }
+
+    function _assertSilentBurnApproval(bool useCctpx, bool reset) private {
+        bridgeToken.setApprovalBehavior(!reset, reset, reset);
+        TreasuryBridgeConduit.Intent memory intent = _bridgeIntent();
+        address spender = address(messenger);
+        if (useCctpx) {
+            bytes32 tokenId = keccak256("test-eurc-token-id");
+            ccts.setToken(tokenId, address(bridgeToken));
+            vm.startPrank(SAFE);
+            bridgeConduit.setBridge(TreasuryBridgeConduit.BridgeKind.CCTPX, address(ccts), true);
+            bridgeConduit.setCctpxToken(tokenId, address(bridgeToken));
+            vm.stopPrank();
+            intent.bridgeKind = TreasuryBridgeConduit.BridgeKind.CCTPX;
+            intent.bridge = address(ccts);
+            intent.bridgeTokenId = tokenId;
+            intent.maxFee = 0;
+            spender = address(ccts.manager());
+        }
+        IPermit2SignatureTransfer.PermitTransferFrom memory permit = _bridgePermit(intent, 2);
+        bytes memory sig = _signBridge(intent, permit, 2);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                bytes4(keccak256("AllowanceMismatch(address,address,uint256,uint256)")),
+                address(bridgeToken),
+                spender,
+                reset ? 0 : 13e6,
+                reset ? 13e6 : 0
+            )
+        );
+        bridgeConduit.executePermit2(
+            permit, address(treasury), sig, OPERATION_ID, DOCUMENT, address(router), intent, ""
+        );
+        assertFalse(bridgeConduit.executed(address(treasury), OPERATION_ID));
+        assertEq(bridgeToken.allowance(address(bridgeConduit), spender), 0);
+        assertEq(input.balanceOf(address(treasury)), 100e18);
+        assertEq(useCctpx ? ccts.calls() : messenger.calls(), 0);
+    }
+
+    function test_cctp_rejects_silently_ignored_approval() public {
+        _assertSilentBurnApproval(false, false);
+    }
+
+    function test_cctp_rejects_silently_ignored_reset() public {
+        _assertSilentBurnApproval(false, true);
+    }
+
+    function test_cctpx_rejects_silently_ignored_approval() public {
+        _assertSilentBurnApproval(true, false);
+    }
+
+    function test_cctpx_rejects_silently_ignored_reset() public {
+        _assertSilentBurnApproval(true, true);
     }
 
     function test_zero_bridge_floor_cannot_consume_an_operation() public {

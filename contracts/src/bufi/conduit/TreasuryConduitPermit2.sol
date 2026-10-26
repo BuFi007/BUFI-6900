@@ -73,6 +73,7 @@ contract TreasuryConduitPermit2 is TreasuryConduit {
     error InexactInput();
     error PriorBalanceConsumed();
     error InexactOutput();
+    error AllowanceMismatch(address token, address spender, uint256 expected, uint256 actual);
 
     constructor(address initialOwner, address permit2_, address addressBook_) TreasuryConduit(initialOwner) {
         if (permit2_ != CANONICAL_PERMIT2 || permit2_.code.length == 0 || addressBook_.code.length == 0) {
@@ -164,9 +165,11 @@ contract TreasuryConduitPermit2 is TreasuryConduit {
         ) revert InexactInput();
 
         tokenIn.forceApprove(intent.allowanceTarget, intent.amountIn);
+        _requireAllowance(tokenIn, intent.allowanceTarget, intent.amountIn);
         (bool ok, bytes memory result) = intent.target.call(intent.data);
         if (!ok) revert TargetCallFailed(result);
         tokenIn.forceApprove(intent.allowanceTarget, 0);
+        _requireAllowance(tokenIn, intent.allowanceTarget, 0);
 
         uint256 inputAfter = tokenIn.balanceOf(address(this));
         uint256 outputAfter = tokenOut.balanceOf(address(this));
@@ -214,5 +217,10 @@ contract TreasuryConduitPermit2 is TreasuryConduit {
             if (recipients[i] == recipient) return true;
         }
         return false;
+    }
+
+    function _requireAllowance(IERC20 token, address spender, uint256 expected) private view {
+        uint256 actual = token.allowance(address(this), spender);
+        if (actual != expected) revert AllowanceMismatch(address(token), spender, expected, actual);
     }
 }

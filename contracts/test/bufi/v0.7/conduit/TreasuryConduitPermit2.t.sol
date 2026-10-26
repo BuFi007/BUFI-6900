@@ -15,6 +15,8 @@ import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/Messa
 
 contract Permit2TestToken is ERC20 {
     bool public shortTransfer;
+    bool public ignoreApproval;
+    bool public ignoreReset;
 
     constructor(string memory name_) ERC20(name_, name_) {}
 
@@ -24,6 +26,16 @@ contract Permit2TestToken is ERC20 {
 
     function setShortTransfer(bool value) external {
         shortTransfer = value;
+    }
+
+    function setApprovalBehavior(bool ignoreApproval_, bool ignoreReset_) external {
+        ignoreApproval = ignoreApproval_;
+        ignoreReset = ignoreReset_;
+    }
+
+    function approve(address spender, uint256 value) public override returns (bool) {
+        if ((value == 0 && ignoreReset) || (value != 0 && ignoreApproval)) return true;
+        return super.approve(spender, value);
     }
 
     function _update(address from, address to, uint256 amount) internal override {
@@ -216,6 +228,50 @@ contract TreasuryConduitPermit2Test is Permit2ConduitHarness {
         assertEq(output.balanceOf(address(treasury)), 13e18);
         assertEq(input.allowance(address(conduit), address(router)), 0);
         assertTrue(conduit.executed(address(treasury), intent.operationId));
+    }
+
+    function test_ignored_approval_cannot_call_the_route() public {
+        input.setApprovalBehavior(true, false);
+        TreasuryConduitPermit2.Permit2Intent memory intent = _intent();
+        intent.data =
+            abi.encodeCall(Permit2TestRouter.swap, (address(input), address(output), 0, 13e18, address(treasury)));
+        IPermit2SignatureTransfer.PermitTransferFrom memory permit = _permit(intent, 1);
+        bytes memory sig = _sign(intent, permit, 2);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                bytes4(keccak256("AllowanceMismatch(address,address,uint256,uint256)")),
+                address(input),
+                address(router),
+                AMOUNT,
+                0
+            )
+        );
+        conduit.executePermit2(permit, address(treasury), sig, intent);
+        assertEq(input.balanceOf(address(treasury)), 100e18);
+        assertEq(output.balanceOf(address(treasury)), 0);
+        assertFalse(conduit.executed(address(treasury), intent.operationId));
+    }
+
+    function test_ignored_reset_reverts_and_retains_no_spender_authority() public {
+        input.setApprovalBehavior(false, true);
+        TreasuryConduitPermit2.Permit2Intent memory intent = _intent();
+        intent.data =
+            abi.encodeCall(Permit2TestRouter.swap, (address(input), address(output), 10e18, 13e18, address(treasury)));
+        IPermit2SignatureTransfer.PermitTransferFrom memory permit = _permit(intent, 1);
+        bytes memory sig = _sign(intent, permit, 2);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                bytes4(keccak256("AllowanceMismatch(address,address,uint256,uint256)")),
+                address(input),
+                address(router),
+                0,
+                7e18
+            )
+        );
+        conduit.executePermit2(permit, address(treasury), sig, intent);
+        assertEq(input.allowance(address(conduit), address(router)), 0);
+        assertEq(input.balanceOf(address(treasury)), 100e18);
+        assertFalse(conduit.executed(address(treasury), intent.operationId));
     }
 
     function test_taxed_refund_reverts_without_spending_nonce_or_operation() public {
