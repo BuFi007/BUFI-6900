@@ -380,7 +380,7 @@ contract TreasuryBridgeConduit is Ownable2Step, ReentrancyGuard {
     // ── internals
     // ───────────────────────────────────────────────────────────
 
-    function _check(Authorization calldata auth, Intent calldata intent, bytes calldata bridgeQuote) private view {
+    function _check(Authorization memory auth, Intent calldata intent, bytes calldata bridgeQuote) internal view {
         // The nonce first: any edit to a signed field fails here, precisely.
         bytes32 expected = intentNonce(intent);
         if (auth.nonce != expected) revert NonceIsNotTheIntent(auth.nonce, expected);
@@ -420,7 +420,9 @@ contract TreasuryBridgeConduit is Ownable2Step, ReentrancyGuard {
         }
     }
 
-    function _burn(Intent calldata intent, IERC20 bridgeAsset, uint256 burnAmount, bytes calldata bridgeQuote) private {
+    function _burn(Intent calldata intent, IERC20 bridgeAsset, uint256 burnAmount, bytes calldata bridgeQuote)
+        internal
+    {
         if (intent.bridgeKind == BridgeKind.CCTP_V2) {
             bridgeAsset.forceApprove(intent.bridge, burnAmount);
             ITokenMessengerV2(intent.bridge)
