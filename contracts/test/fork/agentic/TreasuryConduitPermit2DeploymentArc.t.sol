@@ -28,12 +28,12 @@ contract TreasuryConduitPermit2DeploymentArcTest is Test {
     function test_deployment_refuses_wrong_chain() public {
         address owner = deployment.ARC_SAFE();
         vm.chainId(5042002);
-        vm.expectRevert("Arc mainnet only");
+        vm.expectRevert("Arc or Avalanche mainnet only");
         deployment.run(owner);
     }
 
     function test_deployment_refuses_wrong_owner() public {
-        vm.expectRevert("owner must be the Arc Safe");
+        vm.expectRevert("owner must be the chain Safe");
         deployment.run(address(0xBAD));
     }
 

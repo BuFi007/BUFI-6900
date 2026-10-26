@@ -56,11 +56,15 @@ outbox, receipt download, or a human signature. Those remain separate pilot gate
 
 ## Inert deployment
 
-`script/DeployTreasuryConduitPermit2.s.sol` accepts only Arc 5042 and the recorded
-Arc Safe. It pins Permit2, Address Book and CREATE2 code hashes. It does not read
+`script/DeployTreasuryConduitPermit2.s.sol` selects the recorded Safe for Arc 5042
+or Avalanche 43114, with a separately pinned Permit2 runtime hash per chain.
+It pins Address Book and CREATE2 code hashes. It does not read
 keys, register routers, grant allowances or enable any checkout profile.
 Run its simulation with `--sig 'run(address)'` and the Arc Safe as the argument.
 A human must authorize any eventual mainnet broadcast.
+
+Avalanche's real USDC/EURC fixtures and local-fork checks are documented in
+[`permit2-lifi-avalanche.md`](permit2-lifi-avalanche.md).
 
 Safe configuration and application scope are independent gates. Closing new
 initiations must preserve recovery. Disabling a router does not consume or

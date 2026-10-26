@@ -1,0 +1,880 @@
+{
+  "purpose": "document",
+  "chainId": 43114,
+  "blockNumber": 98627441,
+  "timestamp": 1793039243,
+  "executor": "0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9",
+  "recipient": "0x0000000000000000000000000000000000000FEE",
+  "addresses": {
+    "router": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE",
+    "spender": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE",
+    "tokenIn": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+    "tokenOut": "0xC891EB4cbdEFf6e073e859e987815Ed1505c2ACD"
+  },
+  "codeHashes": {
+    "router": "0x828f8a0694bfba25c80a406283f149d701cdc944acbbc18b57315cf157db9220",
+    "spender": "0x828f8a0694bfba25c80a406283f149d701cdc944acbbc18b57315cf157db9220",
+    "tokenIn": "0x7140a935aa3bb55d334d6d325fea277e47674770b10823feefa6f8b2c58af5fc",
+    "tokenOut": "0x42a47b737fee964fdbcf73dd74b14defc4ad7e9c78763772f7cdb9ca31bf3710"
+  },
+  "quote": {
+    "provider": "lifi",
+    "amountIn": "1",
+    "amountOut": "0.892468",
+    "amountOutMin": "0.888005",
+    "chain": "Avalanche",
+    "fees": {
+      "providerBps": 0,
+      "platformBps": 0,
+      "gasFeeUsd": "0.01",
+      "gasless": false
+    },
+    "routeId": "19c4a88e-83e9-4346-94cd-7e1204fbe29b",
+    "_raw": {
+      "routeId": "19c4a88e-83e9-4346-94cd-7e1204fbe29b",
+      "step": {
+        "type": "lifi",
+        "id": "19c4a88e-83e9-4346-94cd-7e1204fbe29b:0",
+        "tool": "sushiswap",
+        "toolDetails": {
+          "key": "sushiswap",
+          "name": "SushiSwap Aggregator",
+          "logoURI": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/exchanges/sushi.svg"
+        },
+        "action": {
+          "fromToken": {
+            "address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+            "chainId": 43114,
+            "symbol": "USDC",
+            "decimals": 6,
+            "name": "USD Coin",
+            "coinKey": "USDC",
+            "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+            "priceUSD": "1.0011686542",
+            "tags": [
+              "stablecoin"
+            ],
+            "verificationStatus": "verified",
+            "verificationStatusBreakdown": [
+              {
+                "provider": "hypernative",
+                "result": "verified",
+                "providerResult": "accept"
+              }
+            ]
+          },
+          "fromAmount": "1000000",
+          "toToken": {
+            "address": "0xC891EB4cbdEFf6e073e859e987815Ed1505c2ACD",
+            "chainId": 43114,
+            "symbol": "EURC",
+            "decimals": 6,
+            "name": "Euro Coin",
+            "coinKey": "EURC",
+            "logoURI": "https://static.debank.com/image/avax_token/logo_url/0xc891eb4cbdeff6e073e859e987815ed1505c2acd/790d0c3a6da87111b66255c0d57108fa.png",
+            "priceUSD": "1.1186687997",
+            "tags": [
+              "stablecoin"
+            ],
+            "verificationStatus": "verified",
+            "verificationStatusBreakdown": [
+              {
+                "provider": "hypernative",
+                "result": "verified",
+                "providerResult": "accept"
+              }
+            ]
+          },
+          "fromChainId": 43114,
+          "toChainId": 43114,
+          "slippage": 0.005,
+          "fromAddress": "0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9",
+          "toAddress": "0x0000000000000000000000000000000000000FEE"
+        },
+        "estimate": {
+          "tool": "sushiswap",
+          "approvalAddress": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE",
+          "toAmountMin": "888005",
+          "toAmount": "892468",
+          "fromAmount": "1000000",
+          "feeCosts": [
+            {
+              "name": "LIFI Fixed Fee",
+              "description": "Fixed LIFI fee, independent of any other fee",
+              "token": {
+                "address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+                "chainId": 43114,
+                "symbol": "USDC",
+                "decimals": 6,
+                "name": "USD Coin",
+                "coinKey": "USDC",
+                "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                "priceUSD": "1.0011686542",
+                "tags": [
+                  "stablecoin"
+                ],
+                "verificationStatus": "verified",
+                "verificationStatusBreakdown": [
+                  {
+                    "provider": "hypernative",
+                    "result": "verified",
+                    "providerResult": "accept"
+                  }
+                ]
+              },
+              "amount": "2500",
+              "amountUSD": "0.0025",
+              "percentage": "0.0025",
+              "included": true,
+              "feeSplit": {
+                "lifiFee": "2500",
+                "integratorFee": "0",
+                "recipients": [
+                  {
+                    "name": "lifi",
+                    "type": "FIXED",
+                    "fee": "2500"
+                  }
+                ]
+              }
+            }
+          ],
+          "gasCosts": [
+            {
+              "type": "SEND",
+              "price": "3229000000",
+              "estimate": "155944",
+              "limit": "498944",
+              "amount": "503543176000000",
+              "amountUSD": "0.0045",
+              "token": {
+                "address": "0x0000000000000000000000000000000000000000",
+                "chainId": 43114,
+                "symbol": "AVAX",
+                "decimals": 18,
+                "name": "AVAX",
+                "coinKey": "AVAX",
+                "logoURI": "https://static.debank.com/image/avax_token/logo_url/avax/0b9c84359c84d6bdd5bfda9c2d4c4a82.png",
+                "priceUSD": "8.96",
+                "tags": [
+                  "major_asset"
+                ],
+                "verificationStatus": "verified",
+                "verificationStatusBreakdown": [
+                  {
+                    "provider": "hypernative",
+                    "result": "verified",
+                    "providerResult": "accept"
+                  }
+                ]
+              }
+            }
+          ],
+          "executionDuration": 0,
+          "fromAmountUSD": "1.0012",
+          "toAmountUSD": "0.9984",
+          "skipPermit": false
+        },
+        "includedSteps": [
+          {
+            "id": "ae368cf9-7ba4-4ecd-8ab7-0553c7690021",
+            "type": "protocol",
+            "action": {
+              "fromChainId": 43114,
+              "fromAmount": "1000000",
+              "fromToken": {
+                "address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+                "chainId": 43114,
+                "symbol": "USDC",
+                "decimals": 6,
+                "name": "USD Coin",
+                "coinKey": "USDC",
+                "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                "priceUSD": "1.0011686542",
+                "tags": [
+                  "stablecoin"
+                ],
+                "verificationStatus": "verified",
+                "verificationStatusBreakdown": [
+                  {
+                    "provider": "hypernative",
+                    "result": "verified",
+                    "providerResult": "accept"
+                  }
+                ]
+              },
+              "toChainId": 43114,
+              "toToken": {
+                "address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+                "chainId": 43114,
+                "symbol": "USDC",
+                "decimals": 6,
+                "name": "USD Coin",
+                "coinKey": "USDC",
+                "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                "priceUSD": "1.0011686542",
+                "tags": [
+                  "stablecoin"
+                ],
+                "verificationStatus": "verified",
+                "verificationStatusBreakdown": [
+                  {
+                    "provider": "hypernative",
+                    "result": "verified",
+                    "providerResult": "accept"
+                  }
+                ]
+              },
+              "slippage": 0.005,
+              "fromAddress": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE",
+              "toAddress": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE",
+              "integratorId": "bufi"
+            },
+            "estimate": {
+              "fromAmount": "1000000",
+              "toAmount": "997500",
+              "toAmountMin": "997500",
+              "tool": "feeCollection",
+              "approvalAddress": "0xCE40449B773a3E6E5e769ADb4e567179d4828cbd",
+              "gasCosts": [
+                {
+                  "type": "SEND",
+                  "price": "3229000000",
+                  "estimate": "130000",
+                  "limit": "169000",
+                  "amount": "419770000000000",
+                  "amountUSD": "0.0038",
+                  "token": {
+                    "address": "0x0000000000000000000000000000000000000000",
+                    "chainId": 43114,
+                    "symbol": "AVAX",
+                    "decimals": 18,
+                    "name": "AVAX",
+                    "coinKey": "AVAX",
+                    "logoURI": "https://static.debank.com/image/avax_token/logo_url/avax/0b9c84359c84d6bdd5bfda9c2d4c4a82.png",
+                    "priceUSD": "8.96",
+                    "tags": [
+                      "major_asset"
+                    ],
+                    "verificationStatus": "verified",
+                    "verificationStatusBreakdown": [
+                      {
+                        "provider": "hypernative",
+                        "result": "verified",
+                        "providerResult": "accept"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "feeCosts": [
+                {
+                  "name": "LIFI Fixed Fee",
+                  "description": "Fixed LIFI fee, independent of any other fee",
+                  "token": {
+                    "address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+                    "chainId": 43114,
+                    "symbol": "USDC",
+                    "decimals": 6,
+                    "name": "USD Coin",
+                    "coinKey": "USDC",
+                    "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                    "priceUSD": "1.0011686542",
+                    "tags": [
+                      "stablecoin"
+                    ],
+                    "verificationStatus": "verified",
+                    "verificationStatusBreakdown": [
+                      {
+                        "provider": "hypernative",
+                        "result": "verified",
+                        "providerResult": "accept"
+                      }
+                    ]
+                  },
+                  "amount": "2500",
+                  "amountUSD": "0.0025",
+                  "percentage": "0.0025",
+                  "included": true,
+                  "feeSplit": {
+                    "lifiFee": "2500",
+                    "integratorFee": "0",
+                    "recipients": [
+                      {
+                        "name": "lifi",
+                        "type": "FIXED",
+                        "fee": "2500"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "executionDuration": 0
+            },
+            "tool": "feeCollection",
+            "toolDetails": {
+              "key": "feeCollection",
+              "name": "Integrator Fee",
+              "logoURI": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/protocols/feeCollection.svg"
+            }
+          },
+          {
+            "id": "f5084654-3bf3-4ca5-8b15-e2f5ca6357e9",
+            "type": "swap",
+            "action": {
+              "fromChainId": 43114,
+              "fromAmount": "997500",
+              "fromToken": {
+                "address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+                "chainId": 43114,
+                "symbol": "USDC",
+                "decimals": 6,
+                "name": "USD Coin",
+                "coinKey": "USDC",
+                "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                "priceUSD": "1.0011686542",
+                "tags": [
+                  "stablecoin"
+                ],
+                "verificationStatus": "verified",
+                "verificationStatusBreakdown": [
+                  {
+                    "provider": "hypernative",
+                    "result": "verified",
+                    "providerResult": "accept"
+                  }
+                ]
+              },
+              "toChainId": 43114,
+              "toToken": {
+                "address": "0xC891EB4cbdEFf6e073e859e987815Ed1505c2ACD",
+                "chainId": 43114,
+                "symbol": "EURC",
+                "decimals": 6,
+                "name": "Euro Coin",
+                "coinKey": "EURC",
+                "logoURI": "https://static.debank.com/image/avax_token/logo_url/0xc891eb4cbdeff6e073e859e987815ed1505c2acd/790d0c3a6da87111b66255c0d57108fa.png",
+                "priceUSD": "1.1186687997",
+                "tags": [
+                  "stablecoin"
+                ],
+                "verificationStatus": "verified",
+                "verificationStatusBreakdown": [
+                  {
+                    "provider": "hypernative",
+                    "result": "verified",
+                    "providerResult": "accept"
+                  }
+                ]
+              },
+              "slippage": 0.005,
+              "fromAddress": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE",
+              "toAddress": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE",
+              "integratorId": "bufi"
+            },
+            "estimate": {
+              "tool": "sushiswap",
+              "fromAmount": "997500",
+              "toAmount": "892468",
+              "toAmountMin": "888005",
+              "approvalAddress": "0xac4c6e212a361c968f1725b4d055b47e63f80b75",
+              "executionDuration": 0,
+              "feeCosts": [],
+              "gasCosts": [
+                {
+                  "type": "SEND",
+                  "price": "3229000000",
+                  "estimate": "25944",
+                  "limit": "33727",
+                  "amount": "83773176000000",
+                  "amountUSD": "0.0008",
+                  "token": {
+                    "address": "0x0000000000000000000000000000000000000000",
+                    "chainId": 43114,
+                    "symbol": "AVAX",
+                    "decimals": 18,
+                    "name": "AVAX",
+                    "coinKey": "AVAX",
+                    "logoURI": "https://static.debank.com/image/avax_token/logo_url/avax/0b9c84359c84d6bdd5bfda9c2d4c4a82.png",
+                    "priceUSD": "8.96",
+                    "tags": [
+                      "major_asset"
+                    ],
+                    "verificationStatus": "verified",
+                    "verificationStatusBreakdown": [
+                      {
+                        "provider": "hypernative",
+                        "result": "verified",
+                        "providerResult": "accept"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "tool": "sushiswap",
+            "toolDetails": {
+              "key": "sushiswap",
+              "name": "SushiSwap Aggregator",
+              "logoURI": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/exchanges/sushi.svg"
+            }
+          }
+        ],
+        "integrator": "bufi",
+        "executionType": "transaction",
+        "recommendedSlippage": 0.005099
+      }
+    },
+    "routeSteps": 1,
+    "nativeValue": "0",
+    "expiresAt": 1793039306932,
+    "reason": "lifi:sushiswap"
+  },
+  "prepared": {
+    "mode": "unsigned-tx",
+    "quote": {
+      "provider": "lifi",
+      "amountIn": "1",
+      "amountOut": "0.892468",
+      "amountOutMin": "0.888005",
+      "chain": "Avalanche",
+      "fees": {
+        "providerBps": 0,
+        "platformBps": 0,
+        "gasFeeUsd": "0.01",
+        "gasless": false
+      },
+      "routeId": "19c4a88e-83e9-4346-94cd-7e1204fbe29b",
+      "_raw": {
+        "routeId": "19c4a88e-83e9-4346-94cd-7e1204fbe29b",
+        "step": {
+          "type": "lifi",
+          "id": "19c4a88e-83e9-4346-94cd-7e1204fbe29b:0",
+          "tool": "sushiswap",
+          "toolDetails": {
+            "key": "sushiswap",
+            "name": "SushiSwap Aggregator",
+            "logoURI": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/exchanges/sushi.svg"
+          },
+          "action": {
+            "fromToken": {
+              "address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+              "chainId": 43114,
+              "symbol": "USDC",
+              "decimals": 6,
+              "name": "USD Coin",
+              "coinKey": "USDC",
+              "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+              "priceUSD": "1.0011686542",
+              "tags": [
+                "stablecoin"
+              ],
+              "verificationStatus": "verified",
+              "verificationStatusBreakdown": [
+                {
+                  "provider": "hypernative",
+                  "result": "verified",
+                  "providerResult": "accept"
+                }
+              ]
+            },
+            "fromAmount": "1000000",
+            "toToken": {
+              "address": "0xC891EB4cbdEFf6e073e859e987815Ed1505c2ACD",
+              "chainId": 43114,
+              "symbol": "EURC",
+              "decimals": 6,
+              "name": "Euro Coin",
+              "coinKey": "EURC",
+              "logoURI": "https://static.debank.com/image/avax_token/logo_url/0xc891eb4cbdeff6e073e859e987815ed1505c2acd/790d0c3a6da87111b66255c0d57108fa.png",
+              "priceUSD": "1.1186687997",
+              "tags": [
+                "stablecoin"
+              ],
+              "verificationStatus": "verified",
+              "verificationStatusBreakdown": [
+                {
+                  "provider": "hypernative",
+                  "result": "verified",
+                  "providerResult": "accept"
+                }
+              ]
+            },
+            "fromChainId": 43114,
+            "toChainId": 43114,
+            "slippage": 0.005,
+            "fromAddress": "0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9",
+            "toAddress": "0x0000000000000000000000000000000000000FEE"
+          },
+          "estimate": {
+            "tool": "sushiswap",
+            "approvalAddress": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE",
+            "toAmountMin": "888005",
+            "toAmount": "892468",
+            "fromAmount": "1000000",
+            "feeCosts": [
+              {
+                "name": "LIFI Fixed Fee",
+                "description": "Fixed LIFI fee, independent of any other fee",
+                "token": {
+                  "address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+                  "chainId": 43114,
+                  "symbol": "USDC",
+                  "decimals": 6,
+                  "name": "USD Coin",
+                  "coinKey": "USDC",
+                  "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                  "priceUSD": "1.0011686542",
+                  "tags": [
+                    "stablecoin"
+                  ],
+                  "verificationStatus": "verified",
+                  "verificationStatusBreakdown": [
+                    {
+                      "provider": "hypernative",
+                      "result": "verified",
+                      "providerResult": "accept"
+                    }
+                  ]
+                },
+                "amount": "2500",
+                "amountUSD": "0.0025",
+                "percentage": "0.0025",
+                "included": true,
+                "feeSplit": {
+                  "lifiFee": "2500",
+                  "integratorFee": "0",
+                  "recipients": [
+                    {
+                      "name": "lifi",
+                      "type": "FIXED",
+                      "fee": "2500"
+                    }
+                  ]
+                }
+              }
+            ],
+            "gasCosts": [
+              {
+                "type": "SEND",
+                "price": "3229000000",
+                "estimate": "155944",
+                "limit": "498944",
+                "amount": "503543176000000",
+                "amountUSD": "0.0045",
+                "token": {
+                  "address": "0x0000000000000000000000000000000000000000",
+                  "chainId": 43114,
+                  "symbol": "AVAX",
+                  "decimals": 18,
+                  "name": "AVAX",
+                  "coinKey": "AVAX",
+                  "logoURI": "https://static.debank.com/image/avax_token/logo_url/avax/0b9c84359c84d6bdd5bfda9c2d4c4a82.png",
+                  "priceUSD": "8.96",
+                  "tags": [
+                    "major_asset"
+                  ],
+                  "verificationStatus": "verified",
+                  "verificationStatusBreakdown": [
+                    {
+                      "provider": "hypernative",
+                      "result": "verified",
+                      "providerResult": "accept"
+                    }
+                  ]
+                }
+              }
+            ],
+            "executionDuration": 0,
+            "fromAmountUSD": "1.0012",
+            "toAmountUSD": "0.9984",
+            "skipPermit": false
+          },
+          "includedSteps": [
+            {
+              "id": "ae368cf9-7ba4-4ecd-8ab7-0553c7690021",
+              "type": "protocol",
+              "action": {
+                "fromChainId": 43114,
+                "fromAmount": "1000000",
+                "fromToken": {
+                  "address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+                  "chainId": 43114,
+                  "symbol": "USDC",
+                  "decimals": 6,
+                  "name": "USD Coin",
+                  "coinKey": "USDC",
+                  "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                  "priceUSD": "1.0011686542",
+                  "tags": [
+                    "stablecoin"
+                  ],
+                  "verificationStatus": "verified",
+                  "verificationStatusBreakdown": [
+                    {
+                      "provider": "hypernative",
+                      "result": "verified",
+                      "providerResult": "accept"
+                    }
+                  ]
+                },
+                "toChainId": 43114,
+                "toToken": {
+                  "address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+                  "chainId": 43114,
+                  "symbol": "USDC",
+                  "decimals": 6,
+                  "name": "USD Coin",
+                  "coinKey": "USDC",
+                  "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                  "priceUSD": "1.0011686542",
+                  "tags": [
+                    "stablecoin"
+                  ],
+                  "verificationStatus": "verified",
+                  "verificationStatusBreakdown": [
+                    {
+                      "provider": "hypernative",
+                      "result": "verified",
+                      "providerResult": "accept"
+                    }
+                  ]
+                },
+                "slippage": 0.005,
+                "fromAddress": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE",
+                "toAddress": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE",
+                "integratorId": "bufi"
+              },
+              "estimate": {
+                "fromAmount": "1000000",
+                "toAmount": "997500",
+                "toAmountMin": "997500",
+                "tool": "feeCollection",
+                "approvalAddress": "0xCE40449B773a3E6E5e769ADb4e567179d4828cbd",
+                "gasCosts": [
+                  {
+                    "type": "SEND",
+                    "price": "3229000000",
+                    "estimate": "130000",
+                    "limit": "169000",
+                    "amount": "419770000000000",
+                    "amountUSD": "0.0038",
+                    "token": {
+                      "address": "0x0000000000000000000000000000000000000000",
+                      "chainId": 43114,
+                      "symbol": "AVAX",
+                      "decimals": 18,
+                      "name": "AVAX",
+                      "coinKey": "AVAX",
+                      "logoURI": "https://static.debank.com/image/avax_token/logo_url/avax/0b9c84359c84d6bdd5bfda9c2d4c4a82.png",
+                      "priceUSD": "8.96",
+                      "tags": [
+                        "major_asset"
+                      ],
+                      "verificationStatus": "verified",
+                      "verificationStatusBreakdown": [
+                        {
+                          "provider": "hypernative",
+                          "result": "verified",
+                          "providerResult": "accept"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "feeCosts": [
+                  {
+                    "name": "LIFI Fixed Fee",
+                    "description": "Fixed LIFI fee, independent of any other fee",
+                    "token": {
+                      "address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+                      "chainId": 43114,
+                      "symbol": "USDC",
+                      "decimals": 6,
+                      "name": "USD Coin",
+                      "coinKey": "USDC",
+                      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                      "priceUSD": "1.0011686542",
+                      "tags": [
+                        "stablecoin"
+                      ],
+                      "verificationStatus": "verified",
+                      "verificationStatusBreakdown": [
+                        {
+                          "provider": "hypernative",
+                          "result": "verified",
+                          "providerResult": "accept"
+                        }
+                      ]
+                    },
+                    "amount": "2500",
+                    "amountUSD": "0.0025",
+                    "percentage": "0.0025",
+                    "included": true,
+                    "feeSplit": {
+                      "lifiFee": "2500",
+                      "integratorFee": "0",
+                      "recipients": [
+                        {
+                          "name": "lifi",
+                          "type": "FIXED",
+                          "fee": "2500"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "executionDuration": 0
+              },
+              "tool": "feeCollection",
+              "toolDetails": {
+                "key": "feeCollection",
+                "name": "Integrator Fee",
+                "logoURI": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/protocols/feeCollection.svg"
+              }
+            },
+            {
+              "id": "f5084654-3bf3-4ca5-8b15-e2f5ca6357e9",
+              "type": "swap",
+              "action": {
+                "fromChainId": 43114,
+                "fromAmount": "997500",
+                "fromToken": {
+                  "address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+                  "chainId": 43114,
+                  "symbol": "USDC",
+                  "decimals": 6,
+                  "name": "USD Coin",
+                  "coinKey": "USDC",
+                  "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                  "priceUSD": "1.0011686542",
+                  "tags": [
+                    "stablecoin"
+                  ],
+                  "verificationStatus": "verified",
+                  "verificationStatusBreakdown": [
+                    {
+                      "provider": "hypernative",
+                      "result": "verified",
+                      "providerResult": "accept"
+                    }
+                  ]
+                },
+                "toChainId": 43114,
+                "toToken": {
+                  "address": "0xC891EB4cbdEFf6e073e859e987815Ed1505c2ACD",
+                  "chainId": 43114,
+                  "symbol": "EURC",
+                  "decimals": 6,
+                  "name": "Euro Coin",
+                  "coinKey": "EURC",
+                  "logoURI": "https://static.debank.com/image/avax_token/logo_url/0xc891eb4cbdeff6e073e859e987815ed1505c2acd/790d0c3a6da87111b66255c0d57108fa.png",
+                  "priceUSD": "1.1186687997",
+                  "tags": [
+                    "stablecoin"
+                  ],
+                  "verificationStatus": "verified",
+                  "verificationStatusBreakdown": [
+                    {
+                      "provider": "hypernative",
+                      "result": "verified",
+                      "providerResult": "accept"
+                    }
+                  ]
+                },
+                "slippage": 0.005,
+                "fromAddress": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE",
+                "toAddress": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE",
+                "integratorId": "bufi"
+              },
+              "estimate": {
+                "tool": "sushiswap",
+                "fromAmount": "997500",
+                "toAmount": "892468",
+                "toAmountMin": "888005",
+                "approvalAddress": "0xac4c6e212a361c968f1725b4d055b47e63f80b75",
+                "executionDuration": 0,
+                "feeCosts": [],
+                "gasCosts": [
+                  {
+                    "type": "SEND",
+                    "price": "3229000000",
+                    "estimate": "25944",
+                    "limit": "33727",
+                    "amount": "83773176000000",
+                    "amountUSD": "0.0008",
+                    "token": {
+                      "address": "0x0000000000000000000000000000000000000000",
+                      "chainId": 43114,
+                      "symbol": "AVAX",
+                      "decimals": 18,
+                      "name": "AVAX",
+                      "coinKey": "AVAX",
+                      "logoURI": "https://static.debank.com/image/avax_token/logo_url/avax/0b9c84359c84d6bdd5bfda9c2d4c4a82.png",
+                      "priceUSD": "8.96",
+                      "tags": [
+                        "major_asset"
+                      ],
+                      "verificationStatus": "verified",
+                      "verificationStatusBreakdown": [
+                        {
+                          "provider": "hypernative",
+                          "result": "verified",
+                          "providerResult": "accept"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "tool": "sushiswap",
+              "toolDetails": {
+                "key": "sushiswap",
+                "name": "SushiSwap Aggregator",
+                "logoURI": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/exchanges/sushi.svg"
+              }
+            }
+          ],
+          "integrator": "bufi",
+          "executionType": "transaction",
+          "recommendedSlippage": 0.005099
+        }
+      },
+      "routeSteps": 1,
+      "nativeValue": "0x0",
+      "expiresAt": 1793039306932,
+      "reason": "lifi:sushiswap"
+    },
+    "chainKind": "evm",
+    "executionRequirements": {
+      "input": {
+        "method": "erc20-allowance",
+        "token": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+        "amount": "1000000",
+        "spender": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE"
+      },
+      "settlement": "atomic",
+      "recipient": "0x0000000000000000000000000000000000000FEE",
+      "additionalSignatures": false
+    },
+    "approval": {
+      "to": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+      "data": "0x095ea7b30000000000000000000000001231deb6f5749ef6ce6943a275a1d3e7486f4eae00000000000000000000000000000000000000000000000000000000000f4240",
+      "value": "0",
+      "chainId": 43114
+    },
+    "tx": {
+      "kind": "evm",
+      "to": "0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE",
+      "data": "0x5fd9ae2ebe19a566693061f4e32bc959d3464924bb53a9d01d35e6174611743462698fe600000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000fee00000000000000000000000000000000000000000000000000000000000d8cc5000000000000000000000000000000000000000000000000000000000000016000000000000000000000000000000000000000000000000000000000000000046275666900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002a30783030303030303030303030303030303030303030303030303030303030303030303030303030303000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000200000000000000000000000000ce40449b773a3e6e5e769adb4e567179d4828cbd000000000000000000000000ce40449b773a3e6e5e769adb4e567179d4828cbd000000000000000000000000b97ef9ef8734c71904d8002f8b6bc66dd9c48a6e000000000000000000000000b97ef9ef8734c71904d8002f8b6bc66dd9c48a6e00000000000000000000000000000000000000000000000000000000000f424000000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000a4332d746b000000000000000000000000b97ef9ef8734c71904d8002f8b6bc66dd9c48a6e00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000001000000000000000000000000c06ebbefd94032b85424d51906e2a335efae264b00000000000000000000000000000000000000000000000000000000000009c400000000000000000000000000000000000000000000000000000000000000000000000000000000ac4c6e212a361c968f1725b4d055b47e63f80b75000000000000000000000000ac4c6e212a361c968f1725b4d055b47e63f80b75000000000000000000000000b97ef9ef8734c71904d8002f8b6bc66dd9c48a6e000000000000000000000000c891eb4cbdeff6e073e859e987815ed1505c2acd00000000000000000000000000000000000000000000000000000000000f387c00000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002e45f3bd1c8000000000000000000000000b97ef9ef8734c71904d8002f8b6bc66dd9c48a6e00000000000000000000000000000000000000000000000000000000000f387c0000000000000000000000001231deb6f5749ef6ce6943a275a1d3e7486f4eae000000000000000000000000c891eb4cbdeff6e073e859e987815ed1505c2acd00000000000000000000000000000000000000000000000000000000000d8cc5000000000000000000000000c10ee9031f2a0b84766a86b55a8d90f357910fb400000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000001c46be92b89000000000000000000000000b97ef9ef8734c71904d8002f8b6bc66dd9c48a6e00000000000000000000000000000000000000000000000000000000000f387c000000000000000000000000c891eb4cbdeff6e073e859e987815ed1505c2acd00000000000000000000000000000000000000000000000000000000000d9e340000000000000000000000001231deb6f5749ef6ce6943a275a1d3e7486f4eae000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000009e01a179779c4a000101b97ef9ef8734c71904d8002f8b6bc66dd9c48a6e01ffff0606380c0e0912312b5150364b9dc4542ba0dbbc85c891eb4cbdeff6e073e859e987815ed1505c2acd01000bb800003c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c10ee9031f2a0b84766a86b55a8d90f357910fb4f38804d9e30400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "value": "0x0",
+      "chainId": 43114,
+      "gasLimit": "0x6cf94"
+    },
+    "quoteId": "89db4a3a-44b7-4b4a-9fb3-e99406ab85aa",
+    "_raw": {
+      "lifiQuoteId": "19c4a88e-83e9-4346-94cd-7e1204fbe29b"
+    }
+  },
+  "liveTransaction": false
+}
