@@ -16,6 +16,7 @@ auto_detect_solc = false
 auto_detect_remappings = false
 fs_permissions = [
   { access = "read", path = "./test/fixtures" },
+  { access = "read", path = "./out-permit2-release" },
   { access = "read-write", path = "./deployments" },
   { access = "read", path = "./lib/buidl-wallet-contracts/script/bytecode-deploy/build-output" },
 ]

@@ -1,0 +1,839 @@
+{
+  "mode": "unsigned-local-fork-only",
+  "capturedAt": "2026-10-26T16:33:01.058Z",
+  "blockNumber": 27993844,
+  "blockHash": "0x272bffb1348caf7318311a2aa7290dc1ffcecd19114c9d1f7bb9321929816be3",
+  "timestamp": 1793032377,
+  "chainId": 5042,
+  "executor": "0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9",
+  "recipient": "0xC79b1685CD299cB08e7396730F047a2Aa05A27a6",
+  "routerRecipient": "0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9",
+  "amount": "100",
+  "addresses": {
+    "router": "0xA4072583658Fae592A3506A42431cb6316a8d40b",
+    "spender": "0xA4072583658Fae592A3506A42431cb6316a8d40b",
+    "tokenIn": "0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D",
+    "tokenOut": "0xD76f5Faf6888e24D9F04Bf92a0c8B921FE4390e0"
+  },
+  "codeHashes": {
+    "router": "0xca0fd158089c97d9e77828a4254bc7037be8ee6f784e45d80204df0e56013101",
+    "spender": "0xca0fd158089c97d9e77828a4254bc7037be8ee6f784e45d80204df0e56013101",
+    "tokenIn": "0xf8d9ff5ea93bc29b43da9f8727fdeb3c9adac7ec55da259371f7af7182faf6a2",
+    "tokenOut": "0xf8d9ff5ea93bc29b43da9f8727fdeb3c9adac7ec55da259371f7af7182faf6a2"
+  },
+  "request": {
+    "teamId": "local-fork-only",
+    "walletId": "local-fork-treasury",
+    "walletType": "msca",
+    "walletAddress": "0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9",
+    "recipientAddress": "0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9",
+    "chain": "Arc",
+    "tokenIn": "WARS",
+    "tokenOut": "WBRL",
+    "amountIn": "100",
+    "slippageBps": 50
+  },
+  "quote": {
+    "provider": "lifi",
+    "amountIn": "100",
+    "amountOut": "0.312342280968221548",
+    "amountOutMin": "0.31078056956338044",
+    "chain": "Arc",
+    "fees": {
+      "providerBps": 0,
+      "platformBps": 0,
+      "gasFeeUsd": "0.01",
+      "gasless": false
+    },
+    "routeId": "b0e195b8-78ab-491d-8f88-148303ae019d",
+    "_raw": {
+      "routeId": "b0e195b8-78ab-491d-8f88-148303ae019d",
+      "step": {
+        "type": "lifi",
+        "id": "b0e195b8-78ab-491d-8f88-148303ae019d:0",
+        "tool": "fly",
+        "toolDetails": {
+          "key": "fly",
+          "name": "Fly",
+          "logoURI": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/exchanges/fly.svg"
+        },
+        "action": {
+          "fromToken": {
+            "address": "0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D",
+            "chainId": 5042,
+            "symbol": "wARS",
+            "decimals": 18,
+            "name": "Peso Argentino",
+            "priceUSD": "0.0006156819213",
+            "tags": [
+              "stablecoin"
+            ],
+            "verificationStatus": "verified",
+            "verificationStatusBreakdown": [
+              {
+                "provider": "hypernative",
+                "result": "verified",
+                "providerResult": "accept"
+              }
+            ]
+          },
+          "fromAmount": "100000000000000000000",
+          "toToken": {
+            "address": "0xD76f5Faf6888e24D9F04Bf92a0c8B921FE4390e0",
+            "chainId": 5042,
+            "symbol": "wBRL",
+            "decimals": 18,
+            "name": "Real Brasileño",
+            "priceUSD": "0.1965738564",
+            "tags": [
+              "stablecoin"
+            ],
+            "verificationStatus": "unverified",
+            "verificationStatusBreakdown": []
+          },
+          "fromChainId": 5042,
+          "toChainId": 5042,
+          "slippage": 0.005,
+          "fromAddress": "0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9",
+          "toAddress": "0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9"
+        },
+        "estimate": {
+          "tool": "fly",
+          "approvalAddress": "0xA4072583658Fae592A3506A42431cb6316a8d40b",
+          "toAmountMin": "310780569563380440",
+          "toAmount": "312342280968221548",
+          "fromAmount": "100000000000000000000",
+          "feeCosts": [
+            {
+              "name": "LIFI Fixed Fee",
+              "description": "Fixed LIFI fee, independent of any other fee",
+              "token": {
+                "address": "0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D",
+                "chainId": 5042,
+                "symbol": "wARS",
+                "decimals": 18,
+                "name": "Peso Argentino",
+                "priceUSD": "0.0006156819213",
+                "tags": [
+                  "stablecoin"
+                ],
+                "verificationStatus": "verified",
+                "verificationStatusBreakdown": [
+                  {
+                    "provider": "hypernative",
+                    "result": "verified",
+                    "providerResult": "accept"
+                  }
+                ]
+              },
+              "amount": "250000000000000000",
+              "amountUSD": "0.0002",
+              "percentage": "0.0025",
+              "included": true,
+              "feeSplit": {
+                "lifiFee": "250000000000000000",
+                "integratorFee": "0",
+                "recipients": [
+                  {
+                    "name": "lifi",
+                    "type": "FIXED",
+                    "fee": "250000000000000000"
+                  }
+                ]
+              }
+            }
+          ],
+          "gasCosts": [
+            {
+              "type": "SEND",
+              "price": "25549815150",
+              "estimate": "426043",
+              "limit": "769043",
+              "amount": "10885319895951450",
+              "amountUSD": "0.0109",
+              "token": {
+                "address": "0x0000000000000000000000000000000000000000",
+                "chainId": 5042,
+                "symbol": "USDC",
+                "decimals": 18,
+                "name": "USDC",
+                "coinKey": "USDC",
+                "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                "priceUSD": "1.0013016921998599",
+                "tags": [
+                  "stablecoin"
+                ],
+                "verificationStatus": "verified",
+                "verificationStatusBreakdown": [
+                  {
+                    "provider": "hypernative",
+                    "result": "verified",
+                    "providerResult": "accept"
+                  }
+                ]
+              }
+            }
+          ],
+          "executionDuration": 0,
+          "fromAmountUSD": "0.0616",
+          "toAmountUSD": "0.0614",
+          "skipPermit": false
+        },
+        "includedSteps": [
+          {
+            "id": "7ffaaae4-7153-4f04-a051-600faebd1198",
+            "type": "protocol",
+            "action": {
+              "fromChainId": 5042,
+              "fromAmount": "100000000000000000000",
+              "fromToken": {
+                "address": "0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D",
+                "chainId": 5042,
+                "symbol": "wARS",
+                "decimals": 18,
+                "name": "Peso Argentino",
+                "priceUSD": "0.0006156819213",
+                "tags": [
+                  "stablecoin"
+                ],
+                "verificationStatus": "verified",
+                "verificationStatusBreakdown": [
+                  {
+                    "provider": "hypernative",
+                    "result": "verified",
+                    "providerResult": "accept"
+                  }
+                ]
+              },
+              "toChainId": 5042,
+              "toToken": {
+                "address": "0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D",
+                "chainId": 5042,
+                "symbol": "wARS",
+                "decimals": 18,
+                "name": "Peso Argentino",
+                "priceUSD": "0.0006156819213",
+                "tags": [
+                  "stablecoin"
+                ],
+                "verificationStatus": "verified",
+                "verificationStatusBreakdown": [
+                  {
+                    "provider": "hypernative",
+                    "result": "verified",
+                    "providerResult": "accept"
+                  }
+                ]
+              },
+              "slippage": 0.005,
+              "fromAddress": "0xA4072583658Fae592A3506A42431cb6316a8d40b",
+              "toAddress": "0xA4072583658Fae592A3506A42431cb6316a8d40b",
+              "integratorId": "bufi"
+            },
+            "estimate": {
+              "fromAmount": "100000000000000000000",
+              "toAmount": "99750000000000000000",
+              "toAmountMin": "99750000000000000000",
+              "tool": "feeCollection",
+              "approvalAddress": "0xEDff4051B8286d2333149429F019dC10E23570da",
+              "gasCosts": [
+                {
+                  "type": "SEND",
+                  "price": "25549815150",
+                  "estimate": "130000",
+                  "limit": "169000",
+                  "amount": "3321475969500000",
+                  "amountUSD": "0.0033",
+                  "token": {
+                    "address": "0x0000000000000000000000000000000000000000",
+                    "chainId": 5042,
+                    "symbol": "USDC",
+                    "decimals": 18,
+                    "name": "USDC",
+                    "coinKey": "USDC",
+                    "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                    "priceUSD": "1.0013016921998599",
+                    "tags": [
+                      "stablecoin"
+                    ],
+                    "verificationStatus": "verified",
+                    "verificationStatusBreakdown": [
+                      {
+                        "provider": "hypernative",
+                        "result": "verified",
+                        "providerResult": "accept"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "feeCosts": [
+                {
+                  "name": "LIFI Fixed Fee",
+                  "description": "Fixed LIFI fee, independent of any other fee",
+                  "token": {
+                    "address": "0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D",
+                    "chainId": 5042,
+                    "symbol": "wARS",
+                    "decimals": 18,
+                    "name": "Peso Argentino",
+                    "priceUSD": "0.0006156819213",
+                    "tags": [
+                      "stablecoin"
+                    ],
+                    "verificationStatus": "verified",
+                    "verificationStatusBreakdown": [
+                      {
+                        "provider": "hypernative",
+                        "result": "verified",
+                        "providerResult": "accept"
+                      }
+                    ]
+                  },
+                  "amount": "250000000000000000",
+                  "amountUSD": "0.0002",
+                  "percentage": "0.0025",
+                  "included": true,
+                  "feeSplit": {
+                    "lifiFee": "250000000000000000",
+                    "integratorFee": "0",
+                    "recipients": [
+                      {
+                        "name": "lifi",
+                        "type": "FIXED",
+                        "fee": "250000000000000000"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "executionDuration": 0
+            },
+            "tool": "feeCollection",
+            "toolDetails": {
+              "key": "feeCollection",
+              "name": "Integrator Fee",
+              "logoURI": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/protocols/feeCollection.svg"
+            }
+          },
+          {
+            "id": "d025bb9c-388b-48ec-9c14-e35b9e475a9a",
+            "type": "swap",
+            "action": {
+              "fromChainId": 5042,
+              "fromAmount": "99750000000000000000",
+              "fromToken": {
+                "address": "0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D",
+                "chainId": 5042,
+                "symbol": "wARS",
+                "decimals": 18,
+                "name": "Peso Argentino",
+                "priceUSD": "0.0006156819213",
+                "tags": [
+                  "stablecoin"
+                ],
+                "verificationStatus": "verified",
+                "verificationStatusBreakdown": [
+                  {
+                    "provider": "hypernative",
+                    "result": "verified",
+                    "providerResult": "accept"
+                  }
+                ]
+              },
+              "toChainId": 5042,
+              "toToken": {
+                "address": "0xD76f5Faf6888e24D9F04Bf92a0c8B921FE4390e0",
+                "chainId": 5042,
+                "symbol": "wBRL",
+                "decimals": 18,
+                "name": "Real Brasileño",
+                "priceUSD": "0.1965738564",
+                "tags": [
+                  "stablecoin"
+                ],
+                "verificationStatus": "unverified",
+                "verificationStatusBreakdown": []
+              },
+              "slippage": 0.005,
+              "fromAddress": "0xA4072583658Fae592A3506A42431cb6316a8d40b",
+              "toAddress": "0xA4072583658Fae592A3506A42431cb6316a8d40b",
+              "integratorId": "bufi"
+            },
+            "estimate": {
+              "tool": "fly",
+              "fromAmount": "99750000000000000000",
+              "toAmount": "312342280968221548",
+              "toAmountMin": "310780569563380440",
+              "approvalAddress": "0x20f6ee51340adeed01a59b0e65cb3703f3dc860c",
+              "executionDuration": 0,
+              "feeCosts": [],
+              "gasCosts": [
+                {
+                  "type": "SEND",
+                  "price": "25549815150",
+                  "estimate": "296043",
+                  "limit": "384856",
+                  "amount": "7563843926451450",
+                  "amountUSD": "0.0076",
+                  "token": {
+                    "address": "0x0000000000000000000000000000000000000000",
+                    "chainId": 5042,
+                    "symbol": "USDC",
+                    "decimals": 18,
+                    "name": "USDC",
+                    "coinKey": "USDC",
+                    "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                    "priceUSD": "1.0013016921998599",
+                    "tags": [
+                      "stablecoin"
+                    ],
+                    "verificationStatus": "verified",
+                    "verificationStatusBreakdown": [
+                      {
+                        "provider": "hypernative",
+                        "result": "verified",
+                        "providerResult": "accept"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "tool": "fly",
+            "toolDetails": {
+              "key": "fly",
+              "name": "Fly",
+              "logoURI": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/exchanges/fly.svg"
+            }
+          }
+        ],
+        "integrator": "bufi",
+        "executionType": "transaction",
+        "recommendedSlippage": 0.005001
+      }
+    },
+    "routeSteps": 1,
+    "nativeValue": "0",
+    "expiresAt": 1793032439718,
+    "reason": "lifi:fly"
+  },
+  "prepared": {
+    "mode": "unsigned-tx",
+    "quote": {
+      "provider": "lifi",
+      "amountIn": "100",
+      "amountOut": "0.312342280968221548",
+      "amountOutMin": "0.31078056956338044",
+      "chain": "Arc",
+      "fees": {
+        "providerBps": 0,
+        "platformBps": 0,
+        "gasFeeUsd": "0.01",
+        "gasless": false
+      },
+      "routeId": "b0e195b8-78ab-491d-8f88-148303ae019d",
+      "_raw": {
+        "routeId": "b0e195b8-78ab-491d-8f88-148303ae019d",
+        "step": {
+          "type": "lifi",
+          "id": "b0e195b8-78ab-491d-8f88-148303ae019d:0",
+          "tool": "fly",
+          "toolDetails": {
+            "key": "fly",
+            "name": "Fly",
+            "logoURI": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/exchanges/fly.svg"
+          },
+          "action": {
+            "fromToken": {
+              "address": "0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D",
+              "chainId": 5042,
+              "symbol": "wARS",
+              "decimals": 18,
+              "name": "Peso Argentino",
+              "priceUSD": "0.0006156819213",
+              "tags": [
+                "stablecoin"
+              ],
+              "verificationStatus": "verified",
+              "verificationStatusBreakdown": [
+                {
+                  "provider": "hypernative",
+                  "result": "verified",
+                  "providerResult": "accept"
+                }
+              ]
+            },
+            "fromAmount": "100000000000000000000",
+            "toToken": {
+              "address": "0xD76f5Faf6888e24D9F04Bf92a0c8B921FE4390e0",
+              "chainId": 5042,
+              "symbol": "wBRL",
+              "decimals": 18,
+              "name": "Real Brasileño",
+              "priceUSD": "0.1965738564",
+              "tags": [
+                "stablecoin"
+              ],
+              "verificationStatus": "unverified",
+              "verificationStatusBreakdown": []
+            },
+            "fromChainId": 5042,
+            "toChainId": 5042,
+            "slippage": 0.005,
+            "fromAddress": "0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9",
+            "toAddress": "0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9"
+          },
+          "estimate": {
+            "tool": "fly",
+            "approvalAddress": "0xA4072583658Fae592A3506A42431cb6316a8d40b",
+            "toAmountMin": "310780569563380440",
+            "toAmount": "312342280968221548",
+            "fromAmount": "100000000000000000000",
+            "feeCosts": [
+              {
+                "name": "LIFI Fixed Fee",
+                "description": "Fixed LIFI fee, independent of any other fee",
+                "token": {
+                  "address": "0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D",
+                  "chainId": 5042,
+                  "symbol": "wARS",
+                  "decimals": 18,
+                  "name": "Peso Argentino",
+                  "priceUSD": "0.0006156819213",
+                  "tags": [
+                    "stablecoin"
+                  ],
+                  "verificationStatus": "verified",
+                  "verificationStatusBreakdown": [
+                    {
+                      "provider": "hypernative",
+                      "result": "verified",
+                      "providerResult": "accept"
+                    }
+                  ]
+                },
+                "amount": "250000000000000000",
+                "amountUSD": "0.0002",
+                "percentage": "0.0025",
+                "included": true,
+                "feeSplit": {
+                  "lifiFee": "250000000000000000",
+                  "integratorFee": "0",
+                  "recipients": [
+                    {
+                      "name": "lifi",
+                      "type": "FIXED",
+                      "fee": "250000000000000000"
+                    }
+                  ]
+                }
+              }
+            ],
+            "gasCosts": [
+              {
+                "type": "SEND",
+                "price": "25549815150",
+                "estimate": "426043",
+                "limit": "769043",
+                "amount": "10885319895951450",
+                "amountUSD": "0.0109",
+                "token": {
+                  "address": "0x0000000000000000000000000000000000000000",
+                  "chainId": 5042,
+                  "symbol": "USDC",
+                  "decimals": 18,
+                  "name": "USDC",
+                  "coinKey": "USDC",
+                  "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                  "priceUSD": "1.0013016921998599",
+                  "tags": [
+                    "stablecoin"
+                  ],
+                  "verificationStatus": "verified",
+                  "verificationStatusBreakdown": [
+                    {
+                      "provider": "hypernative",
+                      "result": "verified",
+                      "providerResult": "accept"
+                    }
+                  ]
+                }
+              }
+            ],
+            "executionDuration": 0,
+            "fromAmountUSD": "0.0616",
+            "toAmountUSD": "0.0614",
+            "skipPermit": false
+          },
+          "includedSteps": [
+            {
+              "id": "7ffaaae4-7153-4f04-a051-600faebd1198",
+              "type": "protocol",
+              "action": {
+                "fromChainId": 5042,
+                "fromAmount": "100000000000000000000",
+                "fromToken": {
+                  "address": "0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D",
+                  "chainId": 5042,
+                  "symbol": "wARS",
+                  "decimals": 18,
+                  "name": "Peso Argentino",
+                  "priceUSD": "0.0006156819213",
+                  "tags": [
+                    "stablecoin"
+                  ],
+                  "verificationStatus": "verified",
+                  "verificationStatusBreakdown": [
+                    {
+                      "provider": "hypernative",
+                      "result": "verified",
+                      "providerResult": "accept"
+                    }
+                  ]
+                },
+                "toChainId": 5042,
+                "toToken": {
+                  "address": "0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D",
+                  "chainId": 5042,
+                  "symbol": "wARS",
+                  "decimals": 18,
+                  "name": "Peso Argentino",
+                  "priceUSD": "0.0006156819213",
+                  "tags": [
+                    "stablecoin"
+                  ],
+                  "verificationStatus": "verified",
+                  "verificationStatusBreakdown": [
+                    {
+                      "provider": "hypernative",
+                      "result": "verified",
+                      "providerResult": "accept"
+                    }
+                  ]
+                },
+                "slippage": 0.005,
+                "fromAddress": "0xA4072583658Fae592A3506A42431cb6316a8d40b",
+                "toAddress": "0xA4072583658Fae592A3506A42431cb6316a8d40b",
+                "integratorId": "bufi"
+              },
+              "estimate": {
+                "fromAmount": "100000000000000000000",
+                "toAmount": "99750000000000000000",
+                "toAmountMin": "99750000000000000000",
+                "tool": "feeCollection",
+                "approvalAddress": "0xEDff4051B8286d2333149429F019dC10E23570da",
+                "gasCosts": [
+                  {
+                    "type": "SEND",
+                    "price": "25549815150",
+                    "estimate": "130000",
+                    "limit": "169000",
+                    "amount": "3321475969500000",
+                    "amountUSD": "0.0033",
+                    "token": {
+                      "address": "0x0000000000000000000000000000000000000000",
+                      "chainId": 5042,
+                      "symbol": "USDC",
+                      "decimals": 18,
+                      "name": "USDC",
+                      "coinKey": "USDC",
+                      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                      "priceUSD": "1.0013016921998599",
+                      "tags": [
+                        "stablecoin"
+                      ],
+                      "verificationStatus": "verified",
+                      "verificationStatusBreakdown": [
+                        {
+                          "provider": "hypernative",
+                          "result": "verified",
+                          "providerResult": "accept"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "feeCosts": [
+                  {
+                    "name": "LIFI Fixed Fee",
+                    "description": "Fixed LIFI fee, independent of any other fee",
+                    "token": {
+                      "address": "0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D",
+                      "chainId": 5042,
+                      "symbol": "wARS",
+                      "decimals": 18,
+                      "name": "Peso Argentino",
+                      "priceUSD": "0.0006156819213",
+                      "tags": [
+                        "stablecoin"
+                      ],
+                      "verificationStatus": "verified",
+                      "verificationStatusBreakdown": [
+                        {
+                          "provider": "hypernative",
+                          "result": "verified",
+                          "providerResult": "accept"
+                        }
+                      ]
+                    },
+                    "amount": "250000000000000000",
+                    "amountUSD": "0.0002",
+                    "percentage": "0.0025",
+                    "included": true,
+                    "feeSplit": {
+                      "lifiFee": "250000000000000000",
+                      "integratorFee": "0",
+                      "recipients": [
+                        {
+                          "name": "lifi",
+                          "type": "FIXED",
+                          "fee": "250000000000000000"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "executionDuration": 0
+              },
+              "tool": "feeCollection",
+              "toolDetails": {
+                "key": "feeCollection",
+                "name": "Integrator Fee",
+                "logoURI": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/protocols/feeCollection.svg"
+              }
+            },
+            {
+              "id": "d025bb9c-388b-48ec-9c14-e35b9e475a9a",
+              "type": "swap",
+              "action": {
+                "fromChainId": 5042,
+                "fromAmount": "99750000000000000000",
+                "fromToken": {
+                  "address": "0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D",
+                  "chainId": 5042,
+                  "symbol": "wARS",
+                  "decimals": 18,
+                  "name": "Peso Argentino",
+                  "priceUSD": "0.0006156819213",
+                  "tags": [
+                    "stablecoin"
+                  ],
+                  "verificationStatus": "verified",
+                  "verificationStatusBreakdown": [
+                    {
+                      "provider": "hypernative",
+                      "result": "verified",
+                      "providerResult": "accept"
+                    }
+                  ]
+                },
+                "toChainId": 5042,
+                "toToken": {
+                  "address": "0xD76f5Faf6888e24D9F04Bf92a0c8B921FE4390e0",
+                  "chainId": 5042,
+                  "symbol": "wBRL",
+                  "decimals": 18,
+                  "name": "Real Brasileño",
+                  "priceUSD": "0.1965738564",
+                  "tags": [
+                    "stablecoin"
+                  ],
+                  "verificationStatus": "unverified",
+                  "verificationStatusBreakdown": []
+                },
+                "slippage": 0.005,
+                "fromAddress": "0xA4072583658Fae592A3506A42431cb6316a8d40b",
+                "toAddress": "0xA4072583658Fae592A3506A42431cb6316a8d40b",
+                "integratorId": "bufi"
+              },
+              "estimate": {
+                "tool": "fly",
+                "fromAmount": "99750000000000000000",
+                "toAmount": "312342280968221548",
+                "toAmountMin": "310780569563380440",
+                "approvalAddress": "0x20f6ee51340adeed01a59b0e65cb3703f3dc860c",
+                "executionDuration": 0,
+                "feeCosts": [],
+                "gasCosts": [
+                  {
+                    "type": "SEND",
+                    "price": "25549815150",
+                    "estimate": "296043",
+                    "limit": "384856",
+                    "amount": "7563843926451450",
+                    "amountUSD": "0.0076",
+                    "token": {
+                      "address": "0x0000000000000000000000000000000000000000",
+                      "chainId": 5042,
+                      "symbol": "USDC",
+                      "decimals": 18,
+                      "name": "USDC",
+                      "coinKey": "USDC",
+                      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png",
+                      "priceUSD": "1.0013016921998599",
+                      "tags": [
+                        "stablecoin"
+                      ],
+                      "verificationStatus": "verified",
+                      "verificationStatusBreakdown": [
+                        {
+                          "provider": "hypernative",
+                          "result": "verified",
+                          "providerResult": "accept"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "tool": "fly",
+              "toolDetails": {
+                "key": "fly",
+                "name": "Fly",
+                "logoURI": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/exchanges/fly.svg"
+              }
+            }
+          ],
+          "integrator": "bufi",
+          "executionType": "transaction",
+          "recommendedSlippage": 0.005001
+        }
+      },
+      "routeSteps": 1,
+      "nativeValue": "0x0",
+      "expiresAt": 1793032439718,
+      "reason": "lifi:fly"
+    },
+    "chainKind": "evm",
+    "executionRequirements": {
+      "input": {
+        "method": "erc20-allowance",
+        "token": "0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D",
+        "amount": "100000000000000000000",
+        "spender": "0xA4072583658Fae592A3506A42431cb6316a8d40b"
+      },
+      "settlement": "atomic",
+      "recipient": "0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9",
+      "additionalSignatures": false
+    },
+    "approval": {
+      "to": "0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D",
+      "data": "0x095ea7b3000000000000000000000000a4072583658fae592a3506a42431cb6316a8d40b0000000000000000000000000000000000000000000000056bc75e2d63100000",
+      "value": "0",
+      "chainId": 5042
+    },
+    "tx": {
+      "kind": "evm",
+      "to": "0xA4072583658Fae592A3506A42431cb6316a8d40b",
+      "data": "0x5fd9ae2e9259dfcee3933c4f2d97a721d5219420d0a231ddf2c8fe3210aa9c9fecad175a00000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000001000000000000000000000000005991a2df15a8f6a256d3ec51e99254cd3fb576a900000000000000000000000000000000000000000000000004501d480beb3ad8000000000000000000000000000000000000000000000000000000000000016000000000000000000000000000000000000000000000000000000000000000046275666900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002a30783030303030303030303030303030303030303030303030303030303030303030303030303030303000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000200000000000000000000000000edff4051b8286d2333149429f019dc10e23570da000000000000000000000000edff4051b8286d2333149429f019dc10e23570da0000000000000000000000000dc4f92879b7670e5f4e4e6e3c801d229129d90d0000000000000000000000000dc4f92879b7670e5f4e4e6e3c801d229129d90d0000000000000000000000000000000000000000000000056bc75e2d6310000000000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000a4332d746b0000000000000000000000000dc4f92879b7670e5f4e4e6e3c801d229129d90d00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000001000000000000000000000000c06ebbefd94032b85424d51906e2a335efae264b00000000000000000000000000000000000000000000000003782dace9d900000000000000000000000000000000000000000000000000000000000000000000000000000000000020f6ee51340adeed01a59b0e65cb3703f3dc860c00000000000000000000000020f6ee51340adeed01a59b0e65cb3703f3dc860c0000000000000000000000000dc4f92879b7670e5f4e4e6e3c801d229129d90d000000000000000000000000d76f5faf6888e24d9f04bf92a0c8b921fe4390e0000000000000000000000000000000000000000000000005684f30807937000000000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000038446ec278a0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000033002dd0040a4072583658fae592a3506a42431cb6316a8d40b0dc4f92879b7670e5f4e4e6e3c801d229129d90dd76f5faf6888e24d9f04bf92a0c8b921fe4390e0000000000000000000000000000000000000000000000005684f308079370000e00114c00119c00122cbb971801f592a557aab426787c9b7d88080d35fd08d944dc3ca50dba5c17481f0012b005538d64127200b7d15c0629a2e8ba8eba4eff3f1a45bdf6b8cb965e8d71e50c373fa2be930c32858928c24e48ffee172b5c519d26facbea61188608bf83f429c1c00e06adf81e8c004501d480beb3ad8c00455a9a65172336cf027100dc4f92879b7670e5f4e4e6e3c801d229129d90d000000000022d473030f116ddee9f6b43ac78ba300ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff02012d02014103015587517c454fca4a51ab4f23a7447b3284fbd7d73289a89fb1b805684f30807937000001017f02012d0201830e0197019703011324856bc3f840f880f801001000000000000000000000000000000000000000000000000000000000000000f820f00380f803000b060f0000000000000000000000000000000000000000000000000000000000f860f8e0f00280f001803600000000000000000000000000000000000000f864f800f001400101b20301b60301b80301ba0301bc0301ba0301dd0301df0301b60301b80301e20301e40301e203020503020703020903020502012d0e019701970301ba03020c0301dd02012d02020f0302230301ba0302250301ba0302250302250302250302270302250301b602020f03022502020f02014103015501017f02020f0201830500000301130101b20301b60301b80301ba0301bc0301ba0301dd0301df0301b60301b80301e20301e40301e203020503020703020903020502020f0500000301ba03020c0301dd02020f0200700302230301ba0302250301ba0302250302250302250302270302250301b6020070030225020070070500200100000176017f000000000001a101b20141000000022a02980183060020027102740000010000029802a1000000000002a102b0014100000002b0031c018306002002f502f80000030000031c032300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "value": "0x0",
+      "chainId": 5042,
+      "gasLimit": "0xb3fd7"
+    },
+    "quoteId": "11f11cee-c2c6-40ed-a644-5a986ac11ac0",
+    "_raw": {
+      "lifiQuoteId": "b0e195b8-78ab-491d-8f88-148303ae019d"
+    }
+  }
+}
